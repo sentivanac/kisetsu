@@ -18,6 +18,8 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
+	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
@@ -93,17 +95,35 @@ func run() error {
 		return err
 	}
 
+	// The manager reports progress through app, which is created below;
+	// no download can start before the app exists.
+	var app *App
+	downloader, err := downloads.New(downloads.Config{
+		Client:    httpClient,
+		UserAgent: appinfo.UserAgent(),
+		Root:      paths.Data,
+		Store:     library.NewStore(db),
+		Log:       log,
+		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
+	})
+	if err != nil {
+		return err
+	}
+	// Runs before the database is closed: deferred calls run in reverse.
+	defer downloader.Close()
+
 	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
 	if gpuErr != nil {
 		log.Warn("using default WebView GPU policy", "err", gpuErr)
 	}
 
-	app := NewApp(Deps{
-		Log:      log,
-		DB:       db,
-		DBPath:   dbPath,
-		Search:   searcher,
-		Settings: settings.NewStore(db),
+	app = NewApp(Deps{
+		Log:       log,
+		DB:        db,
+		DBPath:    dbPath,
+		Search:    searcher,
+		Settings:  settings.NewStore(db),
+		Downloads: downloader,
 	})
 
 	err = wails.Run(&options.App{

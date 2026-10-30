@@ -8,9 +8,12 @@ import (
 	"runtime/debug"
 	"sync"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
+	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
@@ -27,12 +30,17 @@ import (
 // Wails recovers panics but never answers the frontend call, which
 // would leave the JavaScript promise pending forever.
 type App struct {
-	ctx      context.Context
-	log      *slog.Logger
-	db       *sql.DB
-	dbPath   string
-	search   *search.Service
-	settings *settings.Store
+	ctx       context.Context
+	log       *slog.Logger
+	db        *sql.DB
+	dbPath    string
+	search    *search.Service
+	settings  *settings.Store
+	downloads *downloads.Manager
+
+	// emit sends a Wails event. It is a no-op until startup, because the
+	// Wails runtime exits the process when called without its context.
+	emit func(name string, data any)
 
 	// The running multi-source search, so a new search or CancelSearch
 	// can stop it. Wails runs every frontend call in its own goroutine.
@@ -43,22 +51,25 @@ type App struct {
 
 // Deps are the dependencies of App, created in main.go.
 type Deps struct {
-	Log      *slog.Logger
-	DB       *sql.DB
-	DBPath   string
-	Search   *search.Service
-	Settings *settings.Store
+	Log       *slog.Logger
+	DB        *sql.DB
+	DBPath    string
+	Search    *search.Service
+	Settings  *settings.Store
+	Downloads *downloads.Manager
 }
 
 // NewApp creates a new App.
 func NewApp(d Deps) *App {
 	return &App{
-		ctx:      context.Background(),
-		log:      d.Log,
-		db:       d.DB,
-		dbPath:   d.DBPath,
-		search:   d.Search,
-		settings: d.Settings,
+		ctx:       context.Background(),
+		log:       d.Log,
+		db:        d.DB,
+		dbPath:    d.DBPath,
+		search:    d.Search,
+		settings:  d.Settings,
+		downloads: d.Downloads,
+		emit:      func(string, any) {},
 	}
 }
 
@@ -66,6 +77,7 @@ func NewApp(d Deps) *App {
 // Wails runtime calls.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.emit = func(name string, data any) { runtime.EventsEmit(ctx, name, data) }
 }
 
 // recoverPanic turns a panic in a bound method into an internal error.

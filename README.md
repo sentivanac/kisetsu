@@ -49,7 +49,7 @@ created on first start with private permissions (`0700`):
 | Purpose | Default location |
 |---|---|
 | Settings | `~/.config/kisetsu` |
-| Data (database `kisetsu.db`, downloaded images) | `~/.local/share/kisetsu` |
+| Data (database `kisetsu.db`, `images/`, `thumbs/`) | `~/.local/share/kisetsu` |
 | Cache (re-creatable, e.g. thumbnails) | `~/.cache/kisetsu` |
 | State (logs) | `~/.local/state/kisetsu` |
 
@@ -87,6 +87,7 @@ internal/          business logic, independent of the UI
   logging/         slog logger setup
   database/        SQLite connection and schema migrations
     migrations/    numbered SQL migration files (embedded)
+  downloads/       download queue into the local library
   images/          provider-independent image model
   imaging/         image validation, thumbnails, SHA-256 and dHash
   providers/       Provider interface, query, errors
@@ -97,6 +98,7 @@ internal/          business logic, independent of the UI
   settings/        user preferences stored in the database
 app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
+app_downloads.go   downloads and their progress events
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

@@ -5,16 +5,20 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
+	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/images"
+	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
@@ -75,7 +79,58 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewApp(Deps{Log: log, DB: db, DBPath: path, Search: svc, Settings: settings.NewStore(db)})
+
+	var app *App
+	mgr, err := downloads.New(downloads.Config{
+		Client:    http.DefaultClient,
+		UserAgent: "Kisetsu/test",
+		Root:      filepath.Dir(path),
+		Store:     library.NewStore(db),
+		Log:       log,
+		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(mgr.Close)
+
+	app = NewApp(Deps{Log: log, DB: db, DBPath: path, Search: svc, Settings: settings.NewStore(db), Downloads: mgr})
+	return app
+}
+
+// events captures what the app emits to the frontend.
+type events struct {
+	mu   sync.Mutex
+	list []DownloadProgress
+	done chan DownloadProgress
+}
+
+func captureEvents(app *App) *events {
+	ev := &events{done: make(chan DownloadProgress, 8)}
+	app.emit = func(name string, data any) {
+		p, ok := data.(DownloadProgress)
+		if name != DownloadProgressEvent || !ok {
+			return
+		}
+		ev.mu.Lock()
+		ev.list = append(ev.list, p)
+		ev.mu.Unlock()
+		if downloads.State(p.State).Finished() {
+			ev.done <- p
+		}
+	}
+	return ev
+}
+
+func (ev *events) wait(t *testing.T) DownloadProgress {
+	t.Helper()
+	select {
+	case p := <-ev.done:
+		return p
+	case <-time.After(10 * time.Second):
+		t.Fatal("download did not finish")
+		return DownloadProgress{}
+	}
 }
 
 func TestGetStatus(t *testing.T) {
