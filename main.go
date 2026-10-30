@@ -19,6 +19,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
@@ -98,11 +99,12 @@ func run() error {
 	// The manager reports progress through app, which is created below;
 	// no download can start before the app exists.
 	var app *App
+	lib := library.NewStore(db)
 	downloader, err := downloads.New(downloads.Config{
 		Client:    httpClient,
 		UserAgent: appinfo.UserAgent(),
 		Root:      paths.Data,
-		Store:     library.NewStore(db),
+		Store:     lib,
 		Log:       log,
 		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
 	})
@@ -111,6 +113,13 @@ func run() error {
 	}
 	// Runs before the database is closed: deferred calls run in reverse.
 	defer downloader.Close()
+
+	// downloads.New created images/ and thumbs/, which are served here.
+	files, err := libfiles.New(paths.Data)
+	if err != nil {
+		return err
+	}
+	defer files.Close()
 
 	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
 	if gpuErr != nil {
@@ -124,6 +133,7 @@ func run() error {
 		Search:    searcher,
 		Settings:  settings.NewStore(db),
 		Downloads: downloader,
+		Library:   lib,
 	})
 
 	err = wails.Run(&options.App{
@@ -133,7 +143,8 @@ func run() error {
 		MinWidth:  640,
 		MinHeight: 480,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Assets:     assets,
+			Middleware: files.Middleware,
 		},
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
 		Linux: &linux.Options{

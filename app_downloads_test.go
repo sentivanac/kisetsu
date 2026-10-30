@@ -77,6 +77,14 @@ func TestDownloadEmitsProgressUntilDone(t *testing.T) {
 	if got := apperr.ToPublic(err).Code; got != AlreadyInLibrary {
 		t.Errorf("second download: code = %q, want %q", got, AlreadyInLibrary)
 	}
+
+	status, err := app.LibraryStatus([]string{"stub/abc", "stub/other", "malformed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(status) != 1 || status["stub/abc"] != done.EntryID {
+		t.Errorf("LibraryStatus = %v, want stub/abc -> %d", status, done.EntryID)
+	}
 }
 
 func TestDownloadRejectsInvalidImage(t *testing.T) {

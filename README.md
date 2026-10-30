@@ -94,6 +94,7 @@ internal/          business logic, independent of the UI
     wallhaven/     Wallhaven API (SFW only)
     commons/       Wikimedia Commons API (curated collections, best-effort SFW)
   library/         downloaded images and collections (database records)
+  libfiles/        serves library files to the WebView under /library/
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
 app_search.go      multi-source search, cancellation, error messages

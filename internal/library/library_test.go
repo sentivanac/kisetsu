@@ -223,3 +223,38 @@ func TestDelete(t *testing.T) {
 		t.Errorf("second Delete err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestIDsBySource(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	id1, id2 := mustAdd(t, s, entry(1)), mustAdd(t, s, entry(2))
+
+	refs := []SourceRef{
+		{Provider: "wikimedia-commons", ProviderID: "1001"},
+		{Provider: "wikimedia-commons", ProviderID: "1002"},
+		{Provider: "wikimedia-commons", ProviderID: "9999"}, // not downloaded
+		{Provider: "wallhaven", ProviderID: "1001"},         // same ID, other provider
+	}
+	got, err := s.IDsBySource(ctx, refs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[SourceRef]int64{refs[0]: id1, refs[1]: id2}
+	if len(got) != len(want) || got[refs[0]] != id1 || got[refs[1]] != id2 {
+		t.Errorf("IDsBySource = %v, want %v", got, want)
+	}
+
+	if got, err := s.IDsBySource(ctx, nil); err != nil || len(got) != 0 {
+		t.Errorf("no refs: %v, %v", got, err)
+	}
+
+	// More references than fit in one query.
+	many := make([]SourceRef, 2*maxRefsPerQuery+5)
+	for i := range many {
+		many[i] = SourceRef{Provider: "wikimedia-commons", ProviderID: fmt.Sprint(5000 + i)}
+	}
+	many[len(many)-1] = refs[0]
+	if got, err := s.IDsBySource(ctx, many); err != nil || got[refs[0]] != id1 || len(got) != 1 {
+		t.Errorf("chunked lookup = %v, %v", got, err)
+	}
+}

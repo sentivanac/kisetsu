@@ -1,4 +1,4 @@
-import {KeyboardEvent, useEffect, useRef, useState} from 'react';
+import {KeyboardEvent, ReactNode, useEffect, useRef, useState} from 'react';
 import {BrowserOpenURL} from '../../wailsjs/runtime/runtime';
 import {images} from '../../wailsjs/go/models';
 import {formatFileSize, formatType, licenseLabel} from '../lib/images';
@@ -6,6 +6,8 @@ import {formatFileSize, formatType, licenseLabel} from '../lib/images';
 interface Props {
     image: images.Image;
     providerName: string;
+    // Rendered under the details, e.g. a download button.
+    actions?: ReactNode;
     onClose: () => void;
     onPrevious?: () => void;
     onNext?: () => void;
@@ -14,7 +16,7 @@ interface Props {
 // PreviewDialog shows one image large, with its details and attribution.
 // The uncropped thumbnail appears immediately; the full image replaces it
 // once downloaded. The full file is only fetched when a preview is opened.
-export function PreviewDialog({image, providerName, onClose, onPrevious, onNext}: Props) {
+export function PreviewDialog({image, providerName, actions, onClose, onPrevious, onNext}: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     // Status is derived from which URL finished loading, so switching images
     // cannot leave a stale "loaded" or "loading" state behind.
@@ -116,8 +118,10 @@ export function PreviewDialog({image, providerName, onClose, onPrevious, onNext}
                 </dl>
                 {image.license.notice && <p className="notice">{image.license.notice}</p>}
 
+                {actions}
+
                 <div className="preview-actions">
-                    <button type="button" className="btn" onClick={() => BrowserOpenURL(image.pageUrl)}>
+                    <button type="button" className="btn secondary" onClick={() => BrowserOpenURL(image.pageUrl)}>
                         Open on {providerName}
                     </button>
                     {image.sourceUrl && (

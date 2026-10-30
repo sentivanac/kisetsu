@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"strings"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/downloads"
@@ -44,6 +45,30 @@ func (a *App) Download(img images.Image) (key string, err error) {
 		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
 	}
 	return key, nil
+}
+
+// LibraryStatus returns, for each key ("provider/providerId") of an image
+// that is already in the library, its library entry ID.
+func (a *App) LibraryStatus(keys []string) (ids map[string]int64, err error) {
+	defer a.recoverPanic("LibraryStatus", &err)
+
+	refs := make([]library.SourceRef, 0, len(keys))
+	for _, key := range keys {
+		// Provider IDs never contain "/", but image IDs might.
+		provider, id, ok := strings.Cut(key, "/")
+		if ok {
+			refs = append(refs, library.SourceRef{Provider: provider, ProviderID: id})
+		}
+	}
+	found, err := a.library.IDsBySource(a.ctx, refs)
+	if err != nil {
+		return nil, apperr.New(apperr.Unavailable, "The library could not be checked.", err)
+	}
+	ids = make(map[string]int64, len(found))
+	for ref, id := range found {
+		ids[ref.Provider+"/"+ref.ProviderID] = id
+	}
+	return ids, nil
 }
 
 // CancelDownload stops a running download.

@@ -1,7 +1,10 @@
 import {FormEvent, useEffect, useRef, useState} from 'react';
 import {
+    CancelDownload,
     CancelSearch,
+    Download,
     GetSearchFilters,
+    LibraryStatus,
     ListProviders,
     SaveSearchFilters,
     SearchSources,
@@ -17,8 +20,10 @@ import {
     resolutionLabel,
     resolutionOptions,
 } from '../lib/filters';
-import {appendUnique} from '../lib/images';
+import {isActive, percent} from '../lib/downloads';
+import {appendUnique, imageKey} from '../lib/images';
 import {screenPixels, WailsScreen} from '../lib/screen';
+import {useDownloads} from '../lib/useDownloads';
 import {
     initialSources,
     mergeStatuses,
@@ -29,6 +34,7 @@ import {
     statusLabel,
     toggleSource,
 } from '../lib/sources';
+import {DownloadButton} from './DownloadButton';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
 
@@ -51,6 +57,12 @@ export function SearchPanel() {
     const [loading, setLoading] = useState<'search' | 'more' | null>(null);
     // Only the latest request may update the UI.
     const latestRequest = useRef(0);
+
+    const downloads = useDownloads();
+    // Library entry IDs of shown images that are already downloaded.
+    const [inLibrary, setInLibrary] = useState<Record<string, number>>({});
+    // Errors from starting a download, by image key.
+    const [startErrors, setStartErrors] = useState<Record<string, BackendError>>({});
 
     useEffect(() => {
         ListProviders()
@@ -98,6 +110,7 @@ export function SearchPanel() {
                 if (request !== latestRequest.current) return;
                 setResults((current) => (append ? appendUnique(current, result.images) : result.images));
                 setStatuses((current) => (append ? mergeStatuses(current, result.sources) : result.sources));
+                checkLibrary(result.images.map(imageKey));
             })
             .catch((err: unknown) => {
                 if (request !== latestRequest.current) return;
@@ -129,6 +142,35 @@ export function SearchPanel() {
         const pages = nextPages(statuses);
         if (activeQuery && pages.length > 0) load(pages, activeQuery, true);
     }
+
+    // checkLibrary marks which of the given images are already downloaded.
+    // It only decorates results, so a failure is not shown.
+    function checkLibrary(keys: string[]) {
+        if (keys.length === 0) return;
+        LibraryStatus(keys)
+            .then((found) => setInLibrary((current) => ({...current, ...found})))
+            .catch(() => {});
+    }
+
+    function startDownload(img: images.Image) {
+        const key = imageKey(img);
+        setStartErrors(({[key]: _, ...rest}) => rest);
+        Download(img).catch((err: unknown) => {
+            const backendError = toBackendError(err);
+            if (backendError.code === 'already_in_library') {
+                checkLibrary([key]);
+            } else {
+                setStartErrors((current) => ({...current, [key]: backendError}));
+            }
+        });
+    }
+
+    const savedToLibrary = (key: string) =>
+        key in inLibrary || downloads[key]?.state === 'done' || downloads[key]?.state === 'duplicate';
+    const galleryPercent = (key: string) => {
+        const p = downloads[key];
+        return isActive(p) ? percent(p) : undefined;
+    };
 
     function cancel() {
         // The pending search then rejects with "canceled", which is ignored.
@@ -227,7 +269,13 @@ export function SearchPanel() {
                 )}
             </div>
 
-            <Gallery items={results} sourceName={sourceName} onSelect={setSelected}/>
+            <Gallery
+                items={results}
+                sourceName={sourceName}
+                inLibrary={savedToLibrary}
+                downloadPercent={galleryPercent}
+                onSelect={setSelected}
+            />
 
             {activeQuery && morePages.length > 0 && (
                 <div className="load-more">
@@ -246,6 +294,17 @@ export function SearchPanel() {
                 <PreviewDialog
                     image={selectedImage}
                     providerName={sourceName(selectedImage.provider)}
+                    actions={
+                        <DownloadButton
+                            progress={downloads[imageKey(selectedImage)]}
+                            inLibrary={imageKey(selectedImage) in inLibrary}
+                            startError={startErrors[imageKey(selectedImage)]}
+                            onDownload={() => startDownload(selectedImage)}
+                            onCancel={() => {
+                                CancelDownload(imageKey(selectedImage)).catch(() => {});
+                            }}
+                        />
+                    }
                     onClose={() => setSelected(null)}
                     onPrevious={selected > 0 ? () => setSelected(selected - 1) : undefined}
                     onNext={selected < results.length - 1 ? () => setSelected(selected + 1) : undefined}

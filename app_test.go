@@ -81,11 +81,12 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	}
 
 	var app *App
+	lib := library.NewStore(db)
 	mgr, err := downloads.New(downloads.Config{
 		Client:    http.DefaultClient,
 		UserAgent: "Kisetsu/test",
 		Root:      filepath.Dir(path),
-		Store:     library.NewStore(db),
+		Store:     lib,
 		Log:       log,
 		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
 	})
@@ -94,7 +95,10 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	}
 	t.Cleanup(mgr.Close)
 
-	app = NewApp(Deps{Log: log, DB: db, DBPath: path, Search: svc, Settings: settings.NewStore(db), Downloads: mgr})
+	app = NewApp(Deps{
+		Log: log, DB: db, DBPath: path, Search: svc,
+		Settings: settings.NewStore(db), Downloads: mgr, Library: lib,
+	})
 	return app
 }
 

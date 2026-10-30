@@ -9,6 +9,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/images"
@@ -123,6 +125,49 @@ func (s *Store) FindBySource(ctx context.Context, provider, providerID string) (
 func (s *Store) FindBySHA256(ctx context.Context, sum string) (Entry, bool, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+entryColumns+` FROM images WHERE sha256 = ?`, sum)
 	return found(scanEntry(row))
+}
+
+// SourceRef names a provider image.
+type SourceRef struct {
+	Provider   string
+	ProviderID string
+}
+
+// maxRefsPerQuery keeps IDsBySource below SQLite's limit of bound
+// parameters (two per reference).
+const maxRefsPerQuery = 400
+
+// IDsBySource returns the library entry IDs of the given provider images
+// that are in the library. Images not in the library are left out.
+func (s *Store) IDsBySource(ctx context.Context, refs []SourceRef) (map[SourceRef]int64, error) {
+	out := make(map[SourceRef]int64)
+	for chunk := range slices.Chunk(refs, maxRefsPerQuery) {
+		values := strings.TrimSuffix(strings.Repeat("(?, ?),", len(chunk)), ",")
+		args := make([]any, 0, 2*len(chunk))
+		for _, r := range chunk {
+			args = append(args, r.Provider, r.ProviderID)
+		}
+		rows, err := s.db.QueryContext(ctx,
+			`SELECT id, provider, provider_id FROM images WHERE (provider, provider_id) IN (VALUES `+values+`)`, args...)
+		if err != nil {
+			return nil, fmt.Errorf("find images by source: %w", err)
+		}
+		for rows.Next() {
+			var id int64
+			var r SourceRef
+			if err := rows.Scan(&id, &r.Provider, &r.ProviderID); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("find images by source: %w", err)
+			}
+			out[r] = id
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, fmt.Errorf("find images by source: %w", err)
+		}
+	}
+	return out, nil
 }
 
 // ListOptions select and page library entries.

@@ -16,6 +16,8 @@ export function GetSearchFilters():Promise<settings.SearchFilters>;
 
 export function GetStatus():Promise<main.Status>;
 
+export function LibraryStatus(arg1:Array<string>):Promise<Record<string, number>>;
+
 export function ListProviders():Promise<Array<search.ProviderInfo>>;
 
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;

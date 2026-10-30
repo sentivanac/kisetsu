@@ -22,6 +22,10 @@ export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
 }
 
+export function LibraryStatus(arg1) {
+  return window['go']['main']['App']['LibraryStatus'](arg1);
+}
+
 export function ListProviders() {
   return window['go']['main']['App']['ListProviders']();
 }
