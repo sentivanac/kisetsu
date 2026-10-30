@@ -88,6 +88,7 @@ internal/          business logic, independent of the UI
   database/        SQLite connection and schema migrations
     migrations/    numbered SQL migration files (embedded)
   images/          provider-independent image model
+  imaging/         image validation, thumbnails, SHA-256 and dHash
   providers/       Provider interface, query, errors
     wallhaven/     Wallhaven API (SFW only)
     commons/       Wikimedia Commons API (curated collections, best-effort SFW)
