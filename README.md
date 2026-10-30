@@ -29,6 +29,7 @@ make dev         # run with hot reload
 make check       # go vet, Go tests, TypeScript type check, frontend tests
 make test        # Go tests only
 make test-frontend  # frontend tests only (Vitest)
+make test-live   # check providers against their real APIs (uses the network)
 make build       # production binary in build/bin/kisetsu
 ```
 
@@ -71,6 +72,7 @@ internal/          business logic, independent of the UI
     migrations/    numbered SQL migration files (embedded)
   images/          provider-independent image model
   providers/       Provider interface, query, errors
+    wallhaven/     Wallhaven API (SFW only)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components
   src/lib/         frontend helpers (backend error handling)

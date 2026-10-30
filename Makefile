@@ -2,7 +2,7 @@
 # from wails.json; plain Go commands need it passed explicitly.
 TAGS := webkit2_41
 
-.PHONY: dev build test test-frontend vet check check-node
+.PHONY: dev build test test-live test-frontend vet check check-node
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -15,6 +15,10 @@ build: check-node
 ## test: run Go tests
 test:
 	go test -tags $(TAGS) ./...
+
+## test-live: run tests against real provider APIs (uses the network)
+test-live:
+	go test -tags $(TAGS),live -count=1 -v -run Live ./internal/providers/...
 
 ## test-frontend: run frontend unit tests (Vitest)
 test-frontend: check-node
