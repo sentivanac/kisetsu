@@ -1,0 +1,681 @@
+{
+ "batchcomplete": true,
+ "continue": {
+  "gsroffset": 24,
+  "continue": "gsroffset||"
+ },
+ "query": {
+  "pages": [
+   {
+    "pageid": 113030211,
+    "ns": 6,
+    "title": "File:Mountains of Wadi Shawka denoised.jpg",
+    "index": 3,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 6567346,
+      "width": 5184,
+      "height": 3888,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Mountains_of_Wadi_Shawka_denoised.jpg/500px-Mountains_of_Wadi_Shawka_denoised.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 375,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Mountains_of_Wadi_Shawka_denoised.jpg/1280px-Mountains_of_Wadi_Shawka_denoised.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Mountains_of_Wadi_Shawka_denoised.jpg/500px-Mountains_of_Wadi_Shawka_denoised.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 375,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Mountains_of_Wadi_Shawka_denoised.jpg/1280px-Mountains_of_Wadi_Shawka_denoised.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/5/59/Mountains_of_Wadi_Shawka_denoised.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Mountains_of_Wadi_Shawka_denoised.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=113030211",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Mountains of <a href=\"https://en.wikipedia.org/wiki/Wadi_Shawka\" class=\"extiw\" title=\"en:Wadi Shawka\">Wadi Shawka</a> at sunrise, <a href=\"https://en.wikipedia.org/wiki/Al_Hajar_Mountains\" class=\"extiw\" title=\"en:Al Hajar Mountains\">Al Hajar</a> mountain range, <a href=\"https://en.wikipedia.org/wiki/United_Arab_Emirates\" class=\"extiw\" title=\"en:United Arab Emirates\">UAE</a>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<ul><li><b>Original: </b> <a href=\"//commons.wikimedia.org/w/index.php?title=User:Florian_Kriechbaumer&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Florian Kriechbaumer (page does not exist)\">Florian Kriechbaumer</a></li>\n<li><b>Derivative work: </b> <a href=\"//commons.wikimedia.org/wiki/User:Aristeas\" title=\"User:Aristeas\">Aristeas</a></li></ul>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Atmospheric perspective"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains in the morning"
+     },
+     {
+      "ns": 14,
+      "title": "Category:September 2020 United Arab Emirates photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Wadi Shawka"
+     }
+    ]
+   },
+   {
+    "pageid": 900001,
+    "ns": 6,
+    "title": "File:Statue in garden.jpg",
+    "index": 5,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7665281,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Statue_in_garden.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125216708",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Ama Dablam Peak (\"Mother's Necklace\", आमा दब्लम, 6,812 metres (22,349 ft)) as seen from Chola Valley. Khumbu Everest Zone. Nepal, Himalayas.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Nude sculptures"
+     }
+    ]
+   },
+   {
+    "pageid": 125216708,
+    "ns": 6,
+    "title": "File:Himalayas, Ama Dablam, Nepal.jpg",
+    "index": 1,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7665281,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Himalayas,_Ama_Dablam,_Nepal.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125216708",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Ama Dablam Peak (\"Mother's Necklace\", आमा दब्लम, 6,812 metres (22,349 ft)) as seen from Chola Valley. Khumbu Everest Zone. Nepal, Himalayas.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Ama Dablam"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Clouds and blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Malanphulan"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with clouds"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     }
+    ]
+   },
+   {
+    "pageid": 900003,
+    "ns": 6,
+    "title": "File:Scan of mountains.tif",
+    "index": 7,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7665281,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Scan_of_mountains.tif",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125216708",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Ama Dablam Peak (\"Mother's Necklace\", आमा दब्लम, 6,812 metres (22,349 ft)) as seen from Chola Valley. Khumbu Everest Zone. Nepal, Himalayas.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/tiff"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Ama Dablam"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Clouds and blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Malanphulan"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with clouds"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     }
+    ]
+   },
+   {
+    "pageid": 134682226,
+    "ns": 6,
+    "title": "File:Mountains in snow, Mountain lake, Chola Valley, Nepal, Himalayas.jpg",
+    "index": 4,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7417279,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg/500px-Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg/1280px-Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg/500px-Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg/1280px-Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Mountains_in_snow,_Mountain_lake,_Chola_Valley,_Nepal,_Himalayas.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=134682226",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Mountains in snow. Mountain lake. View to the east on descending from Cho La Pass into Chola Valley, 5,200 metres (17,100 ft) a. s. l. Glacial lake, rocks covered with snow, <a href=\"//commons.wikimedia.org/wiki/Ama_Dablam\" title=\"Ama Dablam\">Ama Dablam</a> (6,810 metres (22,343 ft)) and other Himalayan peaks to the south of the Great Himalayan Range in Mahalangur Himal. Nepal, <a href=\"//commons.wikimedia.org/wiki/Himalayas\" title=\"Himalayas\">Himalayas</a>.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Ama Dablam"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Cho La pass"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Clouds and blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Glaciated mountains in Asia"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Landscapes of Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Malanphulan"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountain lakes"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with clouds in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Proglacial lakes in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Rocks in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Sunny and shady mountainsides"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Taboche"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Valleys of Nepal"
+     }
+    ]
+   },
+   {
+    "pageid": 900004,
+    "ns": 6,
+    "title": "File:Unlabelled mountain.jpg",
+    "index": 8,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7665281,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Unlabelled_mountain.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125216708",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Ama Dablam Peak (\"Mother's Necklace\", आमा दब्लम, 6,812 metres (22,349 ft)) as seen from Chola Valley. Khumbu Everest Zone. Nepal, Himalayas.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Nobody&amp;action=edit&amp;redlink=1\" class=\"new\">Some &amp; Body</a>",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Ama Dablam"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Clouds and blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Malanphulan"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with clouds"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     }
+    ]
+   },
+   {
+    "pageid": 125747465,
+    "ns": 6,
+    "title": "File:Everest, Himalayas.jpg",
+    "index": 2,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 8357266,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Everest%2C_Himalayas.jpg/500px-Everest%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Everest%2C_Himalayas.jpg/1280px-Everest%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Everest%2C_Himalayas.jpg/500px-Everest%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Everest%2C_Himalayas.jpg/1280px-Everest%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Everest%2C_Himalayas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Everest,_Himalayas.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125747465",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Mount Everest, the highest mountain in the world. Mount Everest, Nepal, Himalayas.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Ice cliffs of the Himalayas"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Views of Mount Everest from Kala Patthar"
+     }
+    ]
+   },
+   {
+    "pageid": 900002,
+    "ns": 6,
+    "title": "File:Beach study.jpg",
+    "index": 6,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 7665281,
+      "width": 4032,
+      "height": 2688,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 500,
+      "thumbheight": 333,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/500px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 500,
+       "height": 333,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg/1280px-Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Himalayas%2C_Ama_Dablam%2C_Nepal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Beach_study.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=125216708",
+      "extmetadata": {
+       "ImageDescription": {
+        "value": "Topless woman at the beach",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Argenberg\" title=\"User:Argenberg\">Vyacheslav Argenberg</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       }
+      },
+      "mime": "image/jpeg"
+     }
+    ],
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Ama Dablam"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Clouds and blue sky in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Malanphulan"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with clouds"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Mountains with snow in Nepal"
+     },
+     {
+      "ns": 14,
+      "title": "Category:October 2009 Nepal photographs"
+     },
+     {
+      "ns": 14,
+      "title": "Category:Snow in Nepal in October"
+     }
+    ]
+   }
+  ]
+ }
+}

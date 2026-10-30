@@ -86,6 +86,7 @@ internal/          business logic, independent of the UI
   images/          provider-independent image model
   providers/       Provider interface, query, errors
     wallhaven/     Wallhaven API (SFW only)
+    commons/       Wikimedia Commons API (curated collections, best-effort SFW)
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
 app_search.go      search methods exposed to the frontend, error messages
