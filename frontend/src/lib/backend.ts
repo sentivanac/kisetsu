@@ -9,7 +9,8 @@ export type ErrorCode =
     | 'unavailable'
     | 'invalid_input'
     | 'rate_limited'
-    | 'provider_unavailable';
+    | 'provider_unavailable'
+    | 'canceled';
 
 export interface BackendError {
     code: ErrorCode | string;
@@ -45,4 +46,11 @@ export function describeError(err: BackendError): string {
         return `${err.message} Try again in ${seconds} s.`;
     }
     return err.message;
+}
+
+// isCanceled reports whether an error only means that the operation was
+// stopped on purpose (for example replaced by a newer search). Such errors
+// are not shown to the user.
+export function isCanceled(err: BackendError): boolean {
+    return err.code === 'canceled';
 }

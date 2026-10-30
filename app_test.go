@@ -20,10 +20,14 @@ import (
 )
 
 // stubProvider returns a fixed page or error. Its ID defaults to "stub".
+// With block set it waits until its context is done; started, if set, is
+// closed when Search begins.
 type stubProvider struct {
-	id   string
-	page providers.Page
-	err  error
+	id      string
+	page    providers.Page
+	err     error
+	block   bool
+	started chan struct{}
 }
 
 func (s *stubProvider) ID() string {
@@ -41,6 +45,13 @@ func (s *stubProvider) Name() string {
 }
 
 func (s *stubProvider) Search(ctx context.Context, q providers.Query) (providers.Page, error) {
+	if s.started != nil {
+		close(s.started)
+	}
+	if s.block {
+		<-ctx.Done()
+		return providers.Page{}, &providers.Error{Provider: s.ID(), Kind: providers.ErrUnavailable, Err: ctx.Err()}
+	}
 	return s.page, s.err
 }
 
@@ -289,5 +300,93 @@ func TestSearchSourcesRejectsInvalidRequests(t *testing.T) {
 		if got := apperr.ToPublic(err).Code; got != apperr.InvalidInput {
 			t.Errorf("%s: code = %q, want %q (err: %v)", name, got, apperr.InvalidInput, err)
 		}
+	}
+}
+
+// runSearch calls SearchSources in a goroutine and returns its error.
+func runSearch(app *App, providerID string) <-chan error {
+	done := make(chan error, 1)
+	go func() {
+		_, err := app.SearchSources([]search.SourcePage{{ProviderID: providerID, Page: 1}}, providers.Query{})
+		done <- err
+	}()
+	return done
+}
+
+func waitFor(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", what)
+	}
+}
+
+func waitErr(t *testing.T, ch <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(5 * time.Second):
+		t.Fatal("search did not return")
+		return nil
+	}
+}
+
+func TestCancelSearchStopsRunningSearch(t *testing.T) {
+	slow := &stubProvider{id: "slow", block: true, started: make(chan struct{})}
+	app := newTestApp(t, slow)
+
+	result := runSearch(app, "slow")
+	waitFor(t, slow.started, "the search to start")
+
+	if err := app.CancelSearch(); err != nil {
+		t.Fatal(err)
+	}
+
+	err := waitErr(t, result)
+	if got := apperr.ToPublic(err).Code; got != apperr.Canceled {
+		t.Errorf("code = %q, want %q (err: %v)", got, apperr.Canceled, err)
+	}
+}
+
+func TestNewSearchCancelsPrevious(t *testing.T) {
+	slow := &stubProvider{id: "slow", block: true, started: make(chan struct{})}
+	fast := &stubProvider{id: "fast", page: providers.Page{Images: []images.Image{{Provider: "fast", ProviderID: "1"}}}}
+	app := newTestApp(t, slow, fast)
+
+	first := runSearch(app, "slow")
+	waitFor(t, slow.started, "the first search to start")
+
+	second, err := app.SearchSources([]search.SourcePage{{ProviderID: "fast", Page: 1}}, providers.Query{})
+	if err != nil {
+		t.Fatalf("second search: %v", err)
+	}
+	if len(second.Images) != 1 {
+		t.Errorf("second search returned %d images", len(second.Images))
+	}
+
+	if got := apperr.ToPublic(waitErr(t, first)).Code; got != apperr.Canceled {
+		t.Errorf("first search code = %q, want %q", got, apperr.Canceled)
+	}
+
+	// The finished search must not leave a cancel function behind that a
+	// later CancelSearch could misuse.
+	app.searchMu.Lock()
+	leftover := app.cancelSearch != nil
+	app.searchMu.Unlock()
+	if leftover {
+		t.Error("cancel function not cleared after the search finished")
+	}
+}
+
+func TestCancelSearchWithoutSearchIsHarmless(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+
+	if err := app.CancelSearch(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SearchSources([]search.SourcePage{{ProviderID: "stub", Page: 1}}, providers.Query{}); err != nil {
+		t.Errorf("search after an idle cancel failed: %v", err)
 	}
 }

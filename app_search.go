@@ -48,10 +48,18 @@ type SearchResult struct {
 // SearchSources searches several sources at once, each at its own page.
 // A source that fails is reported in its SourceStatus; the call itself
 // fails only for an invalid request.
+//
+// Starting a search cancels the previous one, if it is still running.
 func (a *App) SearchSources(sources []search.SourcePage, query providers.Query) (result SearchResult, err error) {
 	defer a.recoverPanic("SearchSources", &err)
 
-	multi, err := a.search.SearchMany(a.ctx, sources, query)
+	ctx, done := a.beginSearch()
+	defer done()
+
+	multi, err := a.search.SearchMany(ctx, sources, query)
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return SearchResult{}, apperr.New(apperr.Canceled, "The search was canceled.", ctx.Err())
+	}
 	if err != nil {
 		return SearchResult{}, a.searchError(err)
 	}
@@ -72,6 +80,44 @@ func (a *App) SearchSources(sources []search.SourcePage, query providers.Query) 
 		result.Sources[i] = status
 	}
 	return result, nil
+}
+
+// CancelSearch stops the running search, if any. The canceled call
+// returns an error with code "canceled".
+func (a *App) CancelSearch() (err error) {
+	defer a.recoverPanic("CancelSearch", &err)
+
+	a.searchMu.Lock()
+	defer a.searchMu.Unlock()
+	if a.cancelSearch != nil {
+		a.cancelSearch()
+	}
+	return nil
+}
+
+// beginSearch cancels the running search and returns the context for a
+// new one. done must be called when the new search ends.
+func (a *App) beginSearch() (ctx context.Context, done func()) {
+	ctx, cancel := context.WithCancel(a.ctx)
+
+	a.searchMu.Lock()
+	if a.cancelSearch != nil {
+		a.cancelSearch()
+	}
+	a.searchSeq++
+	seq := a.searchSeq
+	a.cancelSearch = cancel
+	a.searchMu.Unlock()
+
+	return ctx, func() {
+		a.searchMu.Lock()
+		// A newer search may already have replaced this one.
+		if a.searchSeq == seq {
+			a.cancelSearch = nil
+		}
+		a.searchMu.Unlock()
+		cancel()
+	}
 }
 
 // searchError turns a search failure into a message for the user.

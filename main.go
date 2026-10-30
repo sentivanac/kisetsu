@@ -120,8 +120,13 @@ func run() error {
 		OnStartup: app.startup,
 		// Log the full error, send only the user-safe part to the frontend.
 		ErrorFormatter: func(err error) any {
-			log.Error("frontend call failed", "err", err)
-			return apperr.ToPublic(err)
+			public := apperr.ToPublic(err)
+			if public.Code == apperr.Canceled {
+				log.Debug("frontend call canceled", "err", err)
+			} else {
+				log.Error("frontend call failed", "err", err)
+			}
+			return public
 		},
 		Bind: []any{
 			app,

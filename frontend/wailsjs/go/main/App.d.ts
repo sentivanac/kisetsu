@@ -5,6 +5,8 @@ import {main} from '../models';
 import {search} from '../models';
 import {providers} from '../models';
 
+export function CancelSearch():Promise<void>;
+
 export function GetSearchFilters():Promise<settings.SearchFilters>;
 
 export function GetStatus():Promise<main.Status>;

@@ -27,6 +27,9 @@ const (
 	// ProviderUnavailable means an external image provider could not be
 	// reached or did not respond correctly.
 	ProviderUnavailable Code = "provider_unavailable"
+	// Canceled means the operation was stopped on purpose, for example
+	// because the user started a new search. The UI does not show it.
+	Canceled Code = "canceled"
 )
 
 const internalMessage = "Something went wrong. Details were written to the log file."

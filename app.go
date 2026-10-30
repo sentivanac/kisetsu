@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"sync"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
@@ -32,6 +33,12 @@ type App struct {
 	dbPath   string
 	search   *search.Service
 	settings *settings.Store
+
+	// The running multi-source search, so a new search or CancelSearch
+	// can stop it. Wails runs every frontend call in its own goroutine.
+	searchMu     sync.Mutex
+	searchSeq    uint64
+	cancelSearch context.CancelFunc
 }
 
 // Deps are the dependencies of App, created in main.go.

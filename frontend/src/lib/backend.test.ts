@@ -1,5 +1,12 @@
 import {describe, expect, it} from 'vitest';
-import {describeError, toBackendError} from './backend';
+import {describeError, isCanceled, toBackendError} from './backend';
+
+describe('isCanceled', () => {
+    it('recognizes canceled operations only', () => {
+        expect(isCanceled({code: 'canceled', message: 'The search was canceled.'})).toBe(true);
+        expect(isCanceled({code: 'internal', message: 'Boom.'})).toBe(false);
+    });
+});
 
 describe('describeError', () => {
     it('adds the retry delay for rate limits', () => {

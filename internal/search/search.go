@@ -93,7 +93,11 @@ func (s *Service) Search(ctx context.Context, providerID string, q providers.Que
 	// Search text is private; it is only logged at debug level.
 	s.log.Debug("search query", "provider", providerID, "text", q.Text, "exclude", q.Exclude)
 	if err != nil {
-		s.log.Warn("search failed", "provider", providerID, "page", q.Page, "duration", elapsed, "err", err)
+		if errors.Is(err, context.Canceled) {
+			s.log.Debug("search canceled", "provider", providerID, "page", q.Page, "duration", elapsed)
+		} else {
+			s.log.Warn("search failed", "provider", providerID, "page", q.Page, "duration", elapsed, "err", err)
+		}
 		return providers.Page{}, err
 	}
 	s.log.Info("search done", "provider", providerID, "page", q.Page,
