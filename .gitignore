@@ -1,0 +1,23 @@
+# Build output
+build/bin/
+frontend/dist/*
+!frontend/dist/gitkeep
+
+# Dependencies
+node_modules/
+frontend/package.json.md5
+
+# Local Python environment
+venv/
+.venv/
+CLAUDE.md
+
+# Local configuration and secrets — never commit these
+.env
+.env.*
+
+# Editors and OS
+.idea/
+*.swp
+.DS_Store
+

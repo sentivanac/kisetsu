@@ -1,0 +1,22 @@
+:root {
+    --bg: #18181b;
+    --surface: #27272a;
+    --text: #f4f4f5;
+    --muted: #a1a1aa;
+    --accent: #f59e0b;
+    --error: #f87171;
+
+    color-scheme: dark;
+    font-family: system-ui, "Ubuntu", "Cantarell", sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--text);
+}
