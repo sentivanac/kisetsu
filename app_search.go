@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
+	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/search"
 )
@@ -28,10 +29,61 @@ func (a *App) Search(providerID string, query providers.Query) (page providers.P
 	return page, nil
 }
 
+// SourceStatus reports how one source did in a multi-source search.
+type SourceStatus struct {
+	ProviderID string         `json:"providerId"`
+	Name       string         `json:"name"`
+	Page       int            `json:"page"`
+	HasMore    bool           `json:"hasMore"`
+	Count      int            `json:"count"`
+	Error      *apperr.Public `json:"error,omitempty"`
+}
+
+// SearchResult is the combined result of a multi-source search.
+type SearchResult struct {
+	Images  []images.Image `json:"images"`
+	Sources []SourceStatus `json:"sources"`
+}
+
+// SearchSources searches several sources at once, each at its own page.
+// A source that fails is reported in its SourceStatus; the call itself
+// fails only for an invalid request.
+func (a *App) SearchSources(sources []search.SourcePage, query providers.Query) (result SearchResult, err error) {
+	defer a.recoverPanic("SearchSources", &err)
+
+	multi, err := a.search.SearchMany(a.ctx, sources, query)
+	if err != nil {
+		return SearchResult{}, a.searchError(err)
+	}
+
+	result = SearchResult{Images: multi.Images, Sources: make([]SourceStatus, len(multi.Sources))}
+	for i, out := range multi.Sources {
+		status := SourceStatus{
+			ProviderID: out.ProviderID,
+			Name:       a.search.ProviderName(out.ProviderID),
+			Page:       out.Page,
+			HasMore:    out.HasMore,
+			Count:      out.Count,
+		}
+		if out.Err != nil {
+			public := apperr.ToPublic(a.searchError(out.Err))
+			status.Error = &public
+		}
+		result.Sources[i] = status
+	}
+	return result, nil
+}
+
 // searchError turns a search failure into a message for the user.
 func (a *App) searchError(err error) error {
+	if errors.Is(err, search.ErrNoSources) {
+		return apperr.New(apperr.InvalidInput, "Select at least one image source.", err)
+	}
 	if errors.Is(err, search.ErrUnknownProvider) {
 		return apperr.New(apperr.InvalidInput, "This image source is not available.", err)
+	}
+	if errors.Is(err, search.ErrDuplicateSource) {
+		return apperr.New(apperr.InvalidInput, "Each image source can only be searched once at a time.", err)
 	}
 
 	pe, ok := errors.AsType[*providers.Error](err)

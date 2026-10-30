@@ -18,7 +18,7 @@ test:
 
 ## test-live: run tests against real provider APIs (uses the network)
 test-live:
-	go test -tags $(TAGS),live -count=1 -v -run Live ./internal/providers/...
+	go test -tags $(TAGS),live -count=1 -v -run Live ./internal/providers/... ./internal/search/
 
 ## test-frontend: run frontend unit tests (Vitest)
 test-frontend: check-node

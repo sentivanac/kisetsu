@@ -21,3 +21,7 @@ export function SaveSearchFilters(arg1) {
 export function Search(arg1, arg2) {
   return window['go']['main']['App']['Search'](arg1, arg2);
 }
+
+export function SearchSources(arg1, arg2) {
+  return window['go']['main']['App']['SearchSources'](arg1, arg2);
+}

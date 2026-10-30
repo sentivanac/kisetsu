@@ -1,8 +1,5 @@
-// Package search runs image searches against the registered providers.
-//
-// In Phase 2 a search goes to one provider chosen by the user. Searching
-// several providers concurrently arrives in Phase 3 without changing the
-// Provider interface.
+// Package search runs image searches against the registered providers,
+// one at a time (Search) or several concurrently (SearchMany).
 package search
 
 import (

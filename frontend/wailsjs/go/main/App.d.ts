@@ -14,3 +14,5 @@ export function ListProviders():Promise<Array<search.ProviderInfo>>;
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
 export function Search(arg1:string,arg2:providers.Query):Promise<providers.Page>;
+
+export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query):Promise<main.SearchResult>;

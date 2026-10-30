@@ -1,3 +1,24 @@
+export namespace apperr {
+	
+	export class Public {
+	    code: string;
+	    message: string;
+	    retryAfterSeconds?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Public(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.message = source["message"];
+	        this.retryAfterSeconds = source["retryAfterSeconds"];
+	    }
+	}
+
+}
+
 export namespace appinfo {
 	
 	export class Info {
@@ -128,6 +149,79 @@ export namespace main {
 	        this.schemaVersion = source["schemaVersion"];
 	    }
 	}
+	export class SourceStatus {
+	    providerId: string;
+	    name: string;
+	    page: number;
+	    hasMore: boolean;
+	    count: number;
+	    error?: apperr.Public;
+	
+	    static createFrom(source: any = {}) {
+	        return new SourceStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providerId = source["providerId"];
+	        this.name = source["name"];
+	        this.page = source["page"];
+	        this.hasMore = source["hasMore"];
+	        this.count = source["count"];
+	        this.error = this.convertValues(source["error"], apperr.Public);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SearchResult {
+	    images: images.Image[];
+	    sources: SourceStatus[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.images = this.convertValues(source["images"], images.Image);
+	        this.sources = this.convertValues(source["sources"], SourceStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class Status {
 	    app: appinfo.Info;
 	    database: DatabaseStatus;
@@ -238,6 +332,20 @@ export namespace search {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	    }
+	}
+	export class SourcePage {
+	    providerId: string;
+	    page: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SourcePage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providerId = source["providerId"];
+	        this.page = source["page"];
 	    }
 	}
 

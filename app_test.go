@@ -19,20 +19,32 @@ import (
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
-// stubProvider returns a fixed page or error.
+// stubProvider returns a fixed page or error. Its ID defaults to "stub".
 type stubProvider struct {
+	id   string
 	page providers.Page
 	err  error
 }
 
-func (s *stubProvider) ID() string   { return "stub" }
-func (s *stubProvider) Name() string { return "Stub Images" }
+func (s *stubProvider) ID() string {
+	if s.id == "" {
+		return "stub"
+	}
+	return s.id
+}
+
+func (s *stubProvider) Name() string {
+	if s.id == "" {
+		return "Stub Images"
+	}
+	return "Stub " + s.id
+}
 
 func (s *stubProvider) Search(ctx context.Context, q providers.Query) (providers.Page, error) {
 	return s.page, s.err
 }
 
-func newTestApp(t *testing.T, provider *stubProvider) *App {
+func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	t.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -43,7 +55,11 @@ func newTestApp(t *testing.T, provider *stubProvider) *App {
 	}
 	t.Cleanup(func() { db.Close() })
 
-	svc, err := search.New(log, provider)
+	ps := make([]providers.Provider, len(stubs))
+	for i, s := range stubs {
+		ps[i] = s
+	}
+	svc, err := search.New(log, ps...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +239,55 @@ func TestSearchFiltersReportUnavailableDatabase(t *testing.T) {
 	for _, err := range []error{getErr, saveErr} {
 		if got := apperr.ToPublic(err).Code; got != apperr.Unavailable {
 			t.Errorf("code = %q, want %q (err: %v)", got, apperr.Unavailable, err)
+		}
+	}
+}
+
+func TestSearchSourcesReportsEachSource(t *testing.T) {
+	good := &stubProvider{id: "good", page: providers.Page{
+		Images: []images.Image{{Provider: "good", ProviderID: "1"}}, HasMore: true,
+	}}
+	limited := &stubProvider{id: "limited", err: &providers.Error{
+		Provider: "limited", Kind: providers.ErrRateLimited, RetryAfter: 10 * time.Second,
+	}}
+	app := newTestApp(t, good, limited)
+
+	result, err := app.SearchSources(
+		[]search.SourcePage{{ProviderID: "good", Page: 1}, {ProviderID: "limited", Page: 1}},
+		providers.Query{Text: "lake"})
+	if err != nil {
+		t.Fatalf("a failing source must not fail the call: %v", err)
+	}
+
+	if len(result.Images) != 1 || len(result.Sources) != 2 {
+		t.Fatalf("result = %+v", result)
+	}
+	ok := result.Sources[0]
+	if ok.Name != "Stub good" || ok.Count != 1 || !ok.HasMore || ok.Error != nil {
+		t.Errorf("good source = %+v", ok)
+	}
+	bad := result.Sources[1]
+	if bad.Error == nil || bad.Error.Code != apperr.RateLimited || bad.Error.RetryAfterSeconds != 10 {
+		t.Errorf("limited source = %+v (error %+v)", bad, bad.Error)
+	}
+	if bad.Error != nil && !strings.Contains(bad.Error.Message, "Stub limited") {
+		t.Errorf("message %q does not name the source", bad.Error.Message)
+	}
+}
+
+func TestSearchSourcesRejectsInvalidRequests(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+
+	tests := map[string][]search.SourcePage{
+		"no sources":      nil,
+		"unknown source":  {{ProviderID: "missing", Page: 1}},
+		"repeated source": {{ProviderID: "stub", Page: 1}, {ProviderID: "stub", Page: 2}},
+		"invalid page":    {{ProviderID: "stub", Page: 0}},
+	}
+	for name, sources := range tests {
+		_, err := app.SearchSources(sources, providers.Query{})
+		if got := apperr.ToPublic(err).Code; got != apperr.InvalidInput {
+			t.Errorf("%s: code = %q, want %q (err: %v)", name, got, apperr.InvalidInput, err)
 		}
 	}
 }
