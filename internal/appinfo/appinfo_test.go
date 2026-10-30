@@ -22,6 +22,16 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestUserAgent(t *testing.T) {
+	old := Version
+	t.Cleanup(func() { Version = old })
+
+	Version = "0.1.0"
+	if got, want := UserAgent(), "Kisetsu/0.1.0 (+https://github.com/sentivanac/kisetsu)"; got != want {
+		t.Errorf("UserAgent() = %q, want %q", got, want)
+	}
+}
+
 func TestGetUsesBuildVersion(t *testing.T) {
 	old := Version
 	t.Cleanup(func() { Version = old })

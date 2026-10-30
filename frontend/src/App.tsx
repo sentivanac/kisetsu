@@ -3,6 +3,7 @@ import './App.css';
 import {GetStatus} from '../wailsjs/go/main/App';
 import {main} from '../wailsjs/go/models';
 import {BackendError, toBackendError} from './lib/backend';
+import {SearchPanel} from './components/SearchPanel';
 
 function App() {
     const [status, setStatus] = useState<main.Status | null>(null);
@@ -29,6 +30,8 @@ function App() {
                 Kisetsu <span lang="ja">季節</span>
             </h1>
             <p className="tagline">Wallpaper discovery for Linux</p>
+
+            <SearchPanel/>
 
             <section className="card" aria-live="polite" aria-busy={loading}>
                 <h2>Backend status</h2>

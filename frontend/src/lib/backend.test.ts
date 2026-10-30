@@ -1,11 +1,30 @@
 import {describe, expect, it} from 'vitest';
-import {toBackendError} from './backend';
+import {describeError, toBackendError} from './backend';
+
+describe('describeError', () => {
+    it('adds the retry delay for rate limits', () => {
+        expect(
+            describeError({code: 'rate_limited', message: 'Too many searches.', retryAfterSeconds: 30}),
+        ).toBe('Too many searches. Try again in 30 s.');
+    });
+
+    it('returns the message unchanged otherwise', () => {
+        expect(describeError({code: 'provider_unavailable', message: 'Offline.'})).toBe('Offline.');
+        expect(describeError({code: 'rate_limited', message: 'Wait.', retryAfterSeconds: 0})).toBe('Wait.');
+    });
+});
 
 describe('toBackendError', () => {
     it('keeps errors sent by the Go ErrorFormatter', () => {
         const err = {code: 'unavailable', message: 'The local database is not available.'};
 
         expect(toBackendError(err)).toEqual(err);
+    });
+
+    it('keeps the retry delay of rate-limit errors', () => {
+        const err = {code: 'rate_limited', message: 'Too many searches.', retryAfterSeconds: 30};
+
+        expect(toBackendError(err).retryAfterSeconds).toBe(30);
     });
 
     it('wraps plain strings sent by Wails as internal errors', () => {

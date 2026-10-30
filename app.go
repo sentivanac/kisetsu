@@ -10,6 +10,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
+	"github.com/sentivanac/kisetsu/internal/search"
 )
 
 // App is the bridge between the frontend and the Go backend.
@@ -28,15 +29,17 @@ type App struct {
 	log    *slog.Logger
 	db     *sql.DB
 	dbPath string
+	search *search.Service
 }
 
 // NewApp creates a new App.
-func NewApp(log *slog.Logger, db *sql.DB, dbPath string) *App {
+func NewApp(log *slog.Logger, db *sql.DB, dbPath string, searcher *search.Service) *App {
 	return &App{
 		ctx:    context.Background(),
 		log:    log,
 		db:     db,
 		dbPath: dbPath,
+		search: searcher,
 	}
 }
 

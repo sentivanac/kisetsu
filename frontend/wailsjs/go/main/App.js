@@ -5,3 +5,11 @@
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
 }
+
+export function ListProviders() {
+  return window['go']['main']['App']['ListProviders']();
+}
+
+export function Search(arg1, arg2) {
+  return window['go']['main']['App']['Search'](arg1, arg2);
+}

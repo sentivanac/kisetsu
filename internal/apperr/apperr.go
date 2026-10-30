@@ -4,7 +4,10 @@
 // written for users, and the underlying error, which is only logged.
 package apperr
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 // Code identifies a kind of failure. Codes are part of the contract with
 // the frontend: add new ones when needed, but do not rename existing ones.
@@ -16,15 +19,24 @@ const (
 	// Unavailable means a required local resource, such as the database,
 	// cannot be used right now.
 	Unavailable Code = "unavailable"
+	// InvalidInput means the request from the UI was not valid.
+	InvalidInput Code = "invalid_input"
+	// RateLimited means an external service received too many requests.
+	// Error.RetryAfter says when to try again.
+	RateLimited Code = "rate_limited"
+	// ProviderUnavailable means an external image provider could not be
+	// reached or did not respond correctly.
+	ProviderUnavailable Code = "provider_unavailable"
 )
 
 const internalMessage = "Something went wrong. Details were written to the log file."
 
 // Error is an error with a user-facing message.
 type Error struct {
-	Code    Code
-	Message string
-	Err     error
+	Code       Code
+	Message    string
+	RetryAfter time.Duration // only for RateLimited; 0 when unknown
+	Err        error
 }
 
 // New returns an Error. err may be nil.
@@ -46,8 +58,9 @@ func (e *Error) Unwrap() error {
 // Public is the form of an error sent to the frontend. It never
 // contains the underlying error.
 type Public struct {
-	Code    Code   `json:"code"`
-	Message string `json:"message"`
+	Code              Code   `json:"code"`
+	Message           string `json:"message"`
+	RetryAfterSeconds int    `json:"retryAfterSeconds,omitempty"`
 }
 
 // ToPublic converts any error into its frontend form. Errors that are not
@@ -55,7 +68,11 @@ type Public struct {
 // unexpected details never reach the UI.
 func ToPublic(err error) Public {
 	if e, ok := errors.AsType[*Error](err); ok {
-		return Public{Code: e.Code, Message: e.Message}
+		return Public{
+			Code:              e.Code,
+			Message:           e.Message,
+			RetryAfterSeconds: int((e.RetryAfter + time.Second - 1) / time.Second), // round up
+		}
 	}
 	return Public{Code: Internal, Message: internalMessage}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestToPublicKeepsCodeAndMessage(t *testing.T) {
@@ -14,6 +15,17 @@ func TestToPublicKeepsCodeAndMessage(t *testing.T) {
 	want := Public{Code: Unavailable, Message: "Database is not available."}
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestToPublicRoundsRetryAfterUp(t *testing.T) {
+	err := &Error{Code: RateLimited, Message: "Too many searches.", RetryAfter: 1500 * time.Millisecond}
+
+	if got := ToPublic(err).RetryAfterSeconds; got != 2 {
+		t.Errorf("RetryAfterSeconds = %d, want 2", got)
+	}
+	if got := ToPublic(New(RateLimited, "Too many searches.", nil)).RetryAfterSeconds; got != 0 {
+		t.Errorf("RetryAfterSeconds without RetryAfter = %d, want 0", got)
 	}
 }
 

@@ -11,6 +11,15 @@ const Name = "Kisetsu"
 //	-ldflags "-X github.com/sentivanac/kisetsu/internal/appinfo.Version=0.1.0"
 var Version = "dev"
 
+// ProjectURL is the public home of the project.
+const ProjectURL = "https://github.com/sentivanac/kisetsu"
+
+// UserAgent identifies Kisetsu to external services, so providers can
+// see who is calling and how to reach the project.
+func UserAgent() string {
+	return Name + "/" + Version + " (+" + ProjectURL + ")"
+}
+
 // Info is the build information exposed to the frontend.
 type Info struct {
 	Name      string `json:"name"`

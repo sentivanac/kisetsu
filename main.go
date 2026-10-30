@@ -4,8 +4,10 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -16,6 +18,8 @@ import (
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/logging"
+	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
+	"github.com/sentivanac/kisetsu/internal/search"
 )
 
 //go:embed all:frontend/dist
@@ -74,7 +78,17 @@ func run() error {
 	}
 	log.Info("database ready", "path", dbPath, "schema_version", schema)
 
-	app := NewApp(log, db, dbPath)
+	// One HTTP client shared by all providers. The timeout is a safety net;
+	// searches are also bounded by search.DefaultTimeout.
+	httpClient := &http.Client{Timeout: 15 * time.Second}
+	searcher, err := search.New(log,
+		wallhaven.New(httpClient, appinfo.UserAgent()),
+	)
+	if err != nil {
+		return err
+	}
+
+	app := NewApp(log, db, dbPath, searcher)
 
 	err = wails.Run(&options.App{
 		Title:     appinfo.Name,

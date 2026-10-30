@@ -1,14 +1,20 @@
 // Error handling for calls into the Go backend.
 //
-// Go methods reject with apperr.Public ({code, message}). Wails itself
-// rejects with a plain string for some failures (for example when
-// arguments cannot be parsed), so both shapes are handled.
+// Go methods reject with apperr.Public ({code, message, retryAfterSeconds?}).
+// Wails itself rejects with a plain string for some failures (for example
+// when arguments cannot be parsed), so both shapes are handled.
 
-export type ErrorCode = 'internal' | 'unavailable';
+export type ErrorCode =
+    | 'internal'
+    | 'unavailable'
+    | 'invalid_input'
+    | 'rate_limited'
+    | 'provider_unavailable';
 
 export interface BackendError {
     code: ErrorCode | string;
     message: string;
+    retryAfterSeconds?: number;
 }
 
 const fallbackMessage = 'Something went wrong. Details were written to the log file.';
@@ -30,4 +36,13 @@ export function toBackendError(err: unknown): BackendError {
         return {code: 'internal', message: err};
     }
     return {code: 'internal', message: fallbackMessage};
+}
+
+// describeError returns the text to show for an error.
+export function describeError(err: BackendError): string {
+    const seconds = err.retryAfterSeconds ?? 0;
+    if (seconds > 0) {
+        return `${err.message} Try again in ${seconds} s.`;
+    }
+    return err.message;
 }

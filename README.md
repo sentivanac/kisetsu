@@ -3,8 +3,8 @@
 An open-source wallpaper discovery and management platform for Linux.
 
 > **Status:** early development (Phase 1 — foundation). The app currently
-> opens a window, shows the backend and database status returned by Go,
-> writes logs and keeps an (as yet empty) SQLite database up to date.
+> searches Wallhaven (safe-for-work only) with size and orientation
+> filters and lists the results; the image gallery comes next.
 
 ## Requirements
 
@@ -73,6 +73,8 @@ internal/          business logic, independent of the UI
   images/          provider-independent image model
   providers/       Provider interface, query, errors
     wallhaven/     Wallhaven API (SFW only)
+  search/          runs searches against registered providers
+app_search.go      search methods exposed to the frontend, error messages
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components
   src/lib/         frontend helpers (backend error handling)
