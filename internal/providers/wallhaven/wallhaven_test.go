@@ -188,6 +188,22 @@ func TestSearchRequest(t *testing.T) {
 			},
 		},
 		{
+			name:  "excluded terms from text and field",
+			query: providers.Query{Text: "mountains -snow", Exclude: []string{"anime"}, Page: 1},
+			want: url.Values{
+				"q": {"mountains -anime -snow"}, "sorting": {"relevance"}, "page": {"1"},
+				"categories": {"111"}, "purity": {"100"},
+			},
+		},
+		{
+			name:  "only excluded terms",
+			query: providers.Query{Text: "-snow", Page: 1},
+			want: url.Values{
+				"q": {"-snow"}, "sorting": {"toplist"}, "page": {"1"},
+				"categories": {"111"}, "purity": {"100"},
+			},
+		},
+		{
 			name:  "browse without text",
 			query: providers.Query{Page: 1},
 			want:  url.Values{"sorting": {"toplist"}, "page": {"1"}, "categories": {"111"}, "purity": {"100"}},

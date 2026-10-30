@@ -201,6 +201,7 @@ export namespace providers {
 	}
 	export class Query {
 	    text: string;
+	    exclude: string[];
 	    page: number;
 	    minWidth: number;
 	    minHeight: number;
@@ -213,6 +214,7 @@ export namespace providers {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.text = source["text"];
+	        this.exclude = source["exclude"];
 	        this.page = source["page"];
 	        this.minWidth = source["minWidth"];
 	        this.minHeight = source["minHeight"];

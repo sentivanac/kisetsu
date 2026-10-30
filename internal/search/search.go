@@ -79,7 +79,9 @@ func (s *Service) Search(ctx context.Context, providerID string, q providers.Que
 	if !ok {
 		return providers.Page{}, fmt.Errorf("%w %q", ErrUnknownProvider, providerID)
 	}
-	// Validate here as well, so an invalid query never costs an API call.
+	// Split "-term" words into q.Exclude, then validate here as well, so an
+	// invalid query never costs an API call.
+	q = q.Normalize()
 	if err := q.Validate(); err != nil {
 		return providers.Page{}, &providers.Error{Provider: providerID, Kind: providers.ErrInvalidQuery, Err: err}
 	}
@@ -92,7 +94,7 @@ func (s *Service) Search(ctx context.Context, providerID string, q providers.Que
 	elapsed := time.Since(start).Round(time.Millisecond)
 
 	// Search text is private; it is only logged at debug level.
-	s.log.Debug("search query", "provider", providerID, "text", q.Text)
+	s.log.Debug("search query", "provider", providerID, "text", q.Text, "exclude", q.Exclude)
 	if err != nil {
 		s.log.Warn("search failed", "provider", providerID, "page", q.Page, "duration", elapsed, "err", err)
 		return providers.Page{}, err

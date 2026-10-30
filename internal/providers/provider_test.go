@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,62 @@ func TestQueryValidate(t *testing.T) {
 		if err := q.Validate(); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
+	}
+}
+
+func TestQueryNormalize(t *testing.T) {
+	tests := []struct {
+		name        string
+		in          Query
+		wantText    string
+		wantExclude []string
+	}{
+		{"plain text", Query{Text: "misty mountains"}, "misty mountains", nil},
+		{"collapses whitespace", Query{Text: "  misty \t mountains  "}, "misty mountains", nil},
+		{"extracts excluded terms", Query{Text: "mountains -snow -anime"}, "mountains", []string{"snow", "anime"}},
+		{"keeps inner hyphens", Query{Text: "sci-fi city"}, "sci-fi city", nil},
+		{"drops a lone hyphen", Query{Text: "lake - forest"}, "lake forest", nil},
+		{"strips repeated hyphens", Query{Text: "lake --snow"}, "lake", []string{"snow"}},
+		{"removes duplicates ignoring case", Query{Text: "lake -Snow -snow"}, "lake", []string{"Snow"}},
+		// The first spelling wins; existing excludes are read before Text.
+		{"merges with existing excludes", Query{Text: "lake -snow", Exclude: []string{"ice", "SNOW"}}, "lake", []string{"ice", "SNOW"}},
+		{"exclude only", Query{Text: "-snow"}, "", []string{"snow"}},
+		{"keeps non-ASCII terms", Query{Text: "村 -雪"}, "村", []string{"雪"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.in.Normalize()
+			if got.Text != tt.wantText {
+				t.Errorf("Text = %q, want %q", got.Text, tt.wantText)
+			}
+			if !slices.Equal(got.Exclude, tt.wantExclude) {
+				t.Errorf("Exclude = %q, want %q", got.Exclude, tt.wantExclude)
+			}
+			if again := got.Normalize(); again.Text != got.Text || !slices.Equal(again.Exclude, got.Exclude) {
+				t.Errorf("Normalize is not idempotent: %+v -> %+v", got, again)
+			}
+		})
+	}
+}
+
+func TestQueryValidateExcludedTerms(t *testing.T) {
+	tooMany := make([]string, MaxExcludeTerms+1)
+	for i := range tooMany {
+		tooMany[i] = "t" + strings.Repeat("x", i)
+	}
+	invalid := map[string][]string{
+		"too many":  tooMany,
+		"empty":     {""},
+		"two words": {"snow storm"},
+		"too long":  {strings.Repeat("a", MaxTermLength+1)},
+	}
+	for name, exclude := range invalid {
+		if err := (Query{Page: 1, Exclude: exclude}).Validate(); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
+	}
+	if err := (Query{Page: 1, Exclude: []string{"snow", "anime"}}).Validate(); err != nil {
+		t.Errorf("valid excludes: %v", err)
 	}
 }
 

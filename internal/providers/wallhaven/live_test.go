@@ -21,7 +21,7 @@ func TestLiveSearch(t *testing.T) {
 	p := New(&http.Client{Timeout: 15 * time.Second}, "Kisetsu/live-test (+https://github.com/sentivanac/kisetsu)")
 
 	page, err := p.Search(ctx, providers.Query{
-		Text: "mountains", Page: 1, MinWidth: 1920, MinHeight: 1080, Orientation: images.Landscape,
+		Text: "mountains -snow", Page: 1, MinWidth: 1920, MinHeight: 1080, Orientation: images.Landscape,
 	})
 	if err != nil {
 		t.Fatal(err)

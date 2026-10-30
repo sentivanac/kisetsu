@@ -65,6 +65,7 @@ func (p *Provider) Name() string { return "Wallhaven" }
 
 // Search returns one page of safe-for-work results for q.
 func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Page, error) {
+	q = q.Normalize()
 	if err := q.Validate(); err != nil {
 		return providers.Page{}, p.fail(providers.ErrInvalidQuery, err)
 	}
@@ -115,12 +116,22 @@ func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Pag
 	return page, nil
 }
 
-// searchURL translates q into Wallhaven search parameters.
+// searchURL translates a normalized q into Wallhaven search parameters.
 func (p *Provider) searchURL(q providers.Query) string {
 	v := url.Values{}
-	text := strings.TrimSpace(q.Text)
-	if text != "" {
-		v.Set("q", text)
+	// Wallhaven excludes tags and keywords written as "-term".
+	terms := make([]string, 0, 1+len(q.Exclude))
+	if q.Text != "" {
+		terms = append(terms, q.Text)
+	}
+	for _, term := range q.Exclude {
+		terms = append(terms, "-"+term)
+	}
+	if len(terms) > 0 {
+		v.Set("q", strings.Join(terms, " "))
+	}
+	// Relevance needs something to match; browsing uses the toplist.
+	if q.Text != "" {
 		v.Set("sorting", "relevance")
 	} else {
 		v.Set("sorting", "toplist")

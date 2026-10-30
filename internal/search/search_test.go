@@ -87,6 +87,18 @@ func TestSearchRoutesToProvider(t *testing.T) {
 	}
 }
 
+func TestSearchNormalizesQuery(t *testing.T) {
+	p := &fakeProvider{id: "a", name: "A"}
+	s, _ := New(discardLogger(), p)
+
+	if _, err := s.Search(context.Background(), "a", providers.Query{Text: " lake  -snow ", Page: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if p.lastQ.Text != "lake" || len(p.lastQ.Exclude) != 1 || p.lastQ.Exclude[0] != "snow" {
+		t.Errorf("provider received %+v, want text \"lake\" and exclude [snow]", p.lastQ)
+	}
+}
+
 func TestSearchUnknownProvider(t *testing.T) {
 	s, _ := New(discardLogger(), &fakeProvider{id: "a", name: "A"})
 
