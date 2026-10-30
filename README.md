@@ -69,6 +69,8 @@ internal/          business logic, independent of the UI
   logging/         slog logger setup
   database/        SQLite connection and schema migrations
     migrations/    numbered SQL migration files (embedded)
+  images/          provider-independent image model
+  providers/       Provider interface, query, errors
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components
   src/lib/         frontend helpers (backend error handling)
