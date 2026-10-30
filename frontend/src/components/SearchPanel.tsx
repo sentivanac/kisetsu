@@ -1,7 +1,10 @@
 import {FormEvent, useEffect, useRef, useState} from 'react';
 import {ListProviders, Search} from '../../wailsjs/go/main/App';
-import {providers, search} from '../../wailsjs/go/models';
+import {images, providers, search} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
+import {appendUnique} from '../lib/images';
+import {Gallery} from './Gallery';
+import {PreviewDialog} from './PreviewDialog';
 
 // Minimum resolutions offered in the filter, as [width, height].
 const resolutions: Record<string, [number, number]> = {
@@ -11,18 +14,27 @@ const resolutions: Record<string, [number, number]> = {
     uhd: [3840, 2160],
 };
 
-// Temporary search UI: shows result counts and sizes. The image gallery
-// replaces the result list in the next step.
+// A search whose results are on screen, kept to request further pages.
+interface ActiveSearch {
+    providerID: string;
+    query: providers.Query;
+    page: number;
+    hasMore: boolean;
+}
+
 export function SearchPanel() {
     const [sources, setSources] = useState<search.ProviderInfo[]>([]);
     const [providerID, setProviderID] = useState('');
     const [text, setText] = useState('');
     const [resolution, setResolution] = useState('any');
     const [orientation, setOrientation] = useState('');
-    const [page, setPage] = useState<providers.Page | null>(null);
+
+    const [results, setResults] = useState<images.Image[]>([]);
+    const [active, setActive] = useState<ActiveSearch | null>(null);
+    const [selected, setSelected] = useState<number | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
-    const [loading, setLoading] = useState(false);
-    // Only the latest search may update the UI.
+    const [loading, setLoading] = useState<'search' | 'more' | null>(null);
+    // Only the latest request may update the UI.
     const latestRequest = useRef(0);
 
     useEffect(() => {
@@ -34,32 +46,50 @@ export function SearchPanel() {
             .catch((err: unknown) => setError(toBackendError(err)));
     }, []);
 
-    function runSearch(event: FormEvent) {
-        event.preventDefault();
-        const [minWidth, minHeight] = resolutions[resolution];
-        const query = new providers.Query({text, page: 1, minWidth, minHeight, orientation});
+    function load(next: ActiveSearch, append: boolean) {
         const request = ++latestRequest.current;
-
-        setLoading(true);
+        setLoading(append ? 'more' : 'search');
         setError(null);
-        Search(providerID, query)
-            .then((result) => {
-                if (request === latestRequest.current) setPage(result);
+
+        Search(next.providerID, new providers.Query({...next.query, page: next.page}))
+            .then((page) => {
+                if (request !== latestRequest.current) return;
+                setResults((current) => (append ? appendUnique(current, page.images) : page.images));
+                setActive({...next, page: page.page || next.page, hasMore: page.hasMore});
             })
             .catch((err: unknown) => {
                 if (request !== latestRequest.current) return;
-                setPage(null);
                 setError(toBackendError(err));
             })
             .finally(() => {
-                if (request === latestRequest.current) setLoading(false);
+                if (request === latestRequest.current) setLoading(null);
             });
     }
 
+    function runSearch(event: FormEvent) {
+        event.preventDefault();
+        const [minWidth, minHeight] = resolutions[resolution];
+        setResults([]);
+        setSelected(null);
+        setActive(null);
+        load({
+            providerID,
+            query: new providers.Query({text, page: 1, minWidth, minHeight, orientation}),
+            page: 1,
+            hasMore: false,
+        }, false);
+    }
+
+    function loadMore() {
+        if (active?.hasMore) load({...active, page: active.page + 1}, true);
+    }
+
+    const providerName = (id: string) => sources.find((p) => p.id === id)?.name ?? id;
+    const selectedImage = selected === null ? null : results[selected];
+
     return (
-        <section className="card search" aria-busy={loading}>
-            <h2>Search</h2>
-            <form className="search-form" onSubmit={runSearch}>
+        <section className="search" aria-busy={loading !== null}>
+            <form className="search-form" onSubmit={runSearch} role="search">
                 <label className="search-text">
                     <span className="sr-only">Search text</span>
                     <input
@@ -98,8 +128,8 @@ export function SearchPanel() {
                         <option value="square">Square</option>
                     </select>
                 </label>
-                <button type="submit" className="btn" disabled={loading || !providerID}>
-                    {loading ? 'Searching…' : 'Search'}
+                <button type="submit" className="btn" disabled={loading === 'search' || !providerID}>
+                    {loading === 'search' ? 'Searching…' : 'Search'}
                 </button>
             </form>
 
@@ -109,23 +139,31 @@ export function SearchPanel() {
                         {describeError(error)}
                     </p>
                 )}
-                {page && (
-                    <>
-                        <p>
-                            {page.images.length} results on page {page.page}
-                            {page.hasMore ? ' (more available)' : ''}
-                        </p>
-                        <ul className="result-list">
-                            {page.images.map((img) => (
-                                <li key={`${img.provider}/${img.providerId}`}>
-                                    {img.providerId} · {img.width} × {img.height}
-                                    {img.license.status === 'unknown' ? ' · license unknown' : ` · ${img.license.name}`}
-                                </li>
-                            ))}
-                        </ul>
-                    </>
+                {active && results.length === 0 && !error && (
+                    <p className="muted">No images match this search. Try other words or fewer filters.</p>
                 )}
+                {results.length > 0 && <p className="muted">{results.length} images</p>}
             </div>
+
+            <Gallery items={results} onSelect={setSelected}/>
+
+            {active?.hasMore && (
+                <div className="load-more">
+                    <button type="button" className="btn secondary" onClick={loadMore} disabled={loading !== null}>
+                        {loading === 'more' ? 'Loading…' : 'Load more'}
+                    </button>
+                </div>
+            )}
+
+            {selectedImage && selected !== null && (
+                <PreviewDialog
+                    image={selectedImage}
+                    providerName={providerName(selectedImage.provider)}
+                    onClose={() => setSelected(null)}
+                    onPrevious={selected > 0 ? () => setSelected(selected - 1) : undefined}
+                    onNext={selected < results.length - 1 ? () => setSelected(selected + 1) : undefined}
+                />
+            )}
         </section>
     );
 }

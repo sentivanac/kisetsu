@@ -1,65 +1,43 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import './App.css';
 import {GetStatus} from '../wailsjs/go/main/App';
 import {main} from '../wailsjs/go/models';
-import {BackendError, toBackendError} from './lib/backend';
+import {BackendError, describeError, toBackendError} from './lib/backend';
 import {SearchPanel} from './components/SearchPanel';
 
 function App() {
     const [status, setStatus] = useState<main.Status | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
-    const [loading, setLoading] = useState(false);
 
-    const loadStatus = useCallback(() => {
-        setLoading(true);
-        setError(null);
+    useEffect(() => {
         GetStatus()
             .then(setStatus)
-            .catch((err: unknown) => {
-                setStatus(null);
-                setError(toBackendError(err));
-            })
-            .finally(() => setLoading(false));
+            .catch((err: unknown) => setError(toBackendError(err)));
     }, []);
 
-    useEffect(loadStatus, [loadStatus]);
-
     return (
-        <main className="app">
-            <h1 className="title">
-                Kisetsu <span lang="ja">季節</span>
-            </h1>
-            <p className="tagline">Wallpaper discovery for Linux</p>
+        <div className="app">
+            <header className="app-header">
+                <h1 className="title">
+                    Kisetsu <span lang="ja">季節</span>
+                </h1>
+                <p className="tagline">Wallpaper discovery for Linux</p>
+            </header>
 
-            <SearchPanel/>
+            <main className="app-main">
+                <SearchPanel/>
+            </main>
 
-            <section className="card" aria-live="polite" aria-busy={loading}>
-                <h2>Backend status</h2>
-                {error && (
-                    <p className="error" role="alert">
-                        {error.message}
-                    </p>
-                )}
-                {!error && !status && <p>Connecting to Go backend…</p>}
+            <footer className="app-footer" aria-live="polite">
+                {error && <span className="error">{describeError(error)}</span>}
                 {status && (
-                    <dl className="info">
-                        <dt>Version</dt>
-                        <dd>{status.app.version}</dd>
-                        <dt>Go</dt>
-                        <dd>{status.app.goVersion}</dd>
-                        <dt>Platform</dt>
-                        <dd>{status.app.platform}</dd>
-                        <dt>Schema</dt>
-                        <dd>v{status.database.schemaVersion}</dd>
-                        <dt>Database</dt>
-                        <dd className="path">{status.database.path}</dd>
-                    </dl>
+                    <span title={status.database.path}>
+                        {status.app.name} {status.app.version} · {status.app.platform} · database schema v
+                        {status.database.schemaVersion}
+                    </span>
                 )}
-                <button type="button" className="btn" onClick={loadStatus} disabled={loading}>
-                    {loading ? 'Checking…' : 'Check again'}
-                </button>
-            </section>
-        </main>
+            </footer>
+        </div>
     );
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
@@ -88,6 +89,11 @@ func run() error {
 		return err
 	}
 
+	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
+	if gpuErr != nil {
+		log.Warn("using default WebView GPU policy", "err", gpuErr)
+	}
+
 	app := NewApp(log, db, dbPath, searcher)
 
 	err = wails.Run(&options.App{
@@ -100,6 +106,10 @@ func run() error {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
+		Linux: &linux.Options{
+			WebviewGpuPolicy: gpuPolicy,
+			ProgramName:      "kisetsu",
+		},
 		OnStartup:        app.startup,
 		// Log the full error, send only the user-safe part to the frontend.
 		ErrorFormatter: func(err error) any {

@@ -59,7 +59,7 @@ type Image struct {
 	ProviderID   string  `json:"providerId"`   // image ID at the provider
 	PageURL      string  `json:"pageUrl"`      // image page at the provider, for attribution
 	ThumbnailURL string  `json:"thumbnailUrl"` // small image for grids
-	PreviewURL   string  `json:"previewUrl"`   // larger image for previews
+	PreviewURL   string  `json:"previewUrl"`   // uncropped, possibly small; shown while DownloadURL loads
 	DownloadURL  string  `json:"downloadUrl"`  // original file
 	Width        int     `json:"width"`
 	Height       int     `json:"height"`

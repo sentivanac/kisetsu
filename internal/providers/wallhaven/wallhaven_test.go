@@ -100,7 +100,7 @@ func TestSearchNormalizesResults(t *testing.T) {
 		ProviderID:   "g751xq",
 		PageURL:      "https://wallhaven.cc/w/g751xq",
 		ThumbnailURL: "https://th.wallhaven.cc/small/g7/g751xq.jpg",
-		PreviewURL:   "https://th.wallhaven.cc/lg/g7/g751xq.jpg",
+		PreviewURL:   "https://th.wallhaven.cc/orig/g7/g751xq.jpg",
 		DownloadURL:  "https://w.wallhaven.cc/full/g7/wallhaven-g751xq.jpg",
 		Width:        5070,
 		Height:       3380,

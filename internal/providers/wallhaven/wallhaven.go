@@ -188,8 +188,8 @@ type wallpaper struct {
 	FileType string `json:"file_type"`
 	Path     string `json:"path"`
 	Thumbs   struct {
-		Large string `json:"large"`
-		Small string `json:"small"`
+		Original string `json:"original"`
+		Small    string `json:"small"`
 	} `json:"thumbs"`
 }
 
@@ -199,12 +199,13 @@ func (w wallpaper) toImage() images.Image {
 		ProviderID:   w.ID,
 		PageURL:      w.URL,
 		ThumbnailURL: w.Thumbs.Small,
-		PreviewURL:   w.Thumbs.Large,
-		DownloadURL:  w.Path,
-		Width:        w.Width,
-		Height:       w.Height,
-		MIMEType:     w.FileType,
-		FileSize:     w.FileSize,
+		// "original" keeps the aspect ratio; "large" is cropped to 16:9.
+		PreviewURL:  w.Thumbs.Original,
+		DownloadURL: w.Path,
+		Width:       w.Width,
+		Height:      w.Height,
+		MIMEType:    w.FileType,
+		FileSize:    w.FileSize,
 		// Wallhaven only knows the uploader, who is usually not the author.
 		Author:    images.Author{},
 		SourceURL: sourceURL(w.Source),

@@ -38,6 +38,8 @@ Verified against the live API on 2026-10-30:
   uses the local library and does not depend on it.
 - `License.Status = unknown` with Wallhaven's statement as the notice;
   `Author` stays empty; `SourceURL` is kept only if it is an http(s) URL.
+- `ThumbnailURL` is `thumbs.small` (3:2 crop); `PreviewURL` is
+  `thumbs.original`, the only uncropped thumbnail (see ADR 0008).
 - Responses larger than 2 MB are rejected (a page is about 30 KB).
 - Status mapping: `429` → `ErrRateLimited` (with `Retry-After`, default 60 s);
   `400`/`422` → `ErrInvalidQuery`; everything else, network failures and
