@@ -2,22 +2,62 @@ package main
 
 import (
 	"embed"
-	"log"
+	"fmt"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
+	"github.com/sentivanac/kisetsu/internal/config"
+	"github.com/sentivanac/kisetsu/internal/logging"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu:", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	paths, err := config.DefaultPaths()
+	if err != nil {
+		return err
+	}
+	if err := paths.Ensure(); err != nil {
+		return err
+	}
+
+	level, levelErr := logging.ParseLevel(os.Getenv(logging.LevelEnv))
+	log, logFile, err := logging.Open(paths.State, level)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
+
+	if levelErr != nil {
+		log.Warn("using default log level", "err", levelErr)
+	}
+
+	info := appinfo.Get()
+	log.Info("starting",
+		"version", info.Version,
+		"go", info.GoVersion,
+		"platform", info.Platform,
+		"config_dir", paths.Config,
+		"data_dir", paths.Data,
+		"cache_dir", paths.Cache,
+		"state_dir", paths.State,
+	)
+
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:     appinfo.Name,
 		Width:     1200,
 		Height:    800,
@@ -33,6 +73,10 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("kisetsu: %v", err)
+		log.Error("application stopped with an error", "err", err)
+		return err
 	}
+
+	log.Info("stopped")
+	return nil
 }
