@@ -1,20 +1,27 @@
 import {useCallback, useEffect, useState} from 'react';
 import './App.css';
-import {GetAppInfo} from '../wailsjs/go/main/App';
-import {appinfo} from '../wailsjs/go/models';
+import {GetStatus} from '../wailsjs/go/main/App';
+import {main} from '../wailsjs/go/models';
+import {BackendError, toBackendError} from './lib/backend';
 
 function App() {
-    const [info, setInfo] = useState<appinfo.Info | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [status, setStatus] = useState<main.Status | null>(null);
+    const [error, setError] = useState<BackendError | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const loadInfo = useCallback(() => {
+    const loadStatus = useCallback(() => {
+        setLoading(true);
         setError(null);
-        GetAppInfo()
-            .then(setInfo)
-            .catch((err: unknown) => setError(String(err)));
+        GetStatus()
+            .then(setStatus)
+            .catch((err: unknown) => {
+                setStatus(null);
+                setError(toBackendError(err));
+            })
+            .finally(() => setLoading(false));
     }, []);
 
-    useEffect(loadInfo, [loadInfo]);
+    useEffect(loadStatus, [loadStatus]);
 
     return (
         <main className="app">
@@ -23,22 +30,30 @@ function App() {
             </h1>
             <p className="tagline">Wallpaper discovery for Linux</p>
 
-            <section className="card" aria-live="polite">
+            <section className="card" aria-live="polite" aria-busy={loading}>
                 <h2>Backend status</h2>
-                {error && <p className="error">Go backend unavailable: {error}</p>}
-                {!error && !info && <p>Connecting to Go backend…</p>}
-                {info && (
+                {error && (
+                    <p className="error" role="alert">
+                        {error.message}
+                    </p>
+                )}
+                {!error && !status && <p>Connecting to Go backend…</p>}
+                {status && (
                     <dl className="info">
                         <dt>Version</dt>
-                        <dd>{info.version}</dd>
+                        <dd>{status.app.version}</dd>
                         <dt>Go</dt>
-                        <dd>{info.goVersion}</dd>
+                        <dd>{status.app.goVersion}</dd>
                         <dt>Platform</dt>
-                        <dd>{info.platform}</dd>
+                        <dd>{status.app.platform}</dd>
+                        <dt>Schema</dt>
+                        <dd>v{status.database.schemaVersion}</dd>
+                        <dt>Database</dt>
+                        <dd className="path">{status.database.path}</dd>
                     </dl>
                 )}
-                <button type="button" className="btn" onClick={loadInfo}>
-                    Ask Go again
+                <button type="button" className="btn" onClick={loadStatus} disabled={loading}>
+                    {loading ? 'Checking…' : 'Check again'}
                 </button>
             </section>
         </main>

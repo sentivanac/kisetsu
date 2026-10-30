@@ -24,7 +24,7 @@
 }
 
 .card {
-    width: min(100%, 22rem);
+    width: min(100%, 30rem);
     padding: 1.25rem 1.5rem;
     border-radius: 12px;
     background: var(--surface);
@@ -74,4 +74,14 @@
 .btn:focus-visible {
     outline: 2px solid var(--text);
     outline-offset: 2px;
+}
+
+.info dd.path {
+    overflow-wrap: anywhere;
+    font-size: 0.85rem;
+}
+
+.btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
 }

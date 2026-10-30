@@ -2,7 +2,7 @@
 # from wails.json; plain Go commands need it passed explicitly.
 TAGS := webkit2_41
 
-.PHONY: dev build test vet check check-node
+.PHONY: dev build test test-frontend vet check check-node
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -16,13 +16,17 @@ build: check-node
 test:
 	go test -tags $(TAGS) ./...
 
+## test-frontend: run frontend unit tests (Vitest)
+test-frontend: check-node
+	cd frontend && npm test
+
 ## vet: run go vet
 vet:
 	go vet -tags $(TAGS) ./...
 
-## check: vet + tests + frontend type check
+## check: vet, Go tests, frontend type check and tests
 check: vet test check-node
-	cd frontend && npx tsc --noEmit
+	cd frontend && npx tsc --noEmit && npm test
 
 check-node:
 	@node -e 'const v=process.versions.node; if (+v.split(".")[0] < 24) { console.error("Node " + v + " is too old; run: nvm use"); process.exit(1) }'

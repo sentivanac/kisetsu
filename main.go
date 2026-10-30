@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
+	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
@@ -73,7 +74,7 @@ func run() error {
 	}
 	log.Info("database ready", "path", dbPath, "schema_version", schema)
 
-	app := NewApp()
+	app := NewApp(log, db, dbPath)
 
 	err = wails.Run(&options.App{
 		Title:     appinfo.Name,
@@ -86,6 +87,11 @@ func run() error {
 		},
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
 		OnStartup:        app.startup,
+		// Log the full error, send only the user-safe part to the frontend.
+		ErrorFormatter: func(err error) any {
+			log.Error("frontend call failed", "err", err)
+			return apperr.ToPublic(err)
+		},
 		Bind: []any{
 			app,
 		},
