@@ -1,18 +1,20 @@
 import {FormEvent, useEffect, useRef, useState} from 'react';
-import {ListProviders, Search} from '../../wailsjs/go/main/App';
-import {images, providers, search} from '../../wailsjs/go/models';
+import {GetSearchFilters, ListProviders, SaveSearchFilters, Search} from '../../wailsjs/go/main/App';
+import {images, providers, search, settings} from '../../wailsjs/go/models';
+import {ScreenGetAll} from '../../wailsjs/runtime/runtime';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
+import {
+    anyResolution,
+    parseResolutionKey,
+    Resolution,
+    resolutionKey,
+    resolutionLabel,
+    resolutionOptions,
+} from '../lib/filters';
 import {appendUnique} from '../lib/images';
+import {screenPixels, WailsScreen} from '../lib/screen';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
-
-// Minimum resolutions offered in the filter, as [width, height].
-const resolutions: Record<string, [number, number]> = {
-    any: [0, 0],
-    fhd: [1920, 1080],
-    qhd: [2560, 1440],
-    uhd: [3840, 2160],
-};
 
 // A search whose results are on screen, kept to request further pages.
 interface ActiveSearch {
@@ -26,8 +28,11 @@ export function SearchPanel() {
     const [sources, setSources] = useState<search.ProviderInfo[]>([]);
     const [providerID, setProviderID] = useState('');
     const [text, setText] = useState('');
-    const [resolution, setResolution] = useState('any');
+    const [resolution, setResolution] = useState<Resolution>(anyResolution);
     const [orientation, setOrientation] = useState('');
+    // Filters are saved only after the remembered ones were loaded, so the
+    // defaults shown during startup never overwrite them.
+    const [filtersLoaded, setFiltersLoaded] = useState(false);
 
     const [results, setResults] = useState<images.Image[]>([]);
     const [active, setActive] = useState<ActiveSearch | null>(null);
@@ -39,12 +44,40 @@ export function SearchPanel() {
 
     useEffect(() => {
         ListProviders()
-            .then((list) => {
+            .then(async (list) => {
                 setSources(list);
-                setProviderID((current) => current || list[0]?.id || '');
+                // Remembered filters are a convenience: if they cannot be
+                // loaded, searching still works with the defaults.
+                const saved = await GetSearchFilters().catch(() => new settings.SearchFilters({}));
+                const known = list.some((p) => p.id === saved.providerId);
+                setProviderID(known ? saved.providerId : list[0]?.id ?? '');
+                setResolution({width: saved.minWidth, height: saved.minHeight});
+                setOrientation(saved.orientation);
+                setFiltersLoaded(true);
             })
             .catch((err: unknown) => setError(toBackendError(err)));
     }, []);
+
+    useEffect(() => {
+        if (!filtersLoaded) return;
+        SaveSearchFilters(
+            new settings.SearchFilters({
+                providerId: providerID,
+                minWidth: resolution.width,
+                minHeight: resolution.height,
+                orientation,
+            }),
+        ).catch((err: unknown) => setError(toBackendError(err)));
+    }, [filtersLoaded, providerID, resolution, orientation]);
+
+    function applyScreenSize() {
+        ScreenGetAll()
+            .then((screens) => {
+                const size = screenPixels(screens as WailsScreen[]);
+                if (size) setResolution(size);
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
 
     function load(next: ActiveSearch, append: boolean) {
         const request = ++latestRequest.current;
@@ -68,7 +101,7 @@ export function SearchPanel() {
 
     function runSearch(event: FormEvent) {
         event.preventDefault();
-        const [minWidth, minHeight] = resolutions[resolution];
+        const {width: minWidth, height: minHeight} = resolution;
         setResults([]);
         setSelected(null);
         setActive(null);
@@ -112,13 +145,20 @@ export function SearchPanel() {
                 </label>
                 <label>
                     Minimum size
-                    <select value={resolution} onChange={(e) => setResolution(e.target.value)}>
-                        <option value="any">Any</option>
-                        <option value="fhd">1920 × 1080</option>
-                        <option value="qhd">2560 × 1440</option>
-                        <option value="uhd">3840 × 2160</option>
+                    <select
+                        value={resolutionKey(resolution)}
+                        onChange={(e) => setResolution(parseResolutionKey(e.target.value))}
+                    >
+                        {resolutionOptions(resolution).map((r) => (
+                            <option key={resolutionKey(r)} value={resolutionKey(r)}>
+                                {resolutionLabel(r)}
+                            </option>
+                        ))}
                     </select>
                 </label>
+                <button type="button" className="btn secondary" onClick={applyScreenSize}>
+                    Use my screen size
+                </button>
                 <label>
                     Orientation
                     <select value={orientation} onChange={(e) => setOrientation(e.target.value)}>

@@ -241,3 +241,26 @@ export namespace search {
 
 }
 
+export namespace settings {
+	
+	export class SearchFilters {
+	    providerId: string;
+	    minWidth: number;
+	    minHeight: number;
+	    orientation: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SearchFilters(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providerId = source["providerId"];
+	        this.minWidth = source["minWidth"];
+	        this.minHeight = source["minHeight"];
+	        this.orientation = source["orientation"];
+	    }
+	}
+
+}
+

@@ -11,6 +11,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
 // App is the bridge between the frontend and the Go backend.
@@ -25,21 +26,32 @@ import (
 // Wails recovers panics but never answers the frontend call, which
 // would leave the JavaScript promise pending forever.
 type App struct {
-	ctx    context.Context
-	log    *slog.Logger
-	db     *sql.DB
-	dbPath string
-	search *search.Service
+	ctx      context.Context
+	log      *slog.Logger
+	db       *sql.DB
+	dbPath   string
+	search   *search.Service
+	settings *settings.Store
+}
+
+// Deps are the dependencies of App, created in main.go.
+type Deps struct {
+	Log      *slog.Logger
+	DB       *sql.DB
+	DBPath   string
+	Search   *search.Service
+	Settings *settings.Store
 }
 
 // NewApp creates a new App.
-func NewApp(log *slog.Logger, db *sql.DB, dbPath string, searcher *search.Service) *App {
+func NewApp(d Deps) *App {
 	return &App{
-		ctx:    context.Background(),
-		log:    log,
-		db:     db,
-		dbPath: dbPath,
-		search: searcher,
+		ctx:      context.Background(),
+		log:      d.Log,
+		db:       d.DB,
+		dbPath:   d.DBPath,
+		search:   d.Search,
+		settings: d.Settings,
 	}
 }
 

@@ -31,6 +31,6 @@ reported by users.
 ## Not decided yet
 
 - A settings file format. It will be introduced together with the first
-  real setting.
+  real setting. (Resolved by ADR 0009: settings are stored in SQLite.)
 - Log rotation. The log file grows without limit for now.
 - Routing Wails' internal log output into the same logger.

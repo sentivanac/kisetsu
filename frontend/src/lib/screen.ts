@@ -1,0 +1,29 @@
+// Screen information from the Wails runtime.
+//
+// The TypeScript type shipped with Wails v2.17 lacks the size and
+// physicalSize fields that the Go side sends, so they are declared here.
+
+export interface ScreenSize {
+    width: number;
+    height: number;
+}
+
+export interface WailsScreen {
+    isCurrent: boolean;
+    isPrimary: boolean;
+    width: number; // deprecated by Wails, same as size
+    height: number;
+    size?: ScreenSize; // logical pixels
+    physicalSize?: ScreenSize; // device pixels (logical × scale factor)
+}
+
+// screenPixels returns the device-pixel size of the screen the window is on,
+// falling back to the primary or first screen. Wallpapers need device
+// pixels: a 200% HiDPI screen of 1920 × 1080 logical pixels shows 3840 × 2160.
+export function screenPixels(screens: WailsScreen[]): ScreenSize | null {
+    const screen = screens.find((s) => s.isCurrent) ?? screens.find((s) => s.isPrimary) ?? screens[0];
+    if (!screen) return null;
+    const size = screen.physicalSize ?? screen.size ?? {width: screen.width, height: screen.height};
+    if (!(size.width > 0 && size.height > 0)) return null;
+    return {width: size.width, height: size.height};
+}

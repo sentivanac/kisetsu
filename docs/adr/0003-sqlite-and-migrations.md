@@ -34,6 +34,7 @@ users' databases automatically without losing data.
      modified, so downgrading Kisetsu cannot damage data.
 4. **No tables yet.** The first tables arrive with the first features that
    use them (Phase 2), so the schema is never designed ahead of real needs.
+   (The first one, `settings`, arrived in migration 0001; see ADR 0009.)
 5. The database file is created with `0600` permissions.
 
 ## Consequences

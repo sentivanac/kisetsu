@@ -21,6 +21,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/logging"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
 //go:embed all:frontend/dist
@@ -94,7 +95,13 @@ func run() error {
 		log.Warn("using default WebView GPU policy", "err", gpuErr)
 	}
 
-	app := NewApp(log, db, dbPath, searcher)
+	app := NewApp(Deps{
+		Log:      log,
+		DB:       db,
+		DBPath:   dbPath,
+		Search:   searcher,
+		Settings: settings.NewStore(db),
+	})
 
 	err = wails.Run(&options.App{
 		Title:     appinfo.Name,
@@ -110,7 +117,7 @@ func run() error {
 			WebviewGpuPolicy: gpuPolicy,
 			ProgramName:      "kisetsu",
 		},
-		OnStartup:        app.startup,
+		OnStartup: app.startup,
 		// Log the full error, send only the user-safe part to the frontend.
 		ErrorFormatter: func(err error) any {
 			log.Error("frontend call failed", "err", err)

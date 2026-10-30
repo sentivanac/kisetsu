@@ -16,6 +16,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
 // stubProvider returns a fixed page or error.
@@ -46,7 +47,7 @@ func newTestApp(t *testing.T, provider *stubProvider) *App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewApp(log, db, path, svc)
+	return NewApp(Deps{Log: log, DB: db, DBPath: path, Search: svc, Settings: settings.NewStore(db)})
 }
 
 func TestGetStatus(t *testing.T) {
@@ -176,5 +177,52 @@ func TestSearchErrorsAreUserFriendly(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSearchFiltersRoundTrip(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+
+	defaults, err := app.GetSearchFilters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults != (settings.SearchFilters{}) {
+		t.Errorf("defaults = %+v", defaults)
+	}
+
+	want := settings.SearchFilters{ProviderID: "stub", MinWidth: 2560, MinHeight: 1440, Orientation: images.Portrait}
+	if err := app.SaveSearchFilters(want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := app.GetSearchFilters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestSaveSearchFiltersRejectsInvalid(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+
+	err := app.SaveSearchFilters(settings.SearchFilters{Orientation: "diagonal"})
+	if got := apperr.ToPublic(err).Code; got != apperr.InvalidInput {
+		t.Errorf("code = %q, want %q", got, apperr.InvalidInput)
+	}
+}
+
+func TestSearchFiltersReportUnavailableDatabase(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	app.db.Close()
+
+	_, getErr := app.GetSearchFilters()
+	saveErr := app.SaveSearchFilters(settings.SearchFilters{})
+
+	for _, err := range []error{getErr, saveErr} {
+		if got := apperr.ToPublic(err).Code; got != apperr.Unavailable {
+			t.Errorf("code = %q, want %q (err: %v)", got, apperr.Unavailable, err)
+		}
 	}
 }
