@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/config"
+	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/logging"
 )
 
@@ -54,6 +57,21 @@ func run() error {
 		"cache_dir", paths.Cache,
 		"state_dir", paths.State,
 	)
+
+	ctx := context.Background()
+	dbPath := filepath.Join(paths.Data, database.FileName)
+	db, err := database.Open(ctx, dbPath)
+	if err != nil {
+		log.Error("cannot open database", "path", dbPath, "err", err)
+		return err
+	}
+	defer db.Close()
+
+	schema, err := database.SchemaVersion(ctx, db)
+	if err != nil {
+		return err
+	}
+	log.Info("database ready", "path", dbPath, "schema_version", schema)
 
 	app := NewApp()
 
