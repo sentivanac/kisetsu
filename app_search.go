@@ -18,17 +18,6 @@ func (a *App) ListProviders() (list []search.ProviderInfo, err error) {
 	return a.search.Providers(), nil
 }
 
-// Search runs one page of a search with the given provider.
-func (a *App) Search(providerID string, query providers.Query) (page providers.Page, err error) {
-	defer a.recoverPanic("Search", &err)
-
-	page, err = a.search.Search(a.ctx, providerID, query)
-	if err != nil {
-		return providers.Page{}, a.searchError(err)
-	}
-	return page, nil
-}
-
 // SourceStatus reports how one source did in a multi-source search.
 type SourceStatus struct {
 	ProviderID string         `json:"providerId"`

@@ -78,6 +78,13 @@ func New(client *http.Client, userAgent string) *Provider {
 func (p *Provider) ID() string   { return ID }
 func (p *Provider) Name() string { return "Wikimedia Commons" }
 
+// ContentWarning implements providers.ContentWarner: Commons has no
+// safe-for-work rating, so the filter in sfw.go is best effort.
+func (p *Provider) ContentWarning() string {
+	return "Wikimedia Commons has no safe-for-work rating. Kisetsu filters its results, " +
+		"but some unsuitable images may still appear."
+}
+
 // Search returns one page of results for q from Commons' curated
 // collections, with unsuitable and undisplayable files removed.
 func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Page, error) {

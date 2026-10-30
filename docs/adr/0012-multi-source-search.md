@@ -33,7 +33,7 @@ source). The call itself fails only for invalid requests
 (`invalid_input`: no source, unknown or repeated source, invalid query).
 
 `Search(providerID, query)` stays until the UI switches to `SearchSources`
-(Phase 3, step 5).
+(Phase 3, step 5). (Removed in ADR 0014.)
 
 ## Verification
 

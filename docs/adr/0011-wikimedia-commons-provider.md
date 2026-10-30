@@ -79,3 +79,4 @@ Best effort, clearly communicated, off by default:
   continuation; the local check then sees fewer categories.
 - The provider is implemented and tested but not yet registered in
   `main.go`; it is enabled together with source selection in the UI.
+  (Registered in ADR 0014, off by default through `providers.ContentWarner`.)

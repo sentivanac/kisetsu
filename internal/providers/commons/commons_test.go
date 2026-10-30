@@ -71,6 +71,9 @@ func TestNew(t *testing.T) {
 		t.Errorf("ID, Name = %q, %q", p.ID(), p.Name())
 	}
 	var _ providers.Provider = p
+	if w, ok := any(p).(providers.ContentWarner); !ok || w.ContentWarning() == "" {
+		t.Error("Commons must warn that its content filter is best effort")
+	}
 }
 
 func TestSearchNormalizesResults(t *testing.T) {

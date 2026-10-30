@@ -20,11 +20,23 @@ export function PreviewDialog({image, providerName, onClose, onPrevious, onNext}
     // cannot leave a stale "loaded" or "loading" state behind.
     const [result, setResult] = useState<{url: string; ok: boolean} | null>(null);
     const status = result?.url !== image.downloadUrl ? 'loading' : result.ok ? 'loaded' : 'failed';
+    // The blurred placeholder is removed once the full image has faded in,
+    // so it can never show through again.
+    const [fadedUrl, setFadedUrl] = useState<string | null>(null);
+    const showPlaceholder = fadedUrl !== image.downloadUrl;
 
     useEffect(() => {
         const el = dialog.current;
         if (el && !el.open) el.showModal();
     }, []);
+
+    useEffect(() => {
+        if (status !== 'loaded') return;
+        const url = image.downloadUrl;
+        // Slightly longer than the CSS fade (0.3 s).
+        const timer = window.setTimeout(() => setFadedUrl(url), 350);
+        return () => window.clearTimeout(timer);
+    }, [status, image.downloadUrl]);
 
     function onKeyDown(event: KeyboardEvent) {
         if (event.key === 'ArrowLeft' && onPrevious) {
@@ -42,13 +54,15 @@ export function PreviewDialog({image, providerName, onClose, onPrevious, onNext}
     return (
         <dialog ref={dialog} className="preview" onClose={onClose} onKeyDown={onKeyDown} aria-label="Image preview">
             <div className="preview-image">
-                <img
-                    key={image.previewUrl}
-                    className="preview-placeholder"
-                    src={image.previewUrl || image.thumbnailUrl}
-                    alt=""
-                    aria-hidden={status === 'loaded'}
-                />
+                {showPlaceholder && (
+                    <img
+                        key={image.previewUrl}
+                        className="preview-placeholder"
+                        src={image.previewUrl || image.thumbnailUrl}
+                        alt=""
+                        aria-hidden="true"
+                    />
+                )}
                 <img
                     key={image.downloadUrl}
                     className={status === 'loaded' ? 'preview-full loaded' : 'preview-full'}

@@ -29,6 +29,13 @@ type Provider interface {
 	Search(ctx context.Context, q Query) (Page, error)
 }
 
+// ContentWarner is implemented by providers that cannot guarantee
+// safe-for-work results. ContentWarning returns a short notice for the UI.
+// Such providers are off until the user enables them.
+type ContentWarner interface {
+	ContentWarning() string
+}
+
 const (
 	// MaxQueryLength limits the search text, in characters.
 	MaxQueryLength = 256

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sentivanac/kisetsu/internal/database"
@@ -82,7 +84,7 @@ func TestSearchFiltersDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != (SearchFilters{}) {
+	if !reflect.DeepEqual(got, SearchFilters{}) {
 		t.Errorf("got %+v, want defaults", got)
 	}
 }
@@ -90,7 +92,7 @@ func TestSearchFiltersDefaults(t *testing.T) {
 func TestSearchFiltersRoundTrip(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
-	want := SearchFilters{ProviderID: "wallhaven", MinWidth: 3840, MinHeight: 2160, Orientation: images.Landscape}
+	want := SearchFilters{ProviderIDs: []string{"wallhaven", "wikimedia-commons"}, MinWidth: 3840, MinHeight: 2160, Orientation: images.Landscape}
 
 	if err := store.SaveSearchFilters(ctx, want); err != nil {
 		t.Fatal(err)
@@ -99,7 +101,7 @@ func TestSearchFiltersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
@@ -108,6 +110,9 @@ func TestSaveSearchFiltersRejectsInvalid(t *testing.T) {
 	store, _ := newTestStore(t)
 
 	invalid := []SearchFilters{
+		{ProviderIDs: []string{"a", "a"}},
+		{ProviderIDs: []string{""}},
+		{ProviderIDs: make([]string, maxProviders+1)},
 		{MinWidth: -1},
 		{MinHeight: maxMinSide + 1},
 		{Orientation: "diagonal"},
@@ -124,6 +129,7 @@ func TestSearchFiltersIgnoresBadStoredValues(t *testing.T) {
 		"wrong shape":         `{"minWidth": "wide"}`,
 		"invalid orientation": `{"orientation": "diagonal"}`,
 		"negative size":       `{"minWidth": -5}`,
+		"repeated source":     `{"providerIds": ["a", "a"]}`,
 	}
 	for name, raw := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -136,10 +142,44 @@ func TestSearchFiltersIgnoresBadStoredValues(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got != (SearchFilters{}) {
+			if !reflect.DeepEqual(got, SearchFilters{}) {
 				t.Errorf("got %+v, want defaults", got)
 			}
 		})
+	}
+}
+
+func TestSearchFiltersReadsSingleSourceFormat(t *testing.T) {
+	store, db := newTestStore(t)
+	// Format saved before multi-source search.
+	legacy := `{"providerId": "wallhaven", "minWidth": 1920, "minHeight": 1080, "orientation": "landscape"}`
+	if _, err := db.Exec(`INSERT INTO settings (key, value) VALUES (?, ?)`, searchFiltersKey, legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.SearchFilters(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := SearchFilters{ProviderIDs: []string{"wallhaven"}, MinWidth: 1920, MinHeight: 1080, Orientation: images.Landscape}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestSaveSearchFiltersDropsLegacyField(t *testing.T) {
+	store, db := newTestStore(t)
+	ctx := context.Background()
+	if err := store.SaveSearchFilters(ctx, SearchFilters{ProviderIDs: []string{"wallhaven"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw string
+	if err := db.QueryRow(`SELECT value FROM settings WHERE key = ?`, searchFiltersKey).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(raw, `"providerId"`) {
+		t.Errorf("saved value still has the legacy field: %s", raw)
 	}
 }
 

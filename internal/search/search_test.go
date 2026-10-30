@@ -61,11 +61,33 @@ func TestProviders(t *testing.T) {
 	}
 
 	got := s.Providers()
-	if len(got) != 2 || got[0] != (ProviderInfo{ID: "b", Name: "Bee"}) || got[1] != (ProviderInfo{ID: "a", Name: "Ay"}) {
+	if len(got) != 2 || got[0] != (ProviderInfo{ID: "b", Name: "Bee", EnabledByDefault: true}) ||
+		got[1] != (ProviderInfo{ID: "a", Name: "Ay", EnabledByDefault: true}) {
 		t.Errorf("Providers() = %+v, want registration order", got)
 	}
 	if s.ProviderName("a") != "Ay" || s.ProviderName("missing") != "missing" {
 		t.Errorf("ProviderName: %q, %q", s.ProviderName("a"), s.ProviderName("missing"))
+	}
+}
+
+// warningProvider is a fakeProvider that cannot guarantee SFW results.
+type warningProvider struct{ fakeProvider }
+
+func (w *warningProvider) ContentWarning() string { return "may contain anything" }
+
+func TestProvidersWithContentWarningAreOptIn(t *testing.T) {
+	s, err := New(discardLogger(), &fakeProvider{id: "safe", name: "Safe"},
+		&warningProvider{fakeProvider{id: "risky", name: "Risky"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := s.Providers()
+	if !got[0].EnabledByDefault || got[0].ContentWarning != "" {
+		t.Errorf("safe provider = %+v", got[0])
+	}
+	if got[1].EnabledByDefault || got[1].ContentWarning != "may contain anything" {
+		t.Errorf("risky provider = %+v", got[1])
 	}
 }
 

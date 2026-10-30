@@ -2,11 +2,15 @@
 
 An open-source wallpaper discovery and management platform for Linux.
 
-> **Status:** early development (Phase 2 — basic image discovery). The app currently
-> searches Wallhaven (safe-for-work only) with size and orientation
-> filters (remembered between sessions, with a "use my screen size"
-> shortcut), shows results in a gallery and previews images with their
-> source and license information.
+> **Status:** early development (Phase 3 — multi-source search). The app
+> searches Wallhaven and, if you enable it, Wikimedia Commons at the same
+> time, with size and orientation filters and `-word` exclusions; shows
+> results in a gallery and previews images with their author, source and
+> license. Filters are remembered between sessions.
+>
+> Wikimedia Commons has no safe-for-work rating. Kisetsu limits it to
+> curated collections and filters risky results, but cannot guarantee
+> that nothing unsuitable appears, so the source is off by default.
 
 ## Requirements
 
@@ -89,7 +93,7 @@ internal/          business logic, independent of the UI
     commons/       Wikimedia Commons API (curated collections, best-effort SFW)
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
-app_search.go      search methods exposed to the frontend, error messages
+app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite

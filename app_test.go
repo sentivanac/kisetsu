@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -121,63 +122,47 @@ func TestListProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0] != (search.ProviderInfo{ID: "stub", Name: "Stub Images"}) {
+	if len(list) != 1 || list[0] != (search.ProviderInfo{ID: "stub", Name: "Stub Images", EnabledByDefault: true}) {
 		t.Errorf("ListProviders() = %+v", list)
 	}
 }
 
-func TestSearchReturnsPage(t *testing.T) {
-	want := providers.Page{Images: []images.Image{{ProviderID: "abc"}}, Page: 1, HasMore: true}
-	app := newTestApp(t, &stubProvider{page: want})
-
-	got, err := app.Search("stub", providers.Query{Text: "lake", Page: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Images) != 1 || got.Images[0].ProviderID != "abc" || !got.HasMore {
-		t.Errorf("page = %+v", got)
-	}
-}
-
-func TestSearchErrorsAreUserFriendly(t *testing.T) {
+// Provider failures are reported per source with a user-friendly message.
+// Request-level errors are covered by TestSearchSourcesRejectsInvalidRequests.
+func TestSourceErrorsAreUserFriendly(t *testing.T) {
 	providerErr := func(kind, cause error, retry time.Duration) error {
 		return &providers.Error{Provider: "stub", Kind: kind, Err: cause, RetryAfter: retry}
 	}
 
 	tests := []struct {
 		name          string
-		providerID    string
-		query         providers.Query
 		err           error
 		wantCode      apperr.Code
 		wantInMsg     string
 		wantRetrySecs int
 	}{
 		{
-			name: "unknown provider", providerID: "missing", query: providers.Query{Page: 1},
-			wantCode: apperr.InvalidInput,
-		},
-		{
-			name: "invalid query", providerID: "stub", query: providers.Query{Page: 0},
-			wantCode: apperr.InvalidInput,
-		},
-		{
-			name: "rate limited", providerID: "stub", query: providers.Query{Page: 1},
+			name:     "rate limited",
 			err:      providerErr(providers.ErrRateLimited, nil, 30*time.Second),
 			wantCode: apperr.RateLimited, wantInMsg: "Stub Images", wantRetrySecs: 30,
 		},
 		{
-			name: "timeout", providerID: "stub", query: providers.Query{Page: 1},
+			name:     "timeout",
 			err:      providerErr(providers.ErrUnavailable, context.DeadlineExceeded, 0),
 			wantCode: apperr.ProviderUnavailable, wantInMsg: "did not respond in time",
 		},
 		{
-			name: "network failure", providerID: "stub", query: providers.Query{Page: 1},
+			name:     "network failure",
 			err:      providerErr(providers.ErrUnavailable, errors.New("dial tcp: no route to host"), 0),
 			wantCode: apperr.ProviderUnavailable, wantInMsg: "internet connection",
 		},
 		{
-			name: "unexpected error", providerID: "stub", query: providers.Query{Page: 1},
+			name:     "rejected by the provider",
+			err:      providerErr(providers.ErrInvalidQuery, errors.New("HTTP 400"), 0),
+			wantCode: apperr.InvalidInput, wantInMsg: "not valid",
+		},
+		{
+			name:     "unexpected error",
 			err:      errors.New("something odd"),
 			wantCode: apperr.Internal,
 		},
@@ -186,11 +171,17 @@ func TestSearchErrorsAreUserFriendly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			app := newTestApp(t, &stubProvider{err: tt.err})
 
-			_, err := app.Search(tt.providerID, tt.query)
+			result, err := app.SearchSources([]search.SourcePage{{ProviderID: "stub", Page: 1}}, providers.Query{})
+			if err != nil {
+				t.Fatalf("a source failure must not fail the call: %v", err)
+			}
 
-			pub := apperr.ToPublic(err)
+			pub := result.Sources[0].Error
+			if pub == nil {
+				t.Fatal("source has no error")
+			}
 			if pub.Code != tt.wantCode {
-				t.Fatalf("code = %q, want %q (err: %v)", pub.Code, tt.wantCode, err)
+				t.Fatalf("code = %q, want %q", pub.Code, tt.wantCode)
 			}
 			if !strings.Contains(pub.Message, tt.wantInMsg) {
 				t.Errorf("message %q does not contain %q", pub.Message, tt.wantInMsg)
@@ -198,7 +189,7 @@ func TestSearchErrorsAreUserFriendly(t *testing.T) {
 			if pub.RetryAfterSeconds != tt.wantRetrySecs {
 				t.Errorf("RetryAfterSeconds = %d, want %d", pub.RetryAfterSeconds, tt.wantRetrySecs)
 			}
-			for _, leak := range []string{"dial tcp", "something odd"} {
+			for _, leak := range []string{"dial tcp", "something odd", "HTTP 400"} {
 				if strings.Contains(pub.Message, leak) {
 					t.Errorf("internal detail %q leaked into %q", leak, pub.Message)
 				}
@@ -214,11 +205,11 @@ func TestSearchFiltersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaults != (settings.SearchFilters{}) {
+	if !reflect.DeepEqual(defaults, settings.SearchFilters{}) {
 		t.Errorf("defaults = %+v", defaults)
 	}
 
-	want := settings.SearchFilters{ProviderID: "stub", MinWidth: 2560, MinHeight: 1440, Orientation: images.Portrait}
+	want := settings.SearchFilters{ProviderIDs: []string{"stub"}, MinWidth: 2560, MinHeight: 1440, Orientation: images.Portrait}
 	if err := app.SaveSearchFilters(want); err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +217,7 @@ func TestSearchFiltersRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 }

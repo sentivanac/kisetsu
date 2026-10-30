@@ -22,6 +22,12 @@ var ErrUnknownProvider = errors.New("unknown provider")
 type ProviderInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	// ContentWarning is set for providers that cannot guarantee
+	// safe-for-work results (see providers.ContentWarner).
+	ContentWarning string `json:"contentWarning,omitempty"`
+	// EnabledByDefault is false for providers with a content warning:
+	// the user must turn them on.
+	EnabledByDefault bool `json:"enabledByDefault"`
 }
 
 // Service runs searches. It is safe for concurrent use.
@@ -56,7 +62,12 @@ func New(log *slog.Logger, ps ...providers.Provider) (*Service, error) {
 func (s *Service) Providers() []ProviderInfo {
 	out := make([]ProviderInfo, len(s.providers))
 	for i, p := range s.providers {
-		out[i] = ProviderInfo{ID: p.ID(), Name: p.Name()}
+		info := ProviderInfo{ID: p.ID(), Name: p.Name()}
+		if w, ok := p.(providers.ContentWarner); ok {
+			info.ContentWarning = w.ContentWarning()
+		}
+		info.EnabledByDefault = info.ContentWarning == ""
+		out[i] = info
 	}
 	return out
 }

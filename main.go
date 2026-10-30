@@ -19,6 +19,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/logging"
+	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
@@ -83,8 +84,10 @@ func run() error {
 	// One HTTP client shared by all providers. The timeout is a safety net;
 	// searches are also bounded by search.DefaultTimeout.
 	httpClient := &http.Client{Timeout: 15 * time.Second}
+	// Registration order is the order sources appear in the UI.
 	searcher, err := search.New(log,
 		wallhaven.New(httpClient, appinfo.UserAgent()),
+		commons.New(httpClient, appinfo.UserAgent()),
 	)
 	if err != nil {
 		return err
