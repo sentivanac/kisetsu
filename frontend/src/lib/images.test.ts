@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {appendUnique, formatFileSize, formatType, imageKey, licenseLabel} from './images';
+import {appendUnique, formatFileSize, formatType, imageKey, licenseLabel, orientationOf} from './images';
 
 const img = (provider: string, providerId: string) => ({provider, providerId});
 
@@ -61,5 +61,16 @@ describe('licenseLabel', () => {
     it('says when the license is unknown', () => {
         expect(licenseLabel({status: 'unknown', name: ''})).toBe('License unknown');
         expect(licenseLabel({status: 'known', name: ''})).toBe('License unknown');
+    });
+});
+
+describe('orientationOf', () => {
+    it('matches the Go classification', () => {
+        expect(orientationOf(1920, 1080)).toBe('landscape');
+        expect(orientationOf(1080, 1920)).toBe('portrait');
+        expect(orientationOf(1000, 1000)).toBe('square');
+        expect(orientationOf(1040, 1000)).toBe('square'); // within 5%
+        expect(orientationOf(1000, 1040)).toBe('square');
+        expect(orientationOf(1920, 0)).toBeNull();
     });
 });

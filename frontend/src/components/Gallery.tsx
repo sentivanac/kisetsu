@@ -1,5 +1,5 @@
 import {images} from '../../wailsjs/go/models';
-import {imageKey} from '../lib/images';
+import {imageKey, orientationOf} from '../lib/images';
 
 interface Props {
     items: images.Image[];
@@ -21,13 +21,15 @@ export function Gallery({items, sourceName, inLibrary, downloadPercent, onSelect
                 const key = imageKey(img);
                 const saved = inLibrary?.(key) ?? false;
                 const pct = downloadPercent?.(key);
+                // Thumbnails are cropped to 3:2, so the shape is marked.
+                const shape = orientationOf(img.width, img.height);
                 return (
                 <li key={key}>
                     <button
                         type="button"
                         className="gallery-item"
                         onClick={() => onSelect(index)}
-                        aria-label={`Open preview, ${img.width} by ${img.height}, from ${sourceName(img.provider)}${saved ? ', in your library' : ''}`}
+                        aria-label={`Open preview, ${shape ? shape + ', ' : ''}${img.width} by ${img.height}, from ${sourceName(img.provider)}${saved ? ', in your library' : ''}`}
                     >
                         <img
                             src={img.thumbnailUrl}
@@ -37,6 +39,16 @@ export function Gallery({items, sourceName, inLibrary, downloadPercent, onSelect
                             width={300}
                             height={200}
                         />
+                        {shape === 'portrait' && (
+                            <span className="gallery-badge gallery-shape" title="Portrait">
+                                ▯<span className="sr-only">Portrait</span>
+                            </span>
+                        )}
+                        {shape === 'square' && (
+                            <span className="gallery-badge gallery-shape" title="Square">
+                                □<span className="sr-only">Square</span>
+                            </span>
+                        )}
                         <span className="gallery-badge gallery-source">{sourceName(img.provider)}</span>
                         {saved && (
                             <span className="gallery-badge gallery-saved" title="In your library">

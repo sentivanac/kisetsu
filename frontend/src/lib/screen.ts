@@ -1,3 +1,5 @@
+import {orientationOf} from './images';
+
 // Screen information from the Wails runtime.
 //
 // The TypeScript type shipped with Wails v2.17 lacks the size and
@@ -26,4 +28,12 @@ export function screenPixels(screens: WailsScreen[]): ScreenSize | null {
     const size = screen.physicalSize ?? screen.size ?? {width: screen.width, height: screen.height};
     if (!(size.width > 0 && size.height > 0)) return null;
     return {width: size.width, height: size.height};
+}
+
+// screenFilters returns the search filters that fit a screen: its size as
+// the minimum resolution and its orientation. A square screen leaves the
+// orientation open ("").
+export function screenFilters(size: ScreenSize): {width: number; height: number; orientation: '' | 'landscape' | 'portrait'} {
+    const o = orientationOf(size.width, size.height);
+    return {width: size.width, height: size.height, orientation: o === 'landscape' || o === 'portrait' ? o : ''};
 }

@@ -44,3 +44,16 @@ export function formatType(mime: string): string {
 export function licenseLabel(license: Pick<images.License, 'status' | 'name'>): string {
     return license.status === 'known' && license.name ? license.name : 'License unknown';
 }
+
+export type Orientation = 'landscape' | 'portrait' | 'square';
+
+// orientationOf classifies a size like images.Image.Orientation in Go:
+// sides that differ by less than 5% count as square. It returns null when
+// the size is unknown.
+export function orientationOf(width: number, height: number): Orientation | null {
+    if (!(width > 0 && height > 0)) return null;
+    const ratio = width / height;
+    if (ratio > 1.05) return 'landscape';
+    if (ratio < 1 / 1.05) return 'portrait';
+    return 'square';
+}

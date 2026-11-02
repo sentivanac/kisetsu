@@ -37,6 +37,12 @@ screen of 1920 × 1080 logical pixels needs 3840 × 2160 images. The Wails
 v2.17 TypeScript type lacks `size`/`physicalSize`; `src/lib/screen.ts`
 declares them.
 
+It also sets the **orientation** to the screen's (landscape, or portrait
+for a monitor turned on its side; a square screen leaves it open), added
+2026-11-02 at the user's suggestion: a minimum size alone lets a
+2000 × 3000 portrait image through for a 1920 × 1080 screen, and it cannot
+fill that screen.
+
 ## Limitations
 
 - GTK reports an integer scale factor, so with fractional scaling (e.g. 125%)

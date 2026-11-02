@@ -25,6 +25,9 @@ No thumbnail is large enough for a full-window preview.
   thumbnails in 3:2 cells, matching their shape.
 - `loading="lazy"` and fixed `width`/`height`, so only visible thumbnails
   load and the layout does not jump.
+- Because cells crop to 3:2, portrait and square images are marked with
+  ▯ / □ in the top-left corner (added 2026-11-02); the exact size stays in
+  the bottom-right badge.
 - **"Load more" button** for the next page instead of infinite scrolling:
   simpler, keyboard friendly and every API call is a deliberate action.
   Infinite scrolling may come later as an option. Pages are merged with

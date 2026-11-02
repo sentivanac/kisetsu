@@ -252,6 +252,15 @@
     font-weight: 700;
 }
 
+.gallery-badge.gallery-shape {
+    top: 0.4rem;
+    left: 0.4rem;
+    right: auto;
+    bottom: auto;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
 .gallery-progress {
     position: absolute;
     left: 0;

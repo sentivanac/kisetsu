@@ -22,7 +22,7 @@ import {
 } from '../lib/filters';
 import {isActive, percent} from '../lib/downloads';
 import {appendUnique, imageKey} from '../lib/images';
-import {screenPixels, WailsScreen} from '../lib/screen';
+import {screenFilters, screenPixels, WailsScreen} from '../lib/screen';
 import {useDownloads} from '../lib/useDownloads';
 import {
     initialSources,
@@ -101,7 +101,11 @@ export function SearchPanel({active}: Props) {
         ScreenGetAll()
             .then((screens) => {
                 const size = screenPixels(screens as WailsScreen[]);
-                if (size) setResolution(size);
+                if (!size) return;
+                // A wallpaper must match the screen's shape as well as its size.
+                const filters = screenFilters(size);
+                setResolution({width: filters.width, height: filters.height});
+                setOrientation(filters.orientation);
             })
             .catch((err: unknown) => setError(toBackendError(err)));
     }
