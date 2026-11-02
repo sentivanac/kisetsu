@@ -42,7 +42,7 @@ func TestListLibraryPages(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
 	ids := downloadN(t, app, 3)
 
-	first, err := app.ListLibrary(0, 2)
+	first, err := app.ListLibrary(0, 0, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestListLibraryPages(t *testing.T) {
 		t.Errorf("attribution or date missing: %+v", item)
 	}
 
-	last, err := app.ListLibrary(2, 2)
+	last, err := app.ListLibrary(0, 2, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +65,9 @@ func TestListLibraryPages(t *testing.T) {
 		t.Errorf("last page = %+v", last)
 	}
 
-	for _, bad := range [][2]int{{-1, 10}, {0, 0}, {0, maxLibraryPage + 1}} {
-		if _, err := app.ListLibrary(bad[0], bad[1]); apperr.ToPublic(err).Code != apperr.InvalidInput {
-			t.Errorf("ListLibrary(%d, %d) err = %v", bad[0], bad[1], err)
+	for _, bad := range [][3]int{{0, -1, 10}, {0, 0, 0}, {0, 0, maxLibraryPage + 1}, {-1, 0, 10}} {
+		if _, err := app.ListLibrary(int64(bad[0]), bad[1], bad[2]); apperr.ToPublic(err).Code != apperr.InvalidInput {
+			t.Errorf("ListLibrary%v err = %v", bad, err)
 		}
 	}
 }

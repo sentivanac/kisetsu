@@ -477,3 +477,106 @@
     overflow-y: auto;
     white-space: pre-line;
 }
+
+/* Collections */
+.collections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.collection-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.chip {
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--surface-raised);
+}
+
+.chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.chip-count {
+    margin-left: 0.3rem;
+    color: var(--muted);
+}
+
+.chip-add {
+    border-style: dashed;
+    color: var(--muted);
+}
+
+.collection-tools {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.name-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.name-form input {
+    flex: 1 1 12rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.name-form input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.name-form .error {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.collection-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.collection-picker legend {
+    padding: 0 0.25rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.collection-picker .source {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+}
+
+.collection-picker .link {
+    align-self: flex-start;
+}

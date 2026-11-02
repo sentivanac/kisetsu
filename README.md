@@ -6,7 +6,7 @@ An open-source wallpaper discovery and management platform for Linux.
 > searches Wallhaven and, if you enable it, Wikimedia Commons at the same
 > time, with size and orientation filters and `-word` exclusions. Images
 > can be downloaded into a local library, which keeps their author, source
-> and license and works offline.
+> and license, works offline and can be organized into collections.
 >
 > Wikimedia Commons has no safe-for-work rating. Kisetsu limits it to
 > curated collections and filters risky results, but cannot guarantee
@@ -101,6 +101,7 @@ app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
 app_downloads.go   downloads and their progress events
 app_library.go     library listing, statistics and deletion
+app_collections.go collections
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

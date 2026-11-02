@@ -137,6 +137,22 @@ export namespace images {
 
 export namespace main {
 	
+	export class CollectionInfo {
+	    id: number;
+	    name: string;
+	    images: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CollectionInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.images = source["images"];
+	    }
+	}
 	export class DatabaseStatus {
 	    path: string;
 	    schemaVersion: number;

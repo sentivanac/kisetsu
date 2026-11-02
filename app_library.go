@@ -35,15 +35,18 @@ type LibraryStats struct {
 	Bytes  int64 `json:"bytes"`
 }
 
-// ListLibrary returns downloaded images, newest first.
-func (a *App) ListLibrary(offset, limit int) (page LibraryPage, err error) {
+// ListLibrary returns downloaded images, newest first. A collectionID of 0
+// lists the whole library; otherwise only that collection.
+func (a *App) ListLibrary(collectionID int64, offset, limit int) (page LibraryPage, err error) {
 	defer a.recoverPanic("ListLibrary", &err)
 
-	if offset < 0 || limit < 1 || limit > maxLibraryPage {
+	if collectionID < 0 || offset < 0 || limit < 1 || limit > maxLibraryPage {
 		return LibraryPage{}, apperr.New(apperr.InvalidInput, "This part of the library cannot be shown.", nil)
 	}
 	// One extra entry tells whether another page exists.
-	entries, err := a.library.List(a.ctx, library.ListOptions{Limit: limit + 1, Offset: offset})
+	entries, err := a.library.List(a.ctx, library.ListOptions{
+		CollectionID: collectionID, Limit: limit + 1, Offset: offset,
+	})
 	if err != nil {
 		return LibraryPage{}, apperr.New(apperr.Unavailable, "The library could not be loaded.", err)
 	}

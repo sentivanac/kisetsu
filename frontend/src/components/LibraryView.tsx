@@ -1,8 +1,20 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {DeleteFromLibrary, GetLibraryStats, ListLibrary} from '../../wailsjs/go/main/App';
+import {
+    AddToCollection,
+    CreateCollection,
+    DeleteCollection,
+    DeleteFromLibrary,
+    GetLibraryStats,
+    ListCollections,
+    ListLibrary,
+    RemoveFromCollection,
+    RenameCollection,
+} from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
+import {CollectionBar} from './CollectionBar';
+import {CollectionPicker} from './CollectionPicker';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
 
@@ -14,26 +26,38 @@ interface Props {
     sourceName: (providerId: string) => string;
 }
 
-// LibraryView shows downloaded images from local files.
+// LibraryView shows downloaded images from local files, by collection.
 export function LibraryView({active, sourceName}: Props) {
     const [items, setItems] = useState<main.LibraryItem[]>([]);
     const [hasMore, setHasMore] = useState(false);
     const [stats, setStats] = useState<main.LibraryStats | null>(null);
+    const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
+    const [collection, setCollection] = useState(0); // 0 = all images
     const [selected, setSelected] = useState<number | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
     const [loading, setLoading] = useState(false);
     const latestRequest = useRef(0);
 
-    const load = useCallback((offset: number) => {
+    const refreshCounts = useCallback(() => {
+        GetLibraryStats().then(setStats).catch(() => {});
+        ListCollections()
+            .then((list) => {
+                setCollections(list);
+                // The shown collection may have been deleted meanwhile.
+                setCollection((current) => (current === 0 || list.some((c) => c.id === current) ? current : 0));
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }, []);
+
+    const load = useCallback((collectionID: number, offset: number) => {
         const request = ++latestRequest.current;
         setLoading(true);
         setError(null);
-        Promise.all([ListLibrary(offset, pageSize), GetLibraryStats()])
-            .then(([page, newStats]) => {
+        ListLibrary(collectionID, offset, pageSize)
+            .then((page) => {
                 if (request !== latestRequest.current) return;
                 setItems((current) => (offset === 0 ? page.items : [...current, ...page.items]));
                 setHasMore(page.hasMore);
-                setStats(newStats);
             })
             .catch((err: unknown) => {
                 if (request === latestRequest.current) setError(toBackendError(err));
@@ -44,46 +68,103 @@ export function LibraryView({active, sourceName}: Props) {
     }, []);
 
     useEffect(() => {
-        if (active) {
-            setSelected(null);
-            load(0);
-        }
-    }, [active, load]);
+        if (active) refreshCounts();
+    }, [active, refreshCounts]);
+
+    useEffect(() => {
+        if (!active) return;
+        setSelected(null);
+        load(collection, 0);
+    }, [active, collection, load]);
+
+    // dropItem removes an item from the shown list and moves the preview on.
+    function dropItem(id: number) {
+        const {items: rest, next} = removeItem(items, id);
+        setItems(rest);
+        setSelected(next);
+    }
 
     function deleteItem(id: number) {
         DeleteFromLibrary(id)
             .then(() => {
-                const {items: rest, next} = removeItem(items, id);
-                setItems(rest);
-                setSelected(next);
-                GetLibraryStats().then(setStats).catch(() => {});
+                dropItem(id);
+                refreshCounts();
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
+
+    async function toggleMembership(collectionID: number, imageID: number, member: boolean) {
+        await (member ? AddToCollection(collectionID, imageID) : RemoveFromCollection(collectionID, imageID));
+        // Leaving the collection that is shown removes the image from view.
+        if (!member && collectionID === collection) dropItem(imageID);
+        refreshCounts();
+    }
+
+    async function createAndAdd(name: string, imageID: number) {
+        const created = await CreateCollection(name);
+        await AddToCollection(created.id, imageID);
+        refreshCounts();
+    }
+
+    function deleteCollection(id: number) {
+        DeleteCollection(id)
+            .then(() => {
+                if (collection === id) setCollection(0);
+                refreshCounts();
             })
             .catch((err: unknown) => setError(toBackendError(err)));
     }
 
     const selectedItem = selected === null ? null : items[selected];
+    const current = collections.find((c) => c.id === collection);
 
     return (
         <section className="library" aria-busy={loading}>
             <div className="library-header">
-                <h2>Library</h2>
+                <h2>{current ? current.name : 'Library'}</h2>
                 {stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
             </div>
+
+            <CollectionBar
+                collections={collections}
+                selected={collection}
+                totalImages={stats?.images ?? 0}
+                onSelect={setCollection}
+                onCreate={async (name) => {
+                    const created = await CreateCollection(name);
+                    refreshCounts();
+                    setCollection(created.id);
+                }}
+                onRename={async (id, name) => {
+                    await RenameCollection(id, name);
+                    refreshCounts();
+                }}
+                onDelete={deleteCollection}
+            />
 
             {error && (
                 <p className="error" role="alert">
                     {describeError(error)}
                 </p>
             )}
-            {stats?.images === 0 && !loading && (
-                <p className="muted">Your library is empty. Open an image in Search and choose Download.</p>
+            {!loading && items.length === 0 && stats !== null && (
+                <p className="muted">
+                    {stats.images === 0
+                        ? 'Your library is empty. Open an image in Search and choose Download.'
+                        : 'This collection is empty. Open an image and tick the collection to add it.'}
+                </p>
             )}
 
             <Gallery items={items.map((i) => i.image)} sourceName={sourceName} onSelect={setSelected}/>
 
             {hasMore && (
                 <div className="load-more">
-                    <button type="button" className="btn secondary" onClick={() => load(items.length)} disabled={loading}>
+                    <button
+                        type="button"
+                        className="btn secondary"
+                        onClick={() => load(collection, items.length)}
+                        disabled={loading}
+                    >
                         {loading ? 'Loading…' : 'Load more'}
                     </button>
                 </div>
@@ -95,11 +176,19 @@ export function LibraryView({active, sourceName}: Props) {
                     fullUrl={selectedItem.fileUrl}
                     providerName={sourceName(selectedItem.image.provider)}
                     actions={
-                        <LibraryActions
-                            key={selectedItem.id}
-                            addedAt={selectedItem.addedAt}
-                            onDelete={() => deleteItem(selectedItem.id)}
-                        />
+                        <>
+                            <CollectionPicker
+                                imageID={selectedItem.id}
+                                collections={collections}
+                                onToggle={(id, member) => toggleMembership(id, selectedItem.id, member)}
+                                onCreateWith={(name) => createAndAdd(name, selectedItem.id)}
+                            />
+                            <LibraryActions
+                                key={selectedItem.id}
+                                addedAt={selectedItem.addedAt}
+                                onDelete={() => deleteItem(selectedItem.id)}
+                            />
+                        </>
                     }
                     onClose={() => setSelected(null)}
                     onPrevious={selected > 0 ? () => setSelected(selected - 1) : undefined}
