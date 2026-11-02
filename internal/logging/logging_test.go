@@ -62,7 +62,8 @@ func TestOpenAppendsToFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	log, closer, err := Open(dir, slog.LevelInfo)
+	var mirror bytes.Buffer
+	log, closer, err := Open(dir, slog.LevelInfo, &mirror)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,4 +82,16 @@ func TestOpenAppendsToFile(t *testing.T) {
 	if !strings.Contains(string(content), "msg=\"new record\"") {
 		t.Errorf("new record missing: %q", content)
 	}
+	if !strings.Contains(mirror.String(), "new record") {
+		t.Errorf("record not mirrored: %q", mirror.String())
+	}
+}
+
+func TestOpenWithoutMirror(t *testing.T) {
+	log, closer, err := Open(t.TempDir(), slog.LevelInfo, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closer.Close()
+	log.Info("file only") // must not panic or write elsewhere
 }

@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/wailsapp/wails/v2"
@@ -18,15 +15,9 @@ import (
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
-	"github.com/sentivanac/kisetsu/internal/config"
-	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
-	"github.com/sentivanac/kisetsu/internal/libfiles"
-	"github.com/sentivanac/kisetsu/internal/library"
-	"github.com/sentivanac/kisetsu/internal/logging"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
-	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -36,57 +27,24 @@ import (
 var assets embed.FS
 
 func main() {
+	// A command (for example `kisetsu rotate`) runs without a window.
+	if len(os.Args) > 1 {
+		os.Exit(runCommand(os.Args[1], os.Args[2:]))
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "kisetsu:", err)
 		os.Exit(1)
 	}
 }
 
+// run opens the Kisetsu window.
 func run() error {
-	paths, err := config.DefaultPaths()
+	c, err := openCore(context.Background(), "app", os.Stderr)
 	if err != nil {
 		return err
 	}
-	if err := paths.Ensure(); err != nil {
-		return err
-	}
-
-	level, levelErr := logging.ParseLevel(os.Getenv(logging.LevelEnv))
-	log, logFile, err := logging.Open(paths.State, level)
-	if err != nil {
-		return err
-	}
-	defer logFile.Close()
-
-	if levelErr != nil {
-		log.Warn("using default log level", "err", levelErr)
-	}
-
-	info := appinfo.Get()
-	log.Info("starting",
-		"version", info.Version,
-		"go", info.GoVersion,
-		"platform", info.Platform,
-		"config_dir", paths.Config,
-		"data_dir", paths.Data,
-		"cache_dir", paths.Cache,
-		"state_dir", paths.State,
-	)
-
-	ctx := context.Background()
-	dbPath := filepath.Join(paths.Data, database.FileName)
-	db, err := database.Open(ctx, dbPath)
-	if err != nil {
-		log.Error("cannot open database", "path", dbPath, "err", err)
-		return err
-	}
-	defer db.Close()
-
-	schema, err := database.SchemaVersion(ctx, db)
-	if err != nil {
-		return err
-	}
-	log.Info("database ready", "path", dbPath, "schema_version", schema)
+	defer c.Close()
+	log := c.log
 
 	// One HTTP client shared by all providers. The timeout is a safety net;
 	// searches are also bounded by search.DefaultTimeout.
@@ -103,12 +61,11 @@ func run() error {
 	// The manager reports progress through app, which is created below;
 	// no download can start before the app exists.
 	var app *App
-	lib := library.NewStore(db)
 	downloader, err := downloads.New(downloads.Config{
 		Client:    httpClient,
 		UserAgent: appinfo.UserAgent(),
-		Root:      paths.Data,
-		Store:     lib,
+		Root:      c.paths.Data,
+		Store:     c.lib,
 		Log:       log,
 		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
 	})
@@ -118,13 +75,6 @@ func run() error {
 	// Runs before the database is closed: deferred calls run in reverse.
 	defer downloader.Close()
 
-	// downloads.New created images/ and thumbs/, which are served here.
-	files, err := libfiles.New(paths.Data)
-	if err != nil {
-		return err
-	}
-	defer files.Close()
-
 	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
 	if gpuErr != nil {
 		log.Warn("using default WebView GPU policy", "err", gpuErr)
@@ -132,15 +82,15 @@ func run() error {
 
 	app = NewApp(Deps{
 		Log:       log,
-		DB:        db,
-		DBPath:    dbPath,
+		DB:        c.db,
+		DBPath:    c.dbPath,
 		Search:    searcher,
-		Settings:  settings.NewStore(db),
+		Settings:  settings.NewStore(c.db),
 		Downloads: downloader,
-		Library:   lib,
-		Files:     files,
+		Library:   c.lib,
+		Files:     c.files,
 		Wallpaper: wallpaper.New(),
-		Rotation:  newRotator(db, lib, files, log),
+		Rotation:  c.rotator(),
 	})
 
 	err = wails.Run(&options.App{
@@ -151,7 +101,7 @@ func run() error {
 		MinHeight: 480,
 		AssetServer: &assetserver.Options{
 			Assets:     assets,
-			Middleware: files.Middleware,
+			Middleware: c.files.Middleware,
 		},
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
 		Linux: &linux.Options{
@@ -180,19 +130,4 @@ func run() error {
 
 	log.Info("stopped")
 	return nil
-}
-
-// newRotator builds the rotation service. It sets wallpapers directly with
-// gsettings, never through Variety: the user chose that Kisetsu rotates.
-func newRotator(db *sql.DB, lib *library.Store, files *libfiles.Server, log *slog.Logger) *rotation.Rotator {
-	setter := wallpaper.New()
-	setter.Direct = true
-	return &rotation.Rotator{
-		Library:  lib,
-		Settings: settings.NewStore(db),
-		History:  rotation.NewHistory(db),
-		Files:    files,
-		Setter:   setter,
-		Log:      log,
-	}
 }

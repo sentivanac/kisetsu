@@ -66,6 +66,19 @@ default `info`):
 KISETSU_LOG_LEVEL=debug make dev
 ```
 
+## Command line
+
+```sh
+./build/bin/kisetsu                     # open the window
+./build/bin/kisetsu rotate              # change the wallpaper to the next library image
+./build/bin/kisetsu rotate --scheduled  # only if rotation is enabled (used by the timer)
+./build/bin/kisetsu help
+```
+
+`rotate` sets the wallpaper directly with gsettings (MATE or GNOME), not
+through Variety. Exit status: 0 when the wallpaper changed or there was
+nothing to do, 1 on failure, 2 for invalid usage. Details are in the log.
+
 ## Troubleshooting
 
 If the window stays blank or flickers, disable WebView hardware
@@ -80,7 +93,9 @@ Accepted values are `ondemand` (default), `always` and `never`.
 ## Project layout
 
 ```
-main.go            application entry point (creates dependencies, starts Wails)
+main.go            entry point: opens the window, or runs a command
+core.go            setup shared by the window and commands
+cmd.go             command-line commands (rotate, help)
 app.go             thin bridge exposing Go methods to the frontend
 internal/          business logic, independent of the UI
   apperr/          errors with user-safe messages and stable codes
