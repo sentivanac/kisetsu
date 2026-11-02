@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Kisetsu
+GenericName=Wallpaper Manager
+Comment=Discover, collect and rotate wallpapers
+Exec=kisetsu
+Icon=io.github.sentivanac.Kisetsu
+Terminal=false
+Categories=Graphics;Viewer;GTK;
+Keywords=wallpaper;background;desktop;images;photos;
+StartupWMClass=kisetsu
+StartupNotify=true

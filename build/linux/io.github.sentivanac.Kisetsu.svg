@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Kisetsu</title>
+  <defs>
+    <clipPath id="tile"><rect x="16" y="16" width="224" height="224" rx="48"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f3f46"/>
+      <stop offset="1" stop-color="#18181b"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="16" y="16" width="224" height="224" fill="url(#sky)"/>
+    <circle cx="164" cy="104" r="46" fill="#f59e0b"/>
+    <path d="M0 236 L100 112 L140 160 L168 132 L256 228 L256 256 L0 256 Z" fill="#f4f4f5"/>
+    <path d="M0 236 L100 112 L120 137 L104 132 L88 150 L74 140 Z M140 160 L168 132 L186 152 L170 148 L156 160 Z" fill="#a1a1aa" opacity=".35"/>
+  </g>
+</svg>

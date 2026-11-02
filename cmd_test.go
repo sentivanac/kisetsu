@@ -129,6 +129,9 @@ func TestRunCommandUsage(t *testing.T) {
 	if code := runCommand("help", nil); code != 0 {
 		t.Errorf("help: exit %d", code)
 	}
+	if code := runCommand("version", nil); code != 0 {
+		t.Errorf("version: exit %d", code)
+	}
 	if code := runCommand("frobnicate", nil); code != 2 {
 		t.Errorf("unknown command: exit %d, want 2", code)
 	}

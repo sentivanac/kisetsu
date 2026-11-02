@@ -2,7 +2,14 @@
 # from wails.json; plain Go commands need it passed explicitly.
 TAGS := webkit2_41
 
-.PHONY: dev build test test-live test-frontend vet check check-node
+# The version of the next release; the only place it is written.
+VERSION := 0.1.0
+LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(VERSION)
+
+# Application ID, used for the .desktop file and the icon name.
+APP_ID := io.github.sentivanac.Kisetsu
+
+.PHONY: dev build test test-live test-frontend vet check check-node icons
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -10,7 +17,15 @@ dev: check-node
 
 ## build: produce a production binary in build/bin/
 build: check-node
-	wails build
+	wails build -ldflags "$(LDFLAGS)"
+
+## icons: render the PNG icons from the SVG source (needs inkscape; the
+## results are committed, so this is only needed after editing the SVG)
+icons:
+	for s in 16 24 32 48 64 128 256 512; do \
+		inkscape build/linux/$(APP_ID).svg -o build/linux/icons/$$s.png -w $$s -h $$s; \
+	done
+	inkscape build/linux/$(APP_ID).svg -o build/appicon.png -w 1024 -h 1024
 
 ## test: run Go tests
 test:

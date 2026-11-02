@@ -23,6 +23,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// Window icon, shown where the desktop does not use the installed
+// .desktop file (for example a binary started from build/bin).
+//
+//go:embed build/linux/icons/256.png
+var windowIcon []byte
+
 func main() {
 	// A command (for example `kisetsu rotate`) runs without a window.
 	if len(os.Args) > 1 {
@@ -101,7 +107,9 @@ func run() error {
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
 		Linux: &linux.Options{
 			WebviewGpuPolicy: gpuPolicy,
-			ProgramName:      "kisetsu",
+			// Matches StartupWMClass in the .desktop file.
+			ProgramName: "kisetsu",
+			Icon:        windowIcon,
 		},
 		OnStartup: app.startup,
 		// Log the full error, send only the user-safe part to the frontend.

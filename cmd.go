@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
@@ -27,6 +28,7 @@ Commands:
   fetch NAME [--count N]
                        download up to N (default 5) new images for the
                        saved search NAME into Fetched
+  version              show the version
   help                 show this help
 
 Exit status: 0 when the wallpaper changed or there was nothing to do,
@@ -43,6 +45,9 @@ func runCommand(name string, args []string) int {
 		return runRotate(args)
 	case "fetch":
 		return runFetch(args)
+	case "version", "--version":
+		fmt.Println(appinfo.Name, appinfo.Version)
+		return 0
 	case "help", "-h", "--help":
 		fmt.Println(usage)
 		return 0
