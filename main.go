@@ -52,15 +52,7 @@ func run() error {
 	// The manager reports progress through app, which is created below;
 	// no download can start before the app exists.
 	var app *App
-	downloader, err := downloads.New(downloads.Config{
-		Client:      client,
-		UserAgent:   appinfo.UserAgent(),
-		Root:        c.paths.Data,
-		FetchedRoot: c.fetchedDir,
-		Store:       c.lib,
-		Log:         log,
-		Notify:      func(p downloads.Progress) { app.notifyDownload(p) },
-	})
+	downloader, err := c.downloader(client, func(p downloads.Progress) { app.notifyDownload(p) })
 	if err != nil {
 		return err
 	}
@@ -87,7 +79,7 @@ func run() error {
 		Library:   c.lib,
 		Files:     c.files,
 		Wallpaper: wallpaper.New(),
-		Rotation:  c.rotator(),
+		Rotation:  c.rotator(c.fetcher(searcher, downloader)),
 
 		Schedule:      timer,
 		SavedSearches: searches.NewStore(c.db),

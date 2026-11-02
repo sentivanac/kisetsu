@@ -269,6 +269,7 @@ export namespace main {
 	    enabled: boolean;
 	    interval: string;
 	    collectionId: number;
+	    savedSearchId: number;
 	    order: string;
 	
 	    static createFrom(source: any = {}) {
@@ -280,6 +281,7 @@ export namespace main {
 	        this.enabled = source["enabled"];
 	        this.interval = source["interval"];
 	        this.collectionId = source["collectionId"];
+	        this.savedSearchId = source["savedSearchId"];
 	        this.order = source["order"];
 	    }
 	}
@@ -310,6 +312,7 @@ export namespace main {
 	    lastImageId: number;
 	    lastChange: string;
 	    varietyRunning: boolean;
+	    sourceImages: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new RotationState(source);
@@ -323,6 +326,7 @@ export namespace main {
 	        this.lastImageId = source["lastImageId"];
 	        this.lastChange = source["lastChange"];
 	        this.varietyRunning = source["varietyRunning"];
+	        this.sourceImages = source["sourceImages"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

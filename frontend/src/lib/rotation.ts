@@ -47,3 +47,26 @@ export function clockTime(rfc3339: string, locale?: string): string {
     if (!rfc3339 || Number.isNaN(t.getTime())) return '';
     return t.toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'});
 }
+
+// Rotation source as one <select> value: "library", "collection:7" or
+// "search:3".
+export interface SourceChoice {
+    collectionId: number;
+    savedSearchId: number;
+}
+
+export function sourceKey(s: SourceChoice): string {
+    if (s.savedSearchId) return `search:${s.savedSearchId}`;
+    if (s.collectionId) return `collection:${s.collectionId}`;
+    return 'library';
+}
+
+export function parseSourceKey(key: string): SourceChoice {
+    const [kind, raw] = key.split(':');
+    const id = Number(raw);
+    if (Number.isInteger(id) && id > 0) {
+        if (kind === 'search') return {collectionId: 0, savedSearchId: id};
+        if (kind === 'collection') return {collectionId: id, savedSearchId: 0};
+    }
+    return {collectionId: 0, savedSearchId: 0};
+}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -226,5 +227,126 @@ func TestHistoryLast(t *testing.T) {
 	lc, ok, err := e.r.History.Last(ctx)
 	if err != nil || !ok || lc.ImageID != ids[1] || lc.Reason != ByUser || time.Since(lc.At) > time.Minute {
 		t.Errorf("Last = %+v, %v, %v", lc, ok, err)
+	}
+}
+
+// addFetched stores n fetched images for saved search 1.
+func addFetched(t *testing.T, e *env, from, n int) []int64 {
+	t.Helper()
+	var ids []int64
+	for i := from; i < from+n; i++ {
+		en := entry(100 + i)
+		en.Origin, en.SavedSearchID = library.Fetched, 1
+		en.FilePath = fmt.Sprintf("fetched/images/w/%d.jpg", i)
+		id, err := e.lib.Add(context.Background(), en)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func useSavedSearch(t *testing.T, e *env) {
+	t.Helper()
+	ctx := context.Background()
+	db := e.r.History.db
+	if _, err := db.Exec(`INSERT INTO saved_searches (id, name, query) VALUES (1, 'Lakes', '{}')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveSettings(ctx, e.set, Settings{Interval: Hourly, Order: Random, SavedSearchID: 1}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSavedSearchRotatesOnlyItsFetchedImages(t *testing.T) {
+	e, library := newEnv(t, 2) // two library images that must not be used
+	useSavedSearch(t, e)
+	fetched := addFetched(t, e, 0, 4)
+
+	for range 4 {
+		res, err := e.r.Next(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if slices.Contains(library, res.ImageID) {
+			t.Fatalf("rotation used library image %d for a saved search", res.ImageID)
+		}
+		if !slices.Contains(fetched, res.ImageID) {
+			t.Fatalf("rotation used unknown image %d", res.ImageID)
+		}
+	}
+}
+
+func TestSavedSearchTopsUpWhenRunningLow(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	addFetched(t, e, 0, 1)
+	calls := 0
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+		calls++
+		if id != 1 || want != topUpCount {
+			t.Errorf("TopUp(%d, %d)", id, want)
+		}
+		addFetched(t, e, 10*calls, want)
+		return want, nil
+	}
+
+	res, err := e.r.Next(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Errorf("TopUp called %d times, want 1", calls)
+	}
+	if res.ImageID == 0 {
+		t.Error("no image chosen after the top-up")
+	}
+	// Plenty unshown now: no fetch on the next change.
+	e.r.Next(context.Background())
+	if calls != 1 {
+		t.Errorf("TopUp called again with enough images: %d", calls)
+	}
+}
+
+func TestSavedSearchWorksOffline(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	fetched := addFetched(t, e, 0, 2)
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+		return 0, errors.New("network is unreachable")
+	}
+
+	res, err := e.r.Next(context.Background())
+	if err != nil || !slices.Contains(fetched, res.ImageID) {
+		t.Errorf("offline rotation: %+v, %v; want a fetched image", res, err)
+	}
+}
+
+func TestSavedSearchWithoutImages(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) { return 0, nil }
+
+	if _, err := e.r.Next(context.Background()); !errors.Is(err, ErrNoImages) {
+		t.Errorf("err = %v, want ErrNoImages", err)
+	}
+}
+
+func TestDeletedSavedSearchFallsBackToTheLibrary(t *testing.T) {
+	e, libraryIDs := newEnv(t, 2)
+	useSavedSearch(t, e)
+	e.r.History.db.Exec(`DELETE FROM saved_searches WHERE id = 1`)
+
+	res, err := e.r.Next(context.Background())
+	if err != nil || !slices.Contains(libraryIDs, res.ImageID) {
+		t.Errorf("after deleting the search: %+v, %v", res, err)
+	}
+}
+
+func TestSettingsRejectBothSources(t *testing.T) {
+	s := Settings{Interval: Hourly, Order: Random, CollectionID: 1, SavedSearchID: 2}
+	if err := s.Validate(); err == nil {
+		t.Error("a collection and a saved search together were accepted")
 	}
 }

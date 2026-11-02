@@ -9,6 +9,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
+	"github.com/sentivanac/kisetsu/internal/searches"
 )
 
 // fakeSchedule stands in for systemd.
@@ -185,5 +186,26 @@ func TestManualChangesRestartTheTimer(t *testing.T) {
 	}
 	if fake.restarts != 2 {
 		t.Errorf("restarts = %d, want 2 (Next wallpaper and Set as wallpaper)", fake.restarts)
+	}
+}
+
+func TestRotationFromSavedSearch(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	saved, err := app.SaveSearch("Lakes", searches.Query{ProviderIDs: []string{"stub"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	state, err := app.SaveRotation(RotationSettings{Interval: "1h", Order: "random", SavedSearchID: saved.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Settings.SavedSearchID != saved.ID || state.SourceImages != 0 {
+		t.Errorf("state = %+v", state)
+	}
+
+	_, err = app.SaveRotation(RotationSettings{Interval: "1h", Order: "random", SavedSearchID: saved.ID, CollectionID: 3})
+	if apperr.ToPublic(err).Code != apperr.InvalidInput {
+		t.Errorf("both sources: %v", err)
 	}
 }

@@ -284,6 +284,35 @@ func (s *Store) IDs(ctx context.Context, collectionID int64) ([]int64, error) {
 	return ids, rows.Err()
 }
 
+// FetchedIDs returns the IDs of the images fetched for a saved search,
+// oldest first.
+func (s *Store) FetchedIDs(ctx context.Context, savedSearchID int64) ([]int64, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id FROM images WHERE origin = 'fetched' AND saved_search_id = ? ORDER BY added_at, id`, savedSearchID)
+	if err != nil {
+		return nil, fmt.Errorf("list fetched image IDs: %w", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("list fetched image IDs: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// HasSavedSearch reports whether a saved search exists.
+func (s *Store) HasSavedSearch(ctx context.Context, id int64) (bool, error) {
+	err := s.exists(ctx, "saved_searches", id)
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // HasCollection reports whether a collection exists.
 func (s *Store) HasCollection(ctx context.Context, id int64) (bool, error) {
 	err := s.exists(ctx, "collections", id)

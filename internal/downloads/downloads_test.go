@@ -462,6 +462,10 @@ func TestNewRemovesOnlyOwnStaleTemporaryFiles(t *testing.T) {
 	tmp := filepath.Join(root, tmpDir)
 	os.MkdirAll(tmp, dirPerm)
 	os.WriteFile(filepath.Join(tmp, tmpPrefix+"123"), []byte("partial"), filePerm)
+	old := time.Now().Add(-2 * staleAfter)
+	os.Chtimes(filepath.Join(tmp, tmpPrefix+"123"), old, old)
+	// A download another Kisetsu process is running right now.
+	os.WriteFile(filepath.Join(tmp, tmpPrefix+"busy"), []byte("in progress"), filePerm)
 	os.WriteFile(filepath.Join(tmp, "notes.txt"), []byte("not ours"), filePerm)
 
 	m, err := New(Config{Root: root, Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
@@ -470,8 +474,8 @@ func TestNewRemovesOnlyOwnStaleTemporaryFiles(t *testing.T) {
 	}
 	defer m.Close()
 
-	if left := tmpFiles(t, root); !slices.Equal(left, []string{"notes.txt"}) {
-		t.Errorf("temporary directory = %v, want only notes.txt", left)
+	if left := tmpFiles(t, root); !slices.Equal(left, []string{tmpPrefix + "busy", "notes.txt"}) {
+		t.Errorf("temporary directory = %v, want the running download and notes.txt", left)
 	}
 }
 

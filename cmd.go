@@ -32,8 +32,9 @@ Commands:
 Exit status: 0 when the wallpaper changed or there was nothing to do,
 1 on failure, 2 for invalid usage.`
 
-// rotateTimeout bounds one rotation run from the command line.
-const rotateTimeout = time.Minute
+// rotateTimeout bounds one rotation run from the command line, including
+// fetching new images for a saved search.
+const rotateTimeout = 5 * time.Minute
 
 // runCommand runs a command-line command and returns the exit status.
 func runCommand(name string, args []string) int {
@@ -71,6 +72,20 @@ func runRotate(args []string) int {
 	}
 	defer c.Close()
 
+	// A saved search as source may need new images first.
+	client := httpClient()
+	searcher, err := c.searchService(client)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu rotate:", err)
+		return 1
+	}
+	dl, err := c.downloader(client, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu rotate:", err)
+		return 1
+	}
+	defer dl.Close()
+
 	var timer Scheduler
 	if !*scheduled {
 		// A manual run restarts the timer's countdown; a scheduled run is
@@ -79,7 +94,7 @@ func runRotate(args []string) int {
 			timer = m
 		}
 	}
-	return rotate(ctx, c, c.rotator(), *scheduled, timer, os.Stdout)
+	return rotate(ctx, c, c.rotator(c.fetcher(searcher, dl)), *scheduled, timer, os.Stdout)
 }
 
 // rotate changes the wallpaper once and returns the exit status. It is
@@ -173,13 +188,13 @@ func runFetch(args []string) int {
 		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
 		return 1
 	}
-	f, closeDownloads, err := c.fetcher(client, searcher)
+	dl, err := c.downloader(client, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
 		return 1
 	}
-	defer closeDownloads()
-	return fetch(ctx, c, f, name, *count, os.Stdout)
+	defer dl.Close()
+	return fetch(ctx, c, c.fetcher(searcher, dl), name, *count, os.Stdout)
 }
 
 // fetch runs one fetch and returns the exit status; tests pass fakes.

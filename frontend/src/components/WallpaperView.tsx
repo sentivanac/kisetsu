@@ -1,9 +1,16 @@
 import {useCallback, useEffect, useState} from 'react';
-import {GetRotation, ListCollections, NextWallpaper, RepairRotationTimer, SaveRotation} from '../../wailsjs/go/main/App';
+import {
+    GetRotation,
+    ListCollections,
+    ListSavedSearches,
+    NextWallpaper,
+    RepairRotationTimer,
+    SaveRotation,
+} from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {collectionCount} from '../lib/collections';
-import {clockTime, intervalLabel, relativeTime} from '../lib/rotation';
+import {clockTime, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
 
 const refreshInterval = 30_000;
 
@@ -17,6 +24,7 @@ interface Props {
 export function WallpaperView({active}: Props) {
     const [state, setState] = useState<main.RotationState | null>(null);
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
+    const [savedSearches, setSavedSearches] = useState<main.SavedSearch[]>([]);
     const [busy, setBusy] = useState<'save' | 'next' | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
     const [, setTick] = useState(0); // re-renders relative times
@@ -33,6 +41,9 @@ export function WallpaperView({active}: Props) {
         ListCollections()
             .then(setCollections)
             .catch(() => {}); // the whole library is still offered
+        ListSavedSearches()
+            .then(setSavedSearches)
+            .catch(() => {});
         const timer = window.setInterval(() => {
             refresh();
             setTick((t) => t + 1);
@@ -69,6 +80,8 @@ export function WallpaperView({active}: Props) {
 
     const s = state.settings;
     const collectionMissing = s.collectionId !== 0 && !collections.some((c) => c.id === s.collectionId);
+    const searchMissing = s.savedSearchId !== 0 && !savedSearches.some((x) => x.id === s.savedSearchId);
+    const fromSearch = s.savedSearchId !== 0 && !searchMissing;
 
     return (
         <section className="wallpaper" aria-busy={busy !== null}>
@@ -112,16 +125,42 @@ export function WallpaperView({active}: Props) {
 
                 <label>
                     Images from
-                    <select value={s.collectionId} onChange={(e) => save({collectionId: Number(e.target.value)})}>
-                        <option value={0}>Whole library</option>
-                        {collections.map((c) => (
-                            <option key={c.id} value={c.id}>
-                                {c.name} ({collectionCount(c.images)})
-                            </option>
-                        ))}
-                        {collectionMissing && <option value={s.collectionId}>Deleted collection (whole library is used)</option>}
+                    <select
+                        value={sourceKey(s)}
+                        onChange={(e) => save(parseSourceKey(e.target.value))}
+                    >
+                        <optgroup label="Your library">
+                            <option value="library">Whole library</option>
+                            {collections.map((c) => (
+                                <option key={c.id} value={sourceKey({collectionId: c.id, savedSearchId: 0})}>
+                                    {c.name} ({collectionCount(c.images)})
+                                </option>
+                            ))}
+                            {collectionMissing && (
+                                <option value={sourceKey(s)}>Deleted collection (whole library is used)</option>
+                            )}
+                        </optgroup>
+                        <optgroup label="New images from a saved search">
+                            {savedSearches.map((x) => (
+                                <option key={x.id} value={sourceKey({collectionId: 0, savedSearchId: x.id})}>
+                                    {x.name}
+                                </option>
+                            ))}
+                            {searchMissing && (
+                                <option value={sourceKey(s)}>Deleted saved search (whole library is used)</option>
+                            )}
+                            {savedSearches.length === 0 && !searchMissing && (
+                                <option disabled value="none">Save a search in the Search tab first</option>
+                            )}
+                        </optgroup>
                     </select>
                 </label>
+                <p className="muted small">
+                    {fromSearch
+                        ? `${collectionCount(state.sourceImages)} fetched so far. When fewer than 3 are left unshown, ` +
+                          'Kisetsu downloads new ones at screen size before changing the wallpaper.'
+                        : `${collectionCount(state.sourceImages)} to choose from.`}
+                </p>
 
                 <div role="radiogroup" aria-label="Order" className="order">
                     <label className="toggle">

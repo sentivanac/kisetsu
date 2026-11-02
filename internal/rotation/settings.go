@@ -55,7 +55,10 @@ type Settings struct {
 	Enabled      bool     `json:"enabled"`
 	Interval     Interval `json:"interval"`
 	CollectionID int64    `json:"collectionId"` // 0 = the whole library
-	Order        Order    `json:"order"`
+	// SavedSearchID, when set, rotates the images fetched for that saved
+	// search instead of the library (ADR 0030).
+	SavedSearchID int64 `json:"savedSearchId"`
+	Order         Order `json:"order"`
 }
 
 // DefaultSettings are used until the user changes them.
@@ -70,8 +73,11 @@ func (s Settings) Validate() error {
 	if s.Order != Random && s.Order != Sequential {
 		errs = append(errs, fmt.Errorf("unknown order %q", s.Order))
 	}
-	if s.CollectionID < 0 {
-		errs = append(errs, fmt.Errorf("invalid collection %d", s.CollectionID))
+	if s.CollectionID < 0 || s.SavedSearchID < 0 {
+		errs = append(errs, fmt.Errorf("invalid source %d/%d", s.CollectionID, s.SavedSearchID))
+	}
+	if s.CollectionID != 0 && s.SavedSearchID != 0 {
+		errs = append(errs, errors.New("choose a collection or a saved search, not both"))
 	}
 	return errors.Join(errs...)
 }

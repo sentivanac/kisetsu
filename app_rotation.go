@@ -25,7 +25,9 @@ type RotationSettings struct {
 	Enabled      bool   `json:"enabled"`
 	Interval     string `json:"interval"`
 	CollectionID int64  `json:"collectionId"`
-	Order        string `json:"order"`
+	// SavedSearchID rotates the images fetched for a saved search.
+	SavedSearchID int64  `json:"savedSearchId"`
+	Order         string `json:"order"`
 }
 
 // TimerStatus describes the systemd timer for the frontend.
@@ -47,6 +49,8 @@ type RotationState struct {
 	LastImageID    int64            `json:"lastImageId"`
 	LastChange     string           `json:"lastChange"` // RFC 3339, "" if none
 	VarietyRunning bool             `json:"varietyRunning"`
+	// SourceImages is how many images the chosen source has now.
+	SourceImages int `json:"sourceImages"`
 }
 
 // GetRotation returns the rotation settings and status.
@@ -58,7 +62,17 @@ func (a *App) GetRotation() (state RotationState, err error) {
 		return RotationState{}, apperr.New(apperr.Unavailable, "Rotation settings could not be loaded.", err)
 	}
 	state.Settings = RotationSettings{
-		Enabled: cfg.Enabled, Interval: string(cfg.Interval), CollectionID: cfg.CollectionID, Order: string(cfg.Order),
+		Enabled: cfg.Enabled, Interval: string(cfg.Interval), CollectionID: cfg.CollectionID,
+		SavedSearchID: cfg.SavedSearchID, Order: string(cfg.Order),
+	}
+	var ids []int64
+	if cfg.SavedSearchID != 0 {
+		ids, err = a.library.FetchedIDs(a.ctx, cfg.SavedSearchID)
+	} else {
+		ids, err = a.library.IDs(a.ctx, cfg.CollectionID)
+	}
+	if err == nil {
+		state.SourceImages = len(ids)
 	}
 	for _, i := range rotation.Intervals {
 		state.Intervals = append(state.Intervals, string(i))
@@ -91,10 +105,11 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 	defer a.recoverPanic("SaveRotation", &err)
 
 	cfg := rotation.Settings{
-		Enabled:      s.Enabled,
-		Interval:     rotation.Interval(s.Interval),
-		CollectionID: s.CollectionID,
-		Order:        rotation.Order(s.Order),
+		Enabled:       s.Enabled,
+		Interval:      rotation.Interval(s.Interval),
+		CollectionID:  s.CollectionID,
+		SavedSearchID: s.SavedSearchID,
+		Order:         rotation.Order(s.Order),
 	}
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These rotation settings are not valid.", err)

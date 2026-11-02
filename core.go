@@ -136,10 +136,11 @@ func (c *core) Close() {
 
 // rotator builds the rotation service. It sets wallpapers directly with
 // gsettings, never through Variety: the user chose that Kisetsu rotates.
-func (c *core) rotator() *rotation.Rotator {
+// fetcher, if not nil, tops up saved searches that run low.
+func (c *core) rotator(fetcher *fetched.Fetcher) *rotation.Rotator {
 	setter := wallpaper.New()
 	setter.Direct = true
-	return &rotation.Rotator{
+	r := &rotation.Rotator{
 		Library:  c.lib,
 		Settings: settings.NewStore(c.db),
 		History:  rotation.NewHistory(c.db),
@@ -147,6 +148,13 @@ func (c *core) rotator() *rotation.Rotator {
 		Setter:   setter,
 		Log:      c.log,
 	}
+	if fetcher != nil {
+		r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+			res, err := fetcher.Fetch(ctx, id, want, protect...)
+			return res.Fetched, err
+		}
+	}
+	return r
 }
 
 // rotationLockPath is shared by the timer, the window and manual commands.
@@ -168,29 +176,32 @@ func (c *core) searchService(client *http.Client) (*search.Service, error) {
 	)
 }
 
-// fetcher builds the service that downloads new images for saved
-// searches. It needs no window: downloads wait for their result.
-func (c *core) fetcher(client *http.Client, searcher *search.Service) (*fetched.Fetcher, func(), error) {
-	mgr, err := downloads.New(downloads.Config{
+// downloader builds a download manager for the library and fetched images.
+// notify may be nil (commands have no window to report to).
+func (c *core) downloader(client *http.Client, notify func(downloads.Progress)) (*downloads.Manager, error) {
+	return downloads.New(downloads.Config{
 		Client:      client,
 		UserAgent:   appinfo.UserAgent(),
 		Root:        c.paths.Data,
 		FetchedRoot: c.fetchedDir,
 		Store:       c.lib,
 		Log:         c.log,
+		Notify:      notify,
 	})
-	if err != nil {
-		return nil, nil, err
-	}
+}
+
+// fetcher builds the service that downloads new images for saved
+// searches. It needs no window: downloads wait for their result.
+func (c *core) fetcher(searcher *search.Service, dl fetched.Downloader) *fetched.Fetcher {
 	return &fetched.Fetcher{
 		DB:         c.db,
 		Searches:   searches.NewStore(c.db),
 		Settings:   settings.NewStore(c.db),
 		Search:     searcher,
-		Downloader: mgr,
+		Downloader: dl,
 		Service:    c.fetchedService(),
 		Log:        c.log,
-	}, mgr.Close, nil
+	}
 }
 
 // httpClient is shared by providers and downloads. The timeout is a

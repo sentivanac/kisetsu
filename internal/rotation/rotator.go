@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"slices"
+	"time"
 
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/settings"
@@ -16,8 +17,22 @@ import (
 // ErrNoImages means the rotation source has no usable image.
 var ErrNoImages = errors.New("no images to rotate")
 
-// maxAttempts bounds how many images are tried when files are missing.
-const maxAttempts = 10
+const (
+	// maxAttempts bounds how many images are tried when files are missing.
+	maxAttempts = 10
+	// lowWater: with fewer unshown fetched images, new ones are fetched
+	// before choosing.
+	lowWater = 3
+	// topUpCount is how many images one top-up fetches.
+	topUpCount = 5
+	// topUpTimeout bounds a top-up: a few searches and downloads.
+	topUpTimeout = 3 * time.Minute
+)
+
+// TopUp fetches up to want new images for a saved search, never removing
+// the images in protect, and returns how many it fetched. Package fetched
+// provides it; rotation only knows this function.
+type TopUp func(ctx context.Context, savedSearchID int64, want int, protect []int64) (int, error)
 
 // Setter sets the wallpaper; *wallpaper.Setter with Direct set.
 type Setter interface {
@@ -38,6 +53,8 @@ type Rotator struct {
 	Setter   Setter
 	Log      *slog.Logger
 	Rand     *rand.Rand // nil means a random seed
+	// TopUp, if set, fetches new images when a saved search runs low.
+	TopUp TopUp
 }
 
 // Result describes a wallpaper change.
@@ -57,11 +74,11 @@ func (r *Rotator) Next(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	candidates, err := r.candidates(ctx, cfg.CollectionID)
+	st, err := r.History.State(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	st, err := r.History.State(ctx)
+	candidates, err := r.candidates(ctx, cfg, st)
 	if err != nil {
 		return Result{}, err
 	}
@@ -104,7 +121,43 @@ func (r *Rotator) RecordManual(ctx context.Context, imageID int64) error {
 	return r.History.Record(ctx, imageID, st.Cycle, ByUser)
 }
 
-func (r *Rotator) candidates(ctx context.Context, collectionID int64) ([]int64, error) {
+// candidates returns the images to choose from. For a saved search they
+// are its fetched images, topped up first when few are left unshown.
+func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int64, error) {
+	if cfg.SavedSearchID == 0 {
+		return r.libraryCandidates(ctx, cfg.CollectionID)
+	}
+	exists, err := r.Library.HasSavedSearch(ctx, cfg.SavedSearchID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		r.Log.Warn("rotation saved search no longer exists; using the whole library", "saved_search", cfg.SavedSearchID)
+		return r.libraryCandidates(ctx, 0)
+	}
+
+	ids, err := r.Library.FetchedIDs(ctx, cfg.SavedSearchID)
+	if err != nil {
+		return nil, err
+	}
+	if r.TopUp != nil && len(unshown(ids, st.Shown)) < lowWater {
+		tctx, cancel := context.WithTimeout(ctx, topUpTimeout)
+		n, err := r.TopUp(tctx, cfg.SavedSearchID, topUpCount, []int64{st.Current})
+		cancel()
+		if err != nil {
+			// Offline or a provider problem: rotate what is there.
+			r.Log.Warn("could not fetch new images; using the fetched ones", "saved_search", cfg.SavedSearchID, "err", err)
+		}
+		if n > 0 {
+			if ids, err = r.Library.FetchedIDs(ctx, cfg.SavedSearchID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return ids, nil
+}
+
+func (r *Rotator) libraryCandidates(ctx context.Context, collectionID int64) ([]int64, error) {
 	if collectionID != 0 {
 		exists, err := r.Library.HasCollection(ctx, collectionID)
 		if err != nil {

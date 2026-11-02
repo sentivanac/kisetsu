@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {intervalLabel, relativeTime} from './rotation';
+import {intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
 
 describe('intervalLabel', () => {
     it('names the offered intervals', () => {
@@ -27,5 +27,22 @@ describe('relativeTime', () => {
         expect(relativeTime(new Date(now.getTime() - 20000).toISOString(), now)).toBe('just now');
         expect(relativeTime('', now)).toBe('');
         expect(relativeTime('soon', now)).toBe('');
+    });
+});
+
+describe('rotation source keys', () => {
+    it('round-trips every kind of source', () => {
+        for (const choice of [
+            {collectionId: 0, savedSearchId: 0},
+            {collectionId: 7, savedSearchId: 0},
+            {collectionId: 0, savedSearchId: 3},
+        ]) {
+            expect(parseSourceKey(sourceKey(choice))).toEqual(choice);
+        }
+    });
+
+    it('falls back to the whole library for unknown keys', () => {
+        expect(parseSourceKey('search:x')).toEqual({collectionId: 0, savedSearchId: 0});
+        expect(parseSourceKey('album:4')).toEqual({collectionId: 0, savedSearchId: 0});
     });
 });

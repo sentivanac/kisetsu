@@ -47,7 +47,7 @@ func testCore(t *testing.T, imageCount int) (*core, *rotation.Rotator, *fakeWall
 		}
 	}
 
-	r := c.rotator()
+	r := c.rotator(nil)
 	fake := &fakeWallpaper{}
 	r.Setter = fake
 	return c, r, fake

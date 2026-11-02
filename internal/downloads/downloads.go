@@ -152,7 +152,13 @@ func New(cfg Config) (*Manager, error) {
 	}, nil
 }
 
-// removeStaleTemp deletes only Kisetsu's own temporary files.
+// staleAfter is how old a temporary file must be to count as left over.
+// Another Kisetsu process (the window, or the rotation timer) may be
+// downloading into the same directory right now; its files are younger.
+const staleAfter = time.Hour
+
+// removeStaleTemp deletes only Kisetsu's own temporary files, and only
+// those older than staleAfter.
 func removeStaleTemp(dir string, log *slog.Logger) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -160,6 +166,9 @@ func removeStaleTemp(dir string, log *slog.Logger) {
 	}
 	for _, e := range entries {
 		if !e.Type().IsRegular() || !strings.HasPrefix(e.Name(), tmpPrefix) {
+			continue
+		}
+		if info, err := e.Info(); err != nil || time.Since(info.ModTime()) < staleAfter {
 			continue
 		}
 		if err := os.Remove(filepath.Join(dir, e.Name())); err != nil {
