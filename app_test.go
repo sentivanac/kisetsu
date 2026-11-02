@@ -104,6 +104,7 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	app = NewApp(Deps{
 		Log: log, DB: db, DBPath: path, Search: svc,
 		Settings: settings.NewStore(db), Downloads: mgr, Library: lib, Files: files,
+		Wallpaper: &fakeWallpaper{}, // never the real desktop
 	})
 	return app
 }

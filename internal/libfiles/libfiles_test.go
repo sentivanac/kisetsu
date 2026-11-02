@@ -159,3 +159,25 @@ func TestRemove(t *testing.T) {
 		t.Errorf("symbolic link was removed: %v", err)
 	}
 }
+
+func TestOriginalPath(t *testing.T) {
+	root, s := newLibrary(t)
+	os.Symlink(filepath.Join(root, "kisetsu.db"), filepath.Join(root, "images", "link.jpg"))
+
+	got, err := s.OriginalPath("images/wallhaven/abc.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "images", "wallhaven", "abc.jpg"); got != want || !filepath.IsAbs(got) {
+		t.Errorf("OriginalPath = %q, want %q", got, want)
+	}
+
+	for _, rel := range []string{
+		"thumbs/wallhaven/abc.jpg", // thumbnails are not wallpapers
+		"kisetsu.db", "images/../kisetsu.db", "images/link.jpg", "images/wallhaven", "images/missing.jpg", "",
+	} {
+		if _, err := s.OriginalPath(rel); err == nil {
+			t.Errorf("OriginalPath(%q) succeeded", rel)
+		}
+	}
+}

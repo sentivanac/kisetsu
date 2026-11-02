@@ -9,6 +9,7 @@ import {
     ListLibrary,
     RemoveFromCollection,
     RenameCollection,
+    SetWallpaper,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
@@ -185,6 +186,7 @@ export function LibraryView({active, sourceName}: Props) {
                             />
                             <LibraryActions
                                 key={selectedItem.id}
+                                imageID={selectedItem.id}
                                 addedAt={selectedItem.addedAt}
                                 onDelete={() => deleteItem(selectedItem.id)}
                             />
@@ -200,19 +202,40 @@ export function LibraryView({active, sourceName}: Props) {
 }
 
 interface ActionsProps {
+    imageID: number;
     addedAt: string;
     onDelete: () => void;
 }
 
-// LibraryActions asks for confirmation before deleting: the first click
-// only reveals the buttons that delete or keep the image.
-function LibraryActions({addedAt, onDelete}: ActionsProps) {
+// LibraryActions sets the image as wallpaper and deletes it. Deleting asks
+// for confirmation: the first click only reveals the buttons that delete
+// or keep the image.
+function LibraryActions({imageID, addedAt, onDelete}: ActionsProps) {
     const [confirming, setConfirming] = useState(false);
+    const [settingWallpaper, setSettingWallpaper] = useState(false);
+    const [wallpaperResult, setWallpaperResult] = useState<{ok: boolean; message: string} | null>(null);
     const added = formatAddedDate(addedAt);
+
+    function setAsWallpaper() {
+        setSettingWallpaper(true);
+        setWallpaperResult(null);
+        SetWallpaper(imageID)
+            .then((r) => setWallpaperResult({ok: true, message: r.message}))
+            .catch((err: unknown) => setWallpaperResult({ok: false, message: describeError(toBackendError(err))}))
+            .finally(() => setSettingWallpaper(false));
+    }
 
     return (
         <div className="library-actions">
             {added && <p className="muted">Added {added}</p>}
+            <button type="button" className="btn" onClick={setAsWallpaper} disabled={settingWallpaper}>
+                {settingWallpaper ? 'Setting wallpaper…' : 'Set as wallpaper'}
+            </button>
+            {wallpaperResult && (
+                <p className={wallpaperResult.ok ? 'notice' : 'notice error'} role={wallpaperResult.ok ? 'status' : 'alert'}>
+                    {wallpaperResult.message}
+                </p>
+            )}
             {confirming ? (
                 <div className="confirm" role="group" aria-label="Confirm deletion">
                     <p>Delete this image and its file from your library? This cannot be undone.</p>

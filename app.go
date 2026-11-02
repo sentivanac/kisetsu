@@ -41,6 +41,7 @@ type App struct {
 	downloads *downloads.Manager
 	library   *library.Store
 	files     *libfiles.Server
+	wallpaper WallpaperSetter
 
 	// emit sends a Wails event. It is a no-op until startup, because the
 	// Wails runtime exits the process when called without its context.
@@ -63,6 +64,7 @@ type Deps struct {
 	Downloads *downloads.Manager
 	Library   *library.Store
 	Files     *libfiles.Server
+	Wallpaper WallpaperSetter
 }
 
 // NewApp creates a new App.
@@ -77,6 +79,7 @@ func NewApp(d Deps) *App {
 		downloads: d.Downloads,
 		library:   d.Library,
 		files:     d.Files,
+		wallpaper: d.Wallpaper,
 		emit:      func(string, any) {},
 	}
 }

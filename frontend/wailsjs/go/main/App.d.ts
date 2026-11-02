@@ -43,3 +43,5 @@ export function RenameCollection(arg1:number,arg2:string):Promise<void>;
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
 export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query):Promise<main.SearchResult>;
+
+export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;

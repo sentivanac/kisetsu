@@ -26,6 +26,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
+	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
 //go:embed all:frontend/dist
@@ -135,6 +136,7 @@ func run() error {
 		Downloads: downloader,
 		Library:   lib,
 		Files:     files,
+		Wallpaper: wallpaper.New(),
 	})
 
 	err = wails.Run(&options.App{

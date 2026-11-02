@@ -32,12 +32,13 @@ var servedDirs = []string{"images", "thumbs"}
 // Server serves library files. Each directory is opened with os.Root,
 // which refuses paths and symbolic links that lead outside it.
 type Server struct {
+	dir   string // the library root, as given to New
 	roots map[string]*os.Root
 }
 
 // New opens the served directories under root. They must exist.
 func New(root string) (*Server, error) {
-	s := &Server{roots: map[string]*os.Root{}}
+	s := &Server{dir: root, roots: map[string]*os.Root{}}
 	for _, dir := range servedDirs {
 		r, err := os.OpenRoot(path.Join(root, dir))
 		if err != nil {
@@ -128,6 +129,29 @@ func (s *Server) Remove(relPath string) error {
 		return fmt.Errorf("%w: %q is not a regular file", ErrOutsideLibrary, relPath)
 	}
 	return root.Remove(name)
+}
+
+// OriginalPath returns the absolute path of an original image given by its
+// stored path, such as "images/wallhaven/abc.jpg", after checking that it
+// is a regular file inside images/. Thumbnails and anything else are
+// refused, so external programs only ever receive library originals.
+func (s *Server) OriginalPath(relPath string) (string, error) {
+	dir, name, ok := strings.Cut(filepath.ToSlash(relPath), "/")
+	if !ok || dir != "images" || !fs.ValidPath(name) {
+		return "", fmt.Errorf("%w: %q", ErrOutsideLibrary, relPath)
+	}
+	info, err := s.roots[dir].Lstat(name)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%w: %q is not a regular file", ErrOutsideLibrary, relPath)
+	}
+	abs, err := filepath.Abs(filepath.Join(s.dir, dir, filepath.FromSlash(name)))
+	if err != nil {
+		return "", err
+	}
+	return abs, nil
 }
 
 // URL returns the frontend URL of a library path such as
