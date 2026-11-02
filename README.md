@@ -113,6 +113,7 @@ internal/          business logic, independent of the UI
   library/         downloaded images and collections (database records)
   libfiles/        serves (and removes) library files under /library/
   rotation/        chooses and sets the next wallpaper, rotation history
+  schedule/        systemd user timer for wallpaper rotation
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
   wallpaper/       sets the wallpaper (Variety, MATE, GNOME)
