@@ -159,6 +159,16 @@ func (s *Store) Get(ctx context.Context, id int64) (Saved, error) {
 	return scan(s.db.QueryRowContext(ctx, `SELECT id, name, query, created_at FROM saved_searches WHERE id = ?`, id))
 }
 
+// FindByName returns the saved search with this name (case-insensitive).
+func (s *Store) FindByName(ctx context.Context, name string) (Saved, error) {
+	clean, err := cleanName(name)
+	if err != nil {
+		return Saved{}, err
+	}
+	return scan(s.db.QueryRowContext(ctx,
+		`SELECT id, name, query, created_at FROM saved_searches WHERE name = ?`, clean))
+}
+
 // List returns all saved searches by name. Searches whose stored query can
 // no longer be read are left out rather than breaking the list.
 func (s *Store) List(ctx context.Context) ([]Saved, error) {

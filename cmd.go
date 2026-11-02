@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
+	"github.com/sentivanac/kisetsu/internal/searches"
 )
 
 const usage = `Usage: kisetsu [command]
@@ -21,6 +24,9 @@ Commands:
   rotate               change the wallpaper to the next library image
   rotate --scheduled   the same, but only if rotation is enabled
                        (used by the systemd timer)
+  fetch NAME [--count N]
+                       download up to N (default 5) new images for the
+                       saved search NAME into Fetched
   help                 show this help
 
 Exit status: 0 when the wallpaper changed or there was nothing to do,
@@ -34,6 +40,8 @@ func runCommand(name string, args []string) int {
 	switch name {
 	case "rotate":
 		return runRotate(args)
+	case "fetch":
+		return runFetch(args)
 	case "help", "-h", "--help":
 		fmt.Println(usage)
 		return 0
@@ -120,5 +128,99 @@ func rotate(ctx context.Context, c *core, r *rotation.Rotator, scheduled bool, t
 		restartAfterManualChange(ctx, r.Settings, timer, c.log)
 	}
 	fmt.Fprintf(out, "Wallpaper changed to library image %d (%s).\n", res.ImageID, res.Method)
+	return 0
+}
+
+// fetchTimeout bounds one fetch from the command line: a few searches and
+// downloads.
+const fetchTimeout = 5 * time.Minute
+
+func runFetch(args []string) int {
+	flags := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	count := flags.Int("count", 5, "how many new images to download (1-24)")
+	flags.SetOutput(os.Stderr)
+	// Allow the name before or after the flags.
+	var name string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		name, args = args[0], args[1:]
+	}
+	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if name == "" && flags.NArg() == 1 {
+		name = flags.Arg(0)
+	} else if flags.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "kisetsu fetch: unexpected argument %q\n", flags.Arg(0))
+		return 2
+	}
+	if name == "" || *count < 1 || *count > 24 {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch: give a saved search name and a count from 1 to 24")
+		return 2
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	defer cancel()
+	c, err := openCore(ctx, "fetch", nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+	defer c.Close()
+
+	client := httpClient()
+	searcher, err := c.searchService(client)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+	f, closeDownloads, err := c.fetcher(client, searcher)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+	defer closeDownloads()
+	return fetch(ctx, c, f, name, *count, os.Stdout)
+}
+
+// fetch runs one fetch and returns the exit status; tests pass fakes.
+func fetch(ctx context.Context, c *core, f *fetched.Fetcher, name string, count int, out io.Writer) int {
+	saved, err := f.Searches.FindByName(ctx, name)
+	if errors.Is(err, searches.ErrNotFound) {
+		fmt.Fprintf(os.Stderr, "kisetsu fetch: no saved search named %q\n", name)
+		return 2
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+
+	// Pruning must not race with a rotation, and never removes the
+	// wallpaper on screen.
+	unlock, err := rotation.Lock(c.rotationLockPath())
+	if errors.Is(err, rotation.ErrLocked) {
+		fmt.Fprintln(out, "A wallpaper change is in progress; try again in a moment.")
+		return 0
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+	defer unlock()
+	var protect []int64
+	if st, err := rotation.NewHistory(c.db).State(ctx); err == nil && st.Current != 0 {
+		protect = append(protect, st.Current)
+	}
+
+	res, err := f.Fetch(ctx, saved.ID, count, protect...)
+	if err != nil {
+		c.log.Error("fetch failed", "saved_search", saved.ID, "err", err)
+		fmt.Fprintln(os.Stderr, "kisetsu fetch:", err)
+		return 1
+	}
+	fmt.Fprintf(out, "Fetched %d new image(s) for %q", res.Fetched, saved.Name)
+	if res.Pruned > 0 {
+		fmt.Fprintf(out, "; removed %d old fetched image(s) to stay within the limit", res.Pruned)
+	}
+	fmt.Fprintln(out, ".")
 	return 0
 }

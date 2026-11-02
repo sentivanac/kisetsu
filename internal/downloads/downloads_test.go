@@ -573,3 +573,20 @@ func insertSavedSearch(t *testing.T, e *env) {
 		t.Fatal(err)
 	}
 }
+
+func TestFetchNowWaitsForTheResult(t *testing.T) {
+	e := newEnv(t, serve(map[string][]byte{"/a.jpg": picture(t, 0, 90)}))
+	insertSavedSearch(t, e)
+	img := e.image("now", "/a.jpg")
+
+	p := e.mgr.FetchNow(context.Background(), img, FetchOptions{SavedSearchID: 1, Fit: imaging.Size{Width: 320, Height: 180}})
+	if p.State != Done || p.EntryID == 0 {
+		t.Fatalf("FetchNow = %+v", p)
+	}
+	if entry, _ := e.store.Get(context.Background(), p.EntryID); entry.Origin != library.Fetched {
+		t.Errorf("origin = %q", entry.Origin)
+	}
+	if again := e.mgr.FetchNow(context.Background(), img, FetchOptions{SavedSearchID: 1}); again.State != Duplicate {
+		t.Errorf("second FetchNow = %+v, want duplicate", again)
+	}
+}

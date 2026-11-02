@@ -73,6 +73,7 @@ KISETSU_LOG_LEVEL=debug make dev
 ./build/bin/kisetsu                     # open the window
 ./build/bin/kisetsu rotate              # change the wallpaper to the next library image
 ./build/bin/kisetsu rotate --scheduled  # only if rotation is enabled (used by the timer)
+./build/bin/kisetsu fetch "Mountains" --count 5  # new images for a saved search into Fetched
 ./build/bin/kisetsu help
 ```
 

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/config"
@@ -17,7 +19,11 @@ import (
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
+	"github.com/sentivanac/kisetsu/internal/providers/commons"
+	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/rotation"
+	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
@@ -151,4 +157,44 @@ func (c *core) rotationLockPath() string {
 // fetchedService builds the service that keeps and prunes fetched images.
 func (c *core) fetchedService() *fetched.Service {
 	return &fetched.Service{Library: c.lib, Files: c.files, Log: c.log}
+}
+
+// searchService registers the providers. Registration order is the order
+// sources appear in the UI.
+func (c *core) searchService(client *http.Client) (*search.Service, error) {
+	return search.New(c.log,
+		wallhaven.New(client, appinfo.UserAgent()),
+		commons.New(client, appinfo.UserAgent()),
+	)
+}
+
+// fetcher builds the service that downloads new images for saved
+// searches. It needs no window: downloads wait for their result.
+func (c *core) fetcher(client *http.Client, searcher *search.Service) (*fetched.Fetcher, func(), error) {
+	mgr, err := downloads.New(downloads.Config{
+		Client:      client,
+		UserAgent:   appinfo.UserAgent(),
+		Root:        c.paths.Data,
+		FetchedRoot: c.fetchedDir,
+		Store:       c.lib,
+		Log:         c.log,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return &fetched.Fetcher{
+		DB:         c.db,
+		Searches:   searches.NewStore(c.db),
+		Settings:   settings.NewStore(c.db),
+		Search:     searcher,
+		Downloader: mgr,
+		Service:    c.fetchedService(),
+		Log:        c.log,
+	}, mgr.Close, nil
+}
+
+// httpClient is shared by providers and downloads. The timeout is a
+// safety net; searches and downloads have their own limits.
+func httpClient() *http.Client {
+	return &http.Client{Timeout: 60 * time.Second}
 }

@@ -189,6 +189,25 @@ func (m *Manager) EnqueueFetched(ctx context.Context, img images.Image, opts Fet
 	return m.enqueue(ctx, img, &opts)
 }
 
+// FetchNow downloads img as a fetched image and waits for the result. The
+// rotation timer uses it: it runs without a window and must finish before
+// it exits. It shares the parallel-download slots with queued downloads.
+func (m *Manager) FetchNow(ctx context.Context, img images.Image, opts FetchOptions) Progress {
+	key := Key(img)
+	if m.cfg.FetchedRoot == "" {
+		return Progress{Key: key, State: Failed, Err: errors.New("downloads: no fetched root configured")}
+	}
+	if err := img.Validate(); err != nil {
+		return Progress{Key: key, State: Failed, Err: err}
+	}
+	if e, found, err := m.cfg.Store.FindBySource(ctx, img.Provider, img.ProviderID); err != nil {
+		return Progress{Key: key, State: Failed, Err: err}
+	} else if found {
+		return Progress{Key: key, State: Duplicate, EntryID: e.ID}
+	}
+	return m.run(ctx, key, img, &opts)
+}
+
 func (m *Manager) enqueue(ctx context.Context, img images.Image, fetch *FetchOptions) (string, error) {
 	if err := img.Validate(); err != nil {
 		return "", err

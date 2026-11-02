@@ -122,3 +122,16 @@ func TestListSkipsUnreadableQueries(t *testing.T) {
 		t.Errorf("List = %+v, %v", list, err)
 	}
 }
+
+func TestFindByName(t *testing.T) {
+	s := newStore(t)
+	saved, _ := s.Create(context.Background(), "Japanese mountains", mountains)
+
+	got, err := s.FindByName(context.Background(), "  japanese   MOUNTAINS ")
+	if err != nil || got.ID != saved.ID {
+		t.Errorf("FindByName = %+v, %v", got, err)
+	}
+	if _, err := s.FindByName(context.Background(), "Lakes"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("missing: %v", err)
+	}
+}

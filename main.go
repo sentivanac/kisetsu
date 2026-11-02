@@ -4,9 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"net/http"
 	"os"
-	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -16,10 +14,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/downloads"
-	"github.com/sentivanac/kisetsu/internal/providers/commons"
-	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/schedule"
-	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -48,14 +43,8 @@ func run() error {
 	defer c.Close()
 	log := c.log
 
-	// One HTTP client shared by all providers. The timeout is a safety net;
-	// searches are also bounded by search.DefaultTimeout.
-	httpClient := &http.Client{Timeout: 15 * time.Second}
-	// Registration order is the order sources appear in the UI.
-	searcher, err := search.New(log,
-		wallhaven.New(httpClient, appinfo.UserAgent()),
-		commons.New(httpClient, appinfo.UserAgent()),
-	)
+	client := httpClient()
+	searcher, err := c.searchService(client)
 	if err != nil {
 		return err
 	}
@@ -64,7 +53,7 @@ func run() error {
 	// no download can start before the app exists.
 	var app *App
 	downloader, err := downloads.New(downloads.Config{
-		Client:      httpClient,
+		Client:      client,
 		UserAgent:   appinfo.UserAgent(),
 		Root:        c.paths.Data,
 		FetchedRoot: c.fetchedDir,

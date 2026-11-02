@@ -153,3 +153,16 @@ func TestManualRotateRestartsTheTimer(t *testing.T) {
 		t.Errorf("restarts = %d, want 1", timer.restarts)
 	}
 }
+
+func TestFetchCommandArguments(t *testing.T) {
+	for _, args := range [][]string{
+		nil,                        // no name
+		{"Lakes", "--count", "0"},  // count too small
+		{"Lakes", "--count", "99"}, // count too large
+		{"Lakes", "extra"},         // extra argument
+	} {
+		if code := runCommand("fetch", args); code != 2 {
+			t.Errorf("fetch %q: exit %d, want 2", args, code)
+		}
+	}
+}

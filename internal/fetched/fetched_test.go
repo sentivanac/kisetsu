@@ -2,6 +2,7 @@ package fetched
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -18,9 +19,12 @@ import (
 
 type env struct {
 	root string
+	db   *sql.DB
 	lib  *library.Store
 	svc  *Service
 }
+
+func openDB(t *testing.T, e *env) *sql.DB { return e.db }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
@@ -39,7 +43,7 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() { files.Close() })
 	lib := library.NewStore(db)
-	return &env{root: root, lib: lib, svc: &Service{Library: lib, Files: files, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}}
+	return &env{root: root, db: db, lib: lib, svc: &Service{Library: lib, Files: files, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}}
 }
 
 // add stores an image with files on disk; fetched images go to the cache.
