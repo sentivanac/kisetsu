@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // Reason says why a wallpaper was set.
@@ -62,4 +63,30 @@ func (h *History) Record(ctx context.Context, imageID int64, cycle int, reason R
 		return fmt.Errorf("record wallpaper: %w", err)
 	}
 	return nil
+}
+
+// LastChange is the most recent wallpaper Kisetsu set.
+type LastChange struct {
+	ImageID int64
+	Reason  Reason
+	At      time.Time
+}
+
+// Last returns the most recent change, and false if there is none.
+func (h *History) Last(ctx context.Context) (LastChange, bool, error) {
+	var lc LastChange
+	var reason, at string
+	err := h.db.QueryRowContext(ctx,
+		`SELECT image_id, reason, shown_at FROM wallpaper_history ORDER BY id DESC LIMIT 1`).Scan(&lc.ImageID, &reason, &at)
+	if err == sql.ErrNoRows {
+		return LastChange{}, false, nil
+	}
+	if err != nil {
+		return LastChange{}, false, fmt.Errorf("read wallpaper history: %w", err)
+	}
+	lc.Reason = Reason(reason)
+	if lc.At, err = time.Parse("2006-01-02T15:04:05.000Z", at); err != nil {
+		return LastChange{}, false, fmt.Errorf("read wallpaper history: %w", err)
+	}
+	return lc, true, nil
 }

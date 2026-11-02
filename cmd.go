@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/rotation"
+	"github.com/sentivanac/kisetsu/internal/schedule"
 )
 
 const usage = `Usage: kisetsu [command]
@@ -62,12 +63,21 @@ func runRotate(args []string) int {
 	}
 	defer c.Close()
 
-	return rotate(ctx, c, c.rotator(), *scheduled, os.Stdout)
+	var timer Scheduler
+	if !*scheduled {
+		// A manual run restarts the timer's countdown; a scheduled run is
+		// the timer itself.
+		if m, err := schedule.New(); err == nil {
+			timer = m
+		}
+	}
+	return rotate(ctx, c, c.rotator(), *scheduled, timer, os.Stdout)
 }
 
 // rotate changes the wallpaper once and returns the exit status. It is
-// separate from runRotate so tests can pass a fake wallpaper setter.
-func rotate(ctx context.Context, c *core, r *rotation.Rotator, scheduled bool, out io.Writer) int {
+// separate from runRotate so tests can pass fakes. timer, if not nil, is
+// restarted after the change when rotation is on.
+func rotate(ctx context.Context, c *core, r *rotation.Rotator, scheduled bool, timer Scheduler, out io.Writer) int {
 	unlock, err := rotation.Lock(c.rotationLockPath())
 	if errors.Is(err, rotation.ErrLocked) {
 		c.log.Info("another rotation is running; skipping")
@@ -105,6 +115,9 @@ func rotate(ctx context.Context, c *core, r *rotation.Rotator, scheduled bool, o
 		c.log.Error("rotation failed", "err", err)
 		fmt.Fprintln(os.Stderr, "kisetsu rotate:", err)
 		return 1
+	}
+	if timer != nil {
+		restartAfterManualChange(ctx, r.Settings, timer, c.log)
 	}
 	fmt.Fprintf(out, "Wallpaper changed to library image %d (%s).\n", res.ImageID, res.Method)
 	return 0

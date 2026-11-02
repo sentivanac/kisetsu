@@ -34,6 +34,10 @@ export function GetLibraryStats() {
   return window['go']['main']['App']['GetLibraryStats']();
 }
 
+export function GetRotation() {
+  return window['go']['main']['App']['GetRotation']();
+}
+
 export function GetSearchFilters() {
   return window['go']['main']['App']['GetSearchFilters']();
 }
@@ -62,12 +66,24 @@ export function ListProviders() {
   return window['go']['main']['App']['ListProviders']();
 }
 
+export function NextWallpaper() {
+  return window['go']['main']['App']['NextWallpaper']();
+}
+
 export function RemoveFromCollection(arg1, arg2) {
   return window['go']['main']['App']['RemoveFromCollection'](arg1, arg2);
 }
 
 export function RenameCollection(arg1, arg2) {
   return window['go']['main']['App']['RenameCollection'](arg1, arg2);
+}
+
+export function RepairRotationTimer() {
+  return window['go']['main']['App']['RepairRotationTimer']();
+}
+
+export function SaveRotation(arg1) {
+  return window['go']['main']['App']['SaveRotation'](arg1);
 }
 
 export function SaveSearchFilters(arg1) {

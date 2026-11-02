@@ -8,7 +8,8 @@ An open-source wallpaper discovery and management platform for Linux.
 > can be downloaded into a local library, which keeps their author, source
 > and license, works offline and can be organized into collections. A
 > library image can be set as the wallpaper (through Variety if it runs,
-> otherwise on MATE or GNOME).
+> otherwise on MATE or GNOME), and the wallpaper can rotate automatically
+> through a systemd user timer.
 >
 > Wikimedia Commons has no safe-for-work rating. Kisetsu limits it to
 > curated collections and filters risky results, but cannot guarantee
@@ -123,6 +124,7 @@ app_downloads.go   downloads and their progress events
 app_library.go     library listing, statistics and deletion
 app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
+app_rotation.go    rotation settings, timer and "Next wallpaper"
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

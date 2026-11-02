@@ -44,6 +44,11 @@ type App struct {
 	files     *libfiles.Server
 	wallpaper WallpaperSetter
 	rotation  *rotation.Rotator
+	schedule  Scheduler
+	// executable is this Kisetsu binary, to detect a timer that runs
+	// another one.
+	executable   string
+	rotationLock string
 
 	// emit sends a Wails event. It is a no-op until startup, because the
 	// Wails runtime exits the process when called without its context.
@@ -58,16 +63,19 @@ type App struct {
 
 // Deps are the dependencies of App, created in main.go.
 type Deps struct {
-	Log       *slog.Logger
-	DB        *sql.DB
-	DBPath    string
-	Search    *search.Service
-	Settings  *settings.Store
-	Downloads *downloads.Manager
-	Library   *library.Store
-	Files     *libfiles.Server
-	Wallpaper WallpaperSetter
-	Rotation  *rotation.Rotator
+	Log          *slog.Logger
+	DB           *sql.DB
+	DBPath       string
+	Search       *search.Service
+	Settings     *settings.Store
+	Downloads    *downloads.Manager
+	Library      *library.Store
+	Files        *libfiles.Server
+	Wallpaper    WallpaperSetter
+	Rotation     *rotation.Rotator
+	Schedule     Scheduler
+	Executable   string
+	RotationLock string
 }
 
 // NewApp creates a new App.
@@ -84,7 +92,11 @@ func NewApp(d Deps) *App {
 		files:     d.Files,
 		wallpaper: d.Wallpaper,
 		rotation:  d.Rotation,
-		emit:      func(string, any) {},
+		schedule:  d.Schedule,
+
+		executable:   d.Executable,
+		rotationLock: d.RotationLock,
+		emit:         func(string, any) {},
 	}
 }
 

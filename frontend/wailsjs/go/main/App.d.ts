@@ -22,6 +22,8 @@ export function Download(arg1:images.Image):Promise<string>;
 
 export function GetLibraryStats():Promise<main.LibraryStats>;
 
+export function GetRotation():Promise<main.RotationState>;
+
 export function GetSearchFilters():Promise<settings.SearchFilters>;
 
 export function GetStatus():Promise<main.Status>;
@@ -36,9 +38,15 @@ export function ListLibrary(arg1:number,arg2:number,arg3:number):Promise<main.Li
 
 export function ListProviders():Promise<Array<search.ProviderInfo>>;
 
+export function NextWallpaper():Promise<main.RotationState>;
+
 export function RemoveFromCollection(arg1:number,arg2:number):Promise<void>;
 
 export function RenameCollection(arg1:number,arg2:string):Promise<void>;
+
+export function RepairRotationTimer():Promise<main.RotationState>;
+
+export function SaveRotation(arg1:main.RotationSettings):Promise<main.RotationState>;
 
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 

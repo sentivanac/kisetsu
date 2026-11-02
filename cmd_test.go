@@ -57,7 +57,7 @@ func TestRotateChangesTheWallpaper(t *testing.T) {
 	c, r, fake := testCore(t, 2)
 	var out bytes.Buffer
 
-	if code := rotate(context.Background(), c, r, false, &out); code != 0 {
+	if code := rotate(context.Background(), c, r, false, nil, &out); code != 0 {
 		t.Fatalf("exit %d, output %q", code, out.String())
 	}
 	if !strings.HasPrefix(fake.path, filepath.Join(c.paths.Data, "images")) {
@@ -77,7 +77,7 @@ func TestScheduledRotateRespectsTheSetting(t *testing.T) {
 	ctx := context.Background()
 	var out bytes.Buffer
 
-	if code := rotate(ctx, c, r, true, &out); code != 0 || fake.path != "" {
+	if code := rotate(ctx, c, r, true, nil, &out); code != 0 || fake.path != "" {
 		t.Fatalf("disabled rotation: exit %d, setter %q", code, fake.path)
 	}
 	if !strings.Contains(out.String(), "turned off") {
@@ -85,7 +85,7 @@ func TestScheduledRotateRespectsTheSetting(t *testing.T) {
 	}
 
 	rotation.SaveSettings(ctx, r.Settings, rotation.Settings{Enabled: true, Interval: rotation.Hourly, Order: rotation.Random})
-	if code := rotate(ctx, c, r, true, &out); code != 0 || fake.path == "" {
+	if code := rotate(ctx, c, r, true, nil, &out); code != 0 || fake.path == "" {
 		t.Errorf("enabled rotation: exit %d, setter %q", code, fake.path)
 	}
 }
@@ -99,7 +99,7 @@ func TestRotateSkipsWhileAnotherRuns(t *testing.T) {
 	defer unlock()
 	var out bytes.Buffer
 
-	if code := rotate(context.Background(), c, r, false, &out); code != 0 || fake.path != "" {
+	if code := rotate(context.Background(), c, r, false, nil, &out); code != 0 || fake.path != "" {
 		t.Errorf("exit %d, setter %q; want 0 and no change", code, fake.path)
 	}
 }
@@ -108,7 +108,7 @@ func TestRotateWithEmptyLibrary(t *testing.T) {
 	c, r, fake := testCore(t, 0)
 	var out bytes.Buffer
 
-	if code := rotate(context.Background(), c, r, false, &out); code != 0 || fake.path != "" {
+	if code := rotate(context.Background(), c, r, false, nil, &out); code != 0 || fake.path != "" {
 		t.Errorf("exit %d, setter %q", code, fake.path)
 	}
 	if !strings.Contains(out.String(), "no images") {
@@ -120,7 +120,7 @@ func TestRotateReportsFailure(t *testing.T) {
 	c, r, fake := testCore(t, 1)
 	fake.err = fmt.Errorf("gsettings: exit status 1")
 
-	if code := rotate(context.Background(), c, r, false, &bytes.Buffer{}); code != 1 {
+	if code := rotate(context.Background(), c, r, false, nil, &bytes.Buffer{}); code != 1 {
 		t.Errorf("exit %d, want 1", code)
 	}
 }
@@ -137,5 +137,19 @@ func TestRunCommandUsage(t *testing.T) {
 	}
 	if code := runCommand("rotate", []string{"extra"}); code != 2 {
 		t.Errorf("extra argument: exit %d, want 2", code)
+	}
+}
+
+func TestManualRotateRestartsTheTimer(t *testing.T) {
+	c, r, _ := testCore(t, 2)
+	ctx := context.Background()
+	timer := &fakeSchedule{enabled: true}
+	rotation.SaveSettings(ctx, r.Settings, rotation.Settings{Enabled: true, Interval: rotation.Every15Minutes, Order: rotation.Random})
+
+	if code := rotate(ctx, c, r, false, timer, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if timer.restarts != 1 {
+		t.Errorf("restarts = %d, want 1", timer.restarts)
 	}
 }

@@ -15,6 +15,7 @@ import (
 type fakeSystemctl struct {
 	calls [][]string
 	show  string
+	list  string // output of list-timers
 	fail  string // fail calls whose arguments contain this word
 }
 
@@ -25,6 +26,9 @@ func (f *fakeSystemctl) Run(ctx context.Context, name string, args ...string) ([
 	}
 	if slices.Contains(args, "show") {
 		return []byte(f.show), nil
+	}
+	if slices.Contains(args, "list-timers") {
+		return []byte(f.list), nil
 	}
 	return nil, nil
 }
@@ -218,5 +222,53 @@ func TestExecPathQuotingRoundTrips(t *testing.T) {
 	}
 	if got := quoteSystemd(`a%b$c"d\e`); got != `"a%%b$$c\"d\\e"` {
 		t.Errorf("quoteSystemd = %s", got)
+	}
+}
+
+// Real output for Kisetsu's monotonic timer (systemd 249, 2026-11-02): the
+// realtime property is empty, so the time comes from list-timers.
+func TestStatusOfMonotonicTimer(t *testing.T) {
+	m, run := newManager(t)
+	ctx := context.Background()
+	m.Enable(ctx, 15*time.Minute)
+	run.show = "NextElapseUSecRealtime=\nNextElapseUSecMonotonic=1d 3h 17min 57.470100s\nLastTriggerUSec=\nActiveState=active\n"
+	run.list = "Mon 2026-11-02 07:17:20 CET 11min left n/a n/a kisetsu-rotate.timer kisetsu-rotate.service\n"
+
+	st, err := m.Status(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.NextRun.IsZero() || st.NextRun.Hour() != 7 || st.NextRun.Minute() != 17 {
+		t.Errorf("NextRun = %v, want 07:17", st.NextRun)
+	}
+	if !st.LastRun.IsZero() {
+		t.Errorf("LastRun = %v, want zero before the first run", st.LastRun)
+	}
+}
+
+func TestParseListTimersNext(t *testing.T) {
+	if got := parseListTimersNext("n/a n/a n/a n/a kisetsu-rotate.timer kisetsu-rotate.service"); !got.IsZero() {
+		t.Errorf("n/a = %v", got)
+	}
+	if got := parseListTimersNext(""); !got.IsZero() {
+		t.Errorf("empty = %v", got)
+	}
+}
+
+func TestRestart(t *testing.T) {
+	m, run := newManager(t)
+	ctx := context.Background()
+
+	if err := m.Restart(ctx); err != nil || len(run.calls) != 0 {
+		t.Errorf("without a timer: err %v, calls %q", err, run.calls)
+	}
+
+	m.Enable(ctx, time.Hour)
+	run.calls = nil
+	if err := m.Restart(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]string{{"systemctl", "--user", "restart", TimerName}}; !slices.EqualFunc(run.calls, want, slices.Equal) {
+		t.Errorf("calls = %q", run.calls)
 	}
 }

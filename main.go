@@ -18,6 +18,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
+	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -75,6 +76,11 @@ func run() error {
 	// Runs before the database is closed: deferred calls run in reverse.
 	defer downloader.Close()
 
+	timer, err := schedule.New()
+	if err != nil {
+		return err
+	}
+
 	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
 	if gpuErr != nil {
 		log.Warn("using default WebView GPU policy", "err", gpuErr)
@@ -91,6 +97,10 @@ func run() error {
 		Files:     c.files,
 		Wallpaper: wallpaper.New(),
 		Rotation:  c.rotator(),
+
+		Schedule:     timer,
+		Executable:   timer.Executable,
+		RotationLock: c.rotationLockPath(),
 	})
 
 	err = wails.Run(&options.App{

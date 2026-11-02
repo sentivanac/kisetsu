@@ -14,10 +14,13 @@ import (
 
 // fakeWallpaper records the path instead of changing the desktop.
 type fakeWallpaper struct {
-	path   string
-	method wallpaper.Method
-	err    error
+	path    string
+	method  wallpaper.Method
+	err     error
+	variety bool
 }
+
+func (f *fakeWallpaper) VarietyRunning() bool { return f.variety }
 
 func (f *fakeWallpaper) Set(ctx context.Context, path string) (wallpaper.Method, error) {
 	f.path = path

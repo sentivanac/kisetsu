@@ -110,6 +110,9 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 			Library: lib, Settings: settings.NewStore(db), History: rotation.NewHistory(db),
 			Files: files, Setter: &fakeWallpaper{}, Log: log,
 		},
+		Schedule:     &fakeSchedule{}, // never the real systemd
+		Executable:   "/opt/kisetsu/kisetsu",
+		RotationLock: filepath.Join(filepath.Dir(path), "rotate.lock"),
 	})
 	return app
 }

@@ -48,6 +48,9 @@ type ExecRunner struct{}
 
 func (ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	// Kisetsu parses dates in systemctl output; keep them independent of
+	// the user's language.
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -154,6 +157,18 @@ func (m *Manager) Disable(ctx context.Context) error {
 	return nil
 }
 
+// Restart starts the timer's countdown again, so the next change comes one
+// full interval from now. It is used after the user changes the wallpaper
+// by hand. Without Kisetsu's timer installed it does nothing.
+func (m *Manager) Restart(ctx context.Context) error {
+	_, owned, err := m.installedExecutable()
+	if err != nil || !owned {
+		return err
+	}
+	_, err = m.Run.Run(ctx, "systemctl", "--user", "restart", TimerName)
+	return err
+}
+
 // Status describes the installed timer.
 type Status struct {
 	Installed bool      // Kisetsu's unit files exist
@@ -188,7 +203,31 @@ func (m *Manager) Status(ctx context.Context) (Status, error) {
 	st.Active = props["ActiveState"] == "active"
 	st.NextRun = parseTime(props["NextElapseUSecRealtime"])
 	st.LastRun = parseTime(props["LastTriggerUSec"])
+
+	// Kisetsu's timer is monotonic (OnActiveSec/OnUnitActiveSec), for which
+	// NextElapseUSecRealtime stays empty. Its NextElapseUSecMonotonic counts
+	// from boot without suspended time, so it cannot be turned into a clock
+	// time here; list-timers prints the wall-clock time systemd computes.
+	if st.NextRun.IsZero() && st.Active {
+		out, err := m.Run.Run(ctx, "systemctl", "--user", "list-timers", "--all", "--no-legend", TimerName)
+		if err != nil {
+			return st, err
+		}
+		st.NextRun = parseListTimersNext(string(out))
+	}
 	return st, nil
+}
+
+// parseListTimersNext reads the NEXT column of `systemctl list-timers
+// --no-legend`, whose first four words are a time such as
+// "Mon 2026-11-02 07:17:20 CET"; "n/a" gives the zero time.
+func parseListTimersNext(out string) time.Time {
+	line, _, _ := strings.Cut(strings.TrimSpace(out), "\n")
+	fields := strings.Fields(line)
+	if len(fields) < 4 {
+		return time.Time{}
+	}
+	return parseTime(strings.Join(fields[:4], " "))
 }
 
 // checkOwned fails if name exists without Kisetsu's marker.

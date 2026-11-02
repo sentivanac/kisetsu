@@ -5,12 +5,14 @@ import {main, search} from '../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from './lib/backend';
 import {SearchPanel} from './components/SearchPanel';
 import {LibraryView} from './components/LibraryView';
+import {WallpaperView} from './components/WallpaperView';
 
-type Tab = 'search' | 'library';
+type Tab = 'search' | 'library' | 'wallpaper';
 
 const tabs: {id: Tab; label: string}[] = [
     {id: 'search', label: 'Search'},
     {id: 'library', label: 'Library'},
+    {id: 'wallpaper', label: 'Wallpaper'},
 ];
 
 function App() {
@@ -71,6 +73,9 @@ function App() {
                 </div>
                 <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden={tab !== 'library'}>
                     <LibraryView active={tab === 'library'} sourceName={sourceName}/>
+                </div>
+                <div id="panel-wallpaper" role="tabpanel" aria-labelledby="tab-wallpaper" hidden={tab !== 'wallpaper'}>
+                    <WallpaperView active={tab === 'wallpaper'}/>
                 </div>
             </main>
 

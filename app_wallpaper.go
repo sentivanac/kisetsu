@@ -15,6 +15,8 @@ const Unsupported apperr.Code = "unsupported"
 // WallpaperSetter sets the desktop wallpaper; *wallpaper.Setter in the app.
 type WallpaperSetter interface {
 	Set(ctx context.Context, path string) (wallpaper.Method, error)
+	// VarietyRunning reports whether Variety would change the wallpaper too.
+	VarietyRunning() bool
 }
 
 // WallpaperResult tells the frontend how the wallpaper was set.
@@ -55,6 +57,7 @@ func (a *App) SetWallpaper(imageID int64) (result WallpaperResult, err error) {
 	if err := a.rotation.RecordManual(a.ctx, imageID); err != nil {
 		a.log.Warn("wallpaper not recorded in history", "entry", imageID, "err", err)
 	}
+	a.restartRotationTimer()
 	result = WallpaperResult{Method: string(method)}
 	switch method {
 	case wallpaper.Variety:

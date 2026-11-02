@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/images"
@@ -211,5 +212,19 @@ func TestSettings(t *testing.T) {
 
 	if d, err := Daily.Duration(); err != nil || d.Hours() != 24 {
 		t.Errorf("Daily = %v, %v", d, err)
+	}
+}
+
+func TestHistoryLast(t *testing.T) {
+	e, ids := newEnv(t, 2)
+	ctx := context.Background()
+
+	if _, ok, err := e.r.History.Last(ctx); ok || err != nil {
+		t.Fatalf("empty history: %v, %v", ok, err)
+	}
+	e.r.RecordManual(ctx, ids[1])
+	lc, ok, err := e.r.History.Last(ctx)
+	if err != nil || !ok || lc.ImageID != ids[1] || lc.Reason != ByUser || time.Since(lc.At) > time.Minute {
+		t.Errorf("Last = %+v, %v, %v", lc, ok, err)
 	}
 }

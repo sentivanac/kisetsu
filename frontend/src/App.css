@@ -580,3 +580,95 @@
 .collection-picker .link {
     align-self: flex-start;
 }
+
+/* Wallpaper tab */
+.wallpaper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 44rem;
+}
+
+.wallpaper h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.wallpaper-now {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.wallpaper-now p,
+.rotation-status p,
+.warning p {
+    margin: 0;
+}
+
+.rotation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.rotation legend {
+    padding: 0 0.25rem;
+    color: var(--muted);
+}
+
+.rotation > label:not(.toggle) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.rotation select {
+    max-width: 24rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.order {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.rotation-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.small {
+    font-size: 0.8rem;
+}
+
+.warning {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    background: var(--surface);
+}

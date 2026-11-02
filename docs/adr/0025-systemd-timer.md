@@ -34,6 +34,13 @@ WantedBy=timers.target
 - **Status**: reads the installed `ExecStart` and asks `systemctl --user
   show` for `ActiveState`, `NextElapseUSecRealtime` and `LastTriggerUSec`
   (printed as `Mon 2026-11-02 09:21:29 CET`, parsed in the local zone).
+  Kisetsu's timer is *monotonic*, and for monotonic timers
+  `NextElapseUSecRealtime` is empty; `NextElapseUSecMonotonic` counts from
+  boot without suspended time and cannot be turned into a clock time
+  locally. The next run is then read from the NEXT column of
+  `systemctl --user list-timers --no-legend`, which systemd computes.
+  (Found by the user on 2026-11-02: "Next change" never appeared; the test
+  had only faked the realtime property.) systemctl runs with `LC_ALL=C`.
   `Status.Outdated` tells when the installed timer runs another binary
   than the current one (Kisetsu moved or rebuilt elsewhere).
 
