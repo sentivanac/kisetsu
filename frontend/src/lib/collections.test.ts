@@ -25,6 +25,10 @@ describe('collectionNameError', () => {
         expect(collectionNameError(' edo   PERIOD ', existing)).toMatch(/already exists/);
     });
 
+    it('names the kind of item in the message', () => {
+        expect(collectionNameError('Autumn', existing, 0, 'saved search')).toBe('A saved search with this name already exists.');
+    });
+
     it('lets a collection keep its own name in another case', () => {
         expect(collectionNameError('autumn', existing, 1)).toBeNull();
         expect(collectionNameError('autumn', existing, 2)).toMatch(/already exists/);

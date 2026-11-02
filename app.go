@@ -18,6 +18,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
@@ -45,6 +46,9 @@ type App struct {
 	wallpaper WallpaperSetter
 	rotation  *rotation.Rotator
 	schedule  Scheduler
+
+	savedSearches *searches.Store
+
 	// executable is this Kisetsu binary, to detect a timer that runs
 	// another one.
 	executable   string
@@ -63,19 +67,20 @@ type App struct {
 
 // Deps are the dependencies of App, created in main.go.
 type Deps struct {
-	Log          *slog.Logger
-	DB           *sql.DB
-	DBPath       string
-	Search       *search.Service
-	Settings     *settings.Store
-	Downloads    *downloads.Manager
-	Library      *library.Store
-	Files        *libfiles.Server
-	Wallpaper    WallpaperSetter
-	Rotation     *rotation.Rotator
-	Schedule     Scheduler
-	Executable   string
-	RotationLock string
+	Log           *slog.Logger
+	DB            *sql.DB
+	DBPath        string
+	Search        *search.Service
+	Settings      *settings.Store
+	Downloads     *downloads.Manager
+	Library       *library.Store
+	Files         *libfiles.Server
+	Wallpaper     WallpaperSetter
+	Rotation      *rotation.Rotator
+	Schedule      Scheduler
+	SavedSearches *searches.Store
+	Executable    string
+	RotationLock  string
 }
 
 // NewApp creates a new App.
@@ -93,6 +98,8 @@ func NewApp(d Deps) *App {
 		wallpaper: d.Wallpaper,
 		rotation:  d.Rotation,
 		schedule:  d.Schedule,
+
+		savedSearches: d.SavedSearches,
 
 		executable:   d.Executable,
 		rotationLock: d.RotationLock,

@@ -7,21 +7,22 @@ interface Props {
     submitLabel: string;
     initial?: string;
     existing: {id: number; name: string}[];
-    ownID?: number; // when renaming, the collection's own ID
+    ownID?: number; // when renaming, the item's own ID
+    what?: string; // the kind of item, for messages ("collection")
     onSubmit: (name: string) => Promise<void>;
     onCancel: () => void;
 }
 
 // NameForm asks for a collection name and checks it before submitting.
 // Escape cancels. Errors from the backend are shown under the field.
-export function NameForm({label, submitLabel, initial = '', existing, ownID, onSubmit, onCancel}: Props) {
+export function NameForm({label, submitLabel, initial = '', existing, ownID, what, onSubmit, onCancel}: Props) {
     const [name, setName] = useState(initial);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
 
     function submit(event: FormEvent) {
         event.preventDefault();
-        const problem = collectionNameError(name, existing, ownID);
+        const problem = collectionNameError(name, existing, ownID, what);
         if (problem) {
             setError(problem);
             return;

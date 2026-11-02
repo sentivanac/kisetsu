@@ -116,6 +116,7 @@ internal/          business logic, independent of the UI
   rotation/        chooses and sets the next wallpaper, rotation history
   schedule/        systemd user timer for wallpaper rotation
   search/          runs searches against registered providers
+  searches/        saved searches
   settings/        user preferences stored in the database
   wallpaper/       sets the wallpaper (Variety, MATE, GNOME)
 app_search.go      multi-source search, cancellation, error messages
@@ -125,6 +126,7 @@ app_library.go     library listing, statistics and deletion
 app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
 app_rotation.go    rotation settings, timer and "Next wallpaper"
+app_saved_searches.go  saved searches
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

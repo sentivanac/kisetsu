@@ -672,3 +672,15 @@
     border-radius: 4px;
     background: var(--surface);
 }
+
+/* Saved searches */
+.saved-searches {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.saved-searches .collection-list {
+    align-items: center;
+}

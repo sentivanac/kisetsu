@@ -8,14 +8,20 @@ export function cleanCollectionName(name: string): string {
 }
 
 // collectionNameError returns why a name cannot be used, or null if it can.
-// Names are compared case-insensitively, like in the database.
-export function collectionNameError(name: string, existing: {id: number; name: string}[], ownID = 0): string | null {
+// Names are compared case-insensitively, like in the database. The same
+// rules apply to saved searches; what names the kind in the message.
+export function collectionNameError(
+    name: string,
+    existing: {id: number; name: string}[],
+    ownID = 0,
+    what = 'collection',
+): string | null {
     const clean = cleanCollectionName(name);
     if (clean === '') return 'Enter a name.';
     if ([...clean].length > maxCollectionName) return `Use at most ${maxCollectionName} characters.`;
     const lower = clean.toLocaleLowerCase();
     if (existing.some((c) => c.id !== ownID && c.name.toLocaleLowerCase() === lower)) {
-        return 'A collection with this name already exists.';
+        return `A ${what} with this name already exists.`;
     }
     return null;
 }

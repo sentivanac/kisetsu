@@ -23,6 +23,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
@@ -110,9 +111,10 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 			Library: lib, Settings: settings.NewStore(db), History: rotation.NewHistory(db),
 			Files: files, Setter: &fakeWallpaper{}, Log: log,
 		},
-		Schedule:     &fakeSchedule{}, // never the real systemd
-		Executable:   "/opt/kisetsu/kisetsu",
-		RotationLock: filepath.Join(filepath.Dir(path), "rotate.lock"),
+		Schedule:      &fakeSchedule{}, // never the real systemd
+		SavedSearches: searches.NewStore(db),
+		Executable:    "/opt/kisetsu/kisetsu",
+		RotationLock:  filepath.Join(filepath.Dir(path), "rotate.lock"),
 	})
 	return app
 }

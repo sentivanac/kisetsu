@@ -2,14 +2,18 @@ import {FormEvent, useEffect, useRef, useState} from 'react';
 import {
     CancelDownload,
     CancelSearch,
+    DeleteSavedSearch,
     Download,
     GetSearchFilters,
     LibraryStatus,
     ListProviders,
+    ListSavedSearches,
+    RenameSavedSearch,
+    SaveSearch,
     SaveSearchFilters,
     SearchSources,
 } from '../../wailsjs/go/main/App';
-import {images, providers, search, settings} from '../../wailsjs/go/models';
+import {images, main, providers, search, searches, settings} from '../../wailsjs/go/models';
 import {ScreenGetAll} from '../../wailsjs/runtime/runtime';
 import {BackendError, describeError, isCanceled, toBackendError} from '../lib/backend';
 import {
@@ -37,6 +41,7 @@ import {
 import {DownloadButton} from './DownloadButton';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
+import {SavedSearchBar} from './SavedSearchBar';
 
 interface Props {
     // The panel rechecks which results are in the library when it becomes
@@ -53,6 +58,10 @@ export function SearchPanel({active}: Props) {
     // Filters are saved only after the remembered ones were loaded, so the
     // defaults shown during startup never overwrite them.
     const [filtersLoaded, setFiltersLoaded] = useState(false);
+
+    const [saved, setSaved] = useState<main.SavedSearch[]>([]);
+    // The saved search shown in the form, until the form is changed.
+    const [activeSaved, setActiveSaved] = useState<number | null>(null);
 
     const [results, setResults] = useState<images.Image[]>([]);
     // The query of the search on screen, reused by "Load more".
@@ -104,6 +113,7 @@ export function SearchPanel({active}: Props) {
                 if (!size) return;
                 // A wallpaper must match the screen's shape as well as its size.
                 const filters = screenFilters(size);
+                setActiveSaved(null);
                 setResolution({width: filters.width, height: filters.height});
                 setOrientation(filters.orientation);
             })
@@ -134,18 +144,77 @@ export function SearchPanel({active}: Props) {
 
     function runSearch(event: FormEvent) {
         event.preventDefault();
+        startSearch(text, selectedSources, resolution, orientation);
+    }
+
+    // startSearch runs a search with explicit values, so a saved search can
+    // run before the form state has been updated.
+    function startSearch(searchText: string, sources: string[], res: Resolution, orient: string) {
         const query = new providers.Query({
-            text,
+            text: searchText,
             page: 1,
-            minWidth: resolution.width,
-            minHeight: resolution.height,
-            orientation,
+            minWidth: res.width,
+            minHeight: res.height,
+            orientation: orient,
         });
         setResults([]);
         setStatuses([]);
         setSelected(null);
         setActiveQuery(query);
-        load(selectedSources.map((providerId) => ({providerId, page: 1})), query, false);
+        load(sources.map((providerId) => ({providerId, page: 1})), query, false);
+    }
+
+    useEffect(() => {
+        ListSavedSearches()
+            .then(setSaved)
+            .catch(() => {}); // searching works without saved searches
+    }, []);
+
+    function refreshSaved() {
+        ListSavedSearches()
+            .then(setSaved)
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
+
+    // runSaved fills the form with a saved search and runs it. Sources that
+    // no longer exist are skipped.
+    function runSaved(s: main.SavedSearch) {
+        const known = new Set(available.map((p) => p.id));
+        const sources = (s.query.providerIds ?? []).filter((id) => known.has(id));
+        if (sources.length === 0) {
+            setError({code: 'invalid_input', message: 'None of the sources of this saved search are available.'});
+            return;
+        }
+        const res = {width: s.query.minWidth, height: s.query.minHeight};
+        setText(s.query.text);
+        setSelectedSources(sources);
+        setResolution(res);
+        setOrientation(s.query.orientation);
+        setActiveSaved(s.id);
+        startSearch(s.query.text, sources, res, s.query.orientation);
+    }
+
+    async function saveCurrent(name: string) {
+        const created = await SaveSearch(
+            name,
+            new searches.Query({
+                text,
+                providerIds: selectedSources,
+                minWidth: resolution.width,
+                minHeight: resolution.height,
+                orientation,
+            }),
+        );
+        refreshSaved();
+        setActiveSaved(created.id);
+    }
+
+    // Changing the form means it no longer shows the saved search.
+    function edited<T>(set: (value: T) => void) {
+        return (value: T) => {
+            setActiveSaved(null);
+            set(value);
+        };
     }
 
     function loadMore() {
@@ -202,13 +271,34 @@ export function SearchPanel({active}: Props) {
 
     return (
         <section className="search" aria-busy={loading !== null}>
+            <SavedSearchBar
+                saved={saved}
+                activeID={activeSaved}
+                suggestedName={text.trim() || 'Popular images'}
+                canSave={selectedSources.length > 0}
+                onRun={runSaved}
+                onSave={saveCurrent}
+                onRename={async (id, name) => {
+                    await RenameSavedSearch(id, name);
+                    refreshSaved();
+                }}
+                onDelete={(id) => {
+                    DeleteSavedSearch(id)
+                        .then(() => {
+                            setActiveSaved(null);
+                            refreshSaved();
+                        })
+                        .catch((err: unknown) => setError(toBackendError(err)));
+                }}
+            />
+
             <form className="search-form" onSubmit={runSearch} role="search">
                 <label className="search-text">
                     <span className="sr-only">Search text</span>
                     <input
                         type="search"
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        onChange={(e) => edited(setText)(e.target.value)}
                         placeholder="Misty mountains, Japanese village…  (-word excludes)"
                         maxLength={256}
                     />
@@ -217,7 +307,7 @@ export function SearchPanel({active}: Props) {
                     Minimum size
                     <select
                         value={resolutionKey(resolution)}
-                        onChange={(e) => setResolution(parseResolutionKey(e.target.value))}
+                        onChange={(e) => edited(setResolution)(parseResolutionKey(e.target.value))}
                     >
                         {resolutionOptions(resolution).map((r) => (
                             <option key={resolutionKey(r)} value={resolutionKey(r)}>
@@ -231,7 +321,7 @@ export function SearchPanel({active}: Props) {
                 </button>
                 <label>
                     Orientation
-                    <select value={orientation} onChange={(e) => setOrientation(e.target.value)}>
+                    <select value={orientation} onChange={(e) => edited(setOrientation)(e.target.value)}>
                         <option value="">Any</option>
                         <option value="landscape">Landscape</option>
                         <option value="portrait">Portrait</option>
@@ -255,7 +345,10 @@ export function SearchPanel({active}: Props) {
                             <input
                                 type="checkbox"
                                 checked={selectedSources.includes(p.id)}
-                                onChange={() => setSelectedSources((s) => toggleSource(available, s, p.id))}
+                                onChange={() => {
+                                    setActiveSaved(null);
+                                    setSelectedSources((s) => toggleSource(available, s, p.id));
+                                }}
                             />
                             <span>{p.name}</span>
                             {p.contentWarning && <span className="source-warning">{p.contentWarning}</span>}

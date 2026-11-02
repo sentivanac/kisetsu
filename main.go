@@ -20,6 +20,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
@@ -98,9 +99,10 @@ func run() error {
 		Wallpaper: wallpaper.New(),
 		Rotation:  c.rotator(),
 
-		Schedule:     timer,
-		Executable:   timer.Executable,
-		RotationLock: c.rotationLockPath(),
+		Schedule:      timer,
+		SavedSearches: searches.NewStore(c.db),
+		Executable:    timer.Executable,
+		RotationLock:  c.rotationLockPath(),
 	})
 
 	err = wails.Run(&options.App{

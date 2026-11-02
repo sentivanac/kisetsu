@@ -4,6 +4,7 @@ import {main} from '../models';
 import {images} from '../models';
 import {settings} from '../models';
 import {search} from '../models';
+import {searches} from '../models';
 import {providers} from '../models';
 
 export function AddToCollection(arg1:number,arg2:number):Promise<void>;
@@ -17,6 +18,8 @@ export function CreateCollection(arg1:string):Promise<main.CollectionInfo>;
 export function DeleteCollection(arg1:number):Promise<void>;
 
 export function DeleteFromLibrary(arg1:number):Promise<void>;
+
+export function DeleteSavedSearch(arg1:number):Promise<void>;
 
 export function Download(arg1:images.Image):Promise<string>;
 
@@ -38,15 +41,21 @@ export function ListLibrary(arg1:number,arg2:number,arg3:number):Promise<main.Li
 
 export function ListProviders():Promise<Array<search.ProviderInfo>>;
 
+export function ListSavedSearches():Promise<Array<main.SavedSearch>>;
+
 export function NextWallpaper():Promise<main.RotationState>;
 
 export function RemoveFromCollection(arg1:number,arg2:number):Promise<void>;
 
 export function RenameCollection(arg1:number,arg2:string):Promise<void>;
 
+export function RenameSavedSearch(arg1:number,arg2:string):Promise<void>;
+
 export function RepairRotationTimer():Promise<main.RotationState>;
 
 export function SaveRotation(arg1:main.RotationSettings):Promise<main.RotationState>;
+
+export function SaveSearch(arg1:string,arg2:searches.Query):Promise<main.SavedSearch>;
 
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
