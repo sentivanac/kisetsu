@@ -5,6 +5,8 @@ The build directory is used to house all the build files and assets for your app
 The structure is:
 
 * bin - Output directory
+* linux - Linux desktop entry and icon (source SVG and rendered PNG sizes)
+* deb - .deb packages made by `make deb` (not in Git)
 * darwin - macOS specific files
 * windows - Windows specific files
 

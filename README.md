@@ -1,144 +1,159 @@
 # Kisetsu 季節
 
-An open-source wallpaper discovery and management platform for Linux.
+Find beautiful wallpapers, keep the ones you like, and let your desktop
+change with them.
 
-> **Status:** early development (Phase 4 — local library). The app
-> searches Wallhaven and, if you enable it, Wikimedia Commons at the same
-> time, with size and orientation filters and `-word` exclusions. Images
-> can be downloaded into a local library, which keeps their author, source
-> and license, works offline and can be organized into collections. A
-> library image can be set as the wallpaper (through Variety if it runs,
-> otherwise on MATE or GNOME), and the wallpaper can rotate automatically
-> through a systemd user timer.
->
-> Wikimedia Commons has no safe-for-work rating. Kisetsu limits it to
-> curated collections and filters risky results, but cannot guarantee
-> that nothing unsuitable appears, so the source is off by default.
+Kisetsu (Japanese for "season") searches several image sources at once,
+keeps a local library with the author and license of every image, and
+sets or rotates your desktop wallpaper. It is free and open source (MIT).
 
-## Requirements
+> **Status:** version 0.1.0, the first release. Linux only; Windows
+> support is planned after the Linux release.
 
-Developed and tested on Ubuntu 22.04.
+## Features
 
-| Tool | Version | Notes |
-|---|---|---|
-| Go | 1.26+ | required by the SQLite driver |
-| Node.js | 24 LTS | pinned in `.nvmrc` |
-| Wails CLI | v2.17+ | `go install github.com/wailsapp/wails/v2/cmd/wails@latest` |
-| GTK 3 / WebKitGTK 4.1 | | `sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` |
+- **Search** Wallhaven and, if you turn it on, Wikimedia Commons at the
+  same time. Filter by minimum size (or "my screen size") and
+  orientation; exclude words with `-word`, e.g. `mountains -snow`.
+- **Save searches** and run them again with one click.
+- **Library:** download images to keep them. They work offline, can be
+  sorted into collections, and duplicates are detected — also re-encoded
+  copies of the same picture.
+- **Credit where it is due:** author, source page and license are kept
+  for every image and shown with it.
+- **Set as wallpaper**, or **rotate** automatically — every 15 minutes up
+  to once a day, in random or added order, from the whole library, a
+  collection, or a saved search.
+- **Fresh images from a saved search:** when rotating from a saved
+  search, Kisetsu downloads a few new images when it runs low. They live
+  in a size-limited cache (200 MB, reduced to your screen size); press
+  **Keep** to move one into your library.
 
-Kisetsu builds against **WebKitGTK 4.1** using the Go build tag `webkit2_41`.
-The tag is set in `wails.json` and in the `Makefile`. `wails doctor` reports
-`libwebkit2gtk-4.0-dev` as missing; that can be ignored.
+## Install
 
-## Development
+Kisetsu is packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer
+and Debian 12 or newer** (64-bit).
+
+Download `kisetsu_0.1.0_amd64.deb` and install it with:
 
 ```sh
-nvm use          # switch to the Node version from .nvmrc
-make dev         # run with hot reload
-make check       # go vet, Go tests, TypeScript type check, frontend tests
-make test        # Go tests only
-make test-frontend  # frontend tests only (Vitest)
-make test-live   # check providers against their real APIs (uses the network)
-make build       # production binary in build/bin/kisetsu
+sudo apt install ./kisetsu_0.1.0_amd64.deb
 ```
 
-When calling Go tools directly, pass the tag: `go test -tags webkit2_41 ./...`.
+`apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). Then
+start **Kisetsu** from the applications menu, or run `kisetsu`.
 
-## Files and logs
+To build it yourself, see [docs/development.md](docs/development.md).
 
-Kisetsu follows the XDG Base Directory Specification. All directories are
-created on first start with private permissions (`0700`):
+## Supported desktops
 
-| Purpose | Default location |
+| Desktop | Set wallpaper | Rotation |
+|---|---|---|
+| GNOME (X11 and Wayland) | ✓ | ✓ |
+| MATE | ✓ | ✓ |
+| Variety running (any desktop) | ✓ through Variety | — see below |
+| KDE Plasma, XFCE, Cinnamon, others | not yet | not yet |
+
+On other desktops, search and the library work fully; only setting the
+wallpaper says it is not supported yet.
+
+**Variety:** if [Variety](https://peterlevi.com/variety/) is running,
+"Set as wallpaper" hands the image to Variety, so Variety keeps working
+as before. Kisetsu's own rotation sets the wallpaper directly, and the
+Wallpaper tab warns that Variety would change it too: turn off Variety's
+automatic change, or quit Variety, if Kisetsu should rotate.
+
+**Rotation** runs as a systemd user timer, so it continues while the
+window is closed and stops when you log out. The timer is created only
+when you turn rotation on, and removed when you turn it off.
+
+## Images and licenses
+
+Kisetsu shows where every image comes from and under which license, but
+**it does not make images free to use**. Check the license on the source
+page before publishing or sharing an image.
+
+- **Wallhaven:** only images rated safe for work are requested. Licenses
+  are often not stated; Kisetsu then says "License unknown".
+- **Wikimedia Commons** (off by default): limited to its curated quality
+  collections, with unsuitable results filtered out. Commons has no
+  safe-for-work rating, so the filter cannot be perfect. Most images are
+  under Creative Commons licenses that require crediting the author.
+
+Kisetsu uses the official APIs of both sources, respects their rate
+limits, and identifies itself to them as Kisetsu with its version.
+
+## Privacy
+
+Kisetsu has no account, no telemetry and no server of its own.
+
+- Your searches go to the image sources you selected (Wallhaven,
+  Wikimedia Commons) — that is how they are searched.
+- Thumbnails, previews and downloads are loaded from those sources'
+  servers.
+- Everything else stays on your computer: library, collections, saved
+  searches, settings and logs. Search text is not stored unless you save
+  the search (or turn on debug logging, which writes it to the log).
+
+## Where Kisetsu keeps its files
+
+| What | Where |
 |---|---|
-| Settings | `~/.config/kisetsu` |
-| Data (database `kisetsu.db`, `images/`, `thumbs/`) | `~/.local/share/kisetsu` |
-| Cache (fetched images, `fetched/`, max 200 MB) | `~/.cache/kisetsu` |
-| State (logs) | `~/.local/state/kisetsu` |
+| Library images, thumbnails, database | `~/.local/share/kisetsu` |
+| Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` |
+| Log file | `~/.local/state/kisetsu/kisetsu.log` |
+| Rotation timer (only while rotation is on) | `~/.config/systemd/user/kisetsu-rotate.{service,timer}` |
 
-The `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME`
-variables are respected.
+Kisetsu never deletes images from your library on its own; only the
+cache of fresh images is cleaned up automatically.
 
-Logs are written to `~/.local/state/kisetsu/kisetsu.log` and to stderr.
-Set the level with `KISETSU_LOG_LEVEL` (`debug`, `info`, `warn`, `error`;
-default `info`):
+## Uninstall
+
+1. In Kisetsu, open **Wallpaper** and turn rotation off. This removes
+   the timer.
+2. Remove the program:
+
+   ```sh
+   sudo apt remove kisetsu
+   ```
+
+3. Your library stays. To delete it as well:
+
+   ```sh
+   rm -r ~/.local/share/kisetsu ~/.cache/kisetsu ~/.local/state/kisetsu ~/.config/kisetsu
+   ```
+
+If you removed the program while rotation was on, remove the timer by
+hand:
 
 ```sh
-KISETSU_LOG_LEVEL=debug make dev
+systemctl --user disable --now kisetsu-rotate.timer
+rm ~/.config/systemd/user/kisetsu-rotate.service ~/.config/systemd/user/kisetsu-rotate.timer
+systemctl --user daemon-reload
 ```
 
 ## Command line
 
 ```sh
-./build/bin/kisetsu                     # open the window
-./build/bin/kisetsu rotate              # change the wallpaper to the next library image
-./build/bin/kisetsu rotate --scheduled  # only if rotation is enabled (used by the timer)
-./build/bin/kisetsu fetch "Mountains" --count 5  # new images for a saved search into Fetched
-./build/bin/kisetsu help
+kisetsu                              # open the window
+kisetsu rotate                       # change to the next wallpaper now
+kisetsu fetch "Mountains" --count 5  # new images for the saved search "Mountains"
+kisetsu version
+kisetsu help
 ```
-
-`rotate` sets the wallpaper directly with gsettings (MATE or GNOME), not
-through Variety. Exit status: 0 when the wallpaper changed or there was
-nothing to do, 1 on failure, 2 for invalid usage. Details are in the log.
 
 ## Troubleshooting
 
-If the window stays blank or flickers, disable WebView hardware
-acceleration:
-
-```sh
-KISETSU_WEBVIEW_GPU=never ./build/bin/kisetsu
-```
-
-Accepted values are `ondemand` (default), `always` and `never`.
-
-## Project layout
-
-```
-main.go            entry point: opens the window, or runs a command
-core.go            setup shared by the window and commands
-cmd.go             command-line commands (rotate, help)
-app.go             thin bridge exposing Go methods to the frontend
-internal/          business logic, independent of the UI
-  apperr/          errors with user-safe messages and stable codes
-  appinfo/         build and platform information
-  config/          XDG directory resolution
-  logging/         slog logger setup
-  database/        SQLite connection and schema migrations
-    migrations/    numbered SQL migration files (embedded)
-  downloads/       download queue into the library or the fetched cache
-  fetched/         keeping and pruning fetched images
-  images/          provider-independent image model
-  imaging/         image validation, thumbnails, SHA-256 and dHash
-  providers/       Provider interface, query, errors
-    wallhaven/     Wallhaven API (SFW only)
-    commons/       Wikimedia Commons API (curated collections, best-effort SFW)
-  library/         downloaded images and collections (database records)
-  libfiles/        serves (and removes) library files under /library/
-  rotation/        chooses and sets the next wallpaper, rotation history
-  schedule/        systemd user timer for wallpaper rotation
-  search/          runs searches against registered providers
-  searches/        saved searches
-  settings/        user preferences stored in the database
-  wallpaper/       sets the wallpaper (Variety, MATE, GNOME)
-app_search.go      multi-source search, cancellation, error messages
-app_settings.go    settings methods exposed to the frontend
-app_downloads.go   downloads and their progress events
-app_library.go     library listing, statistics and deletion
-app_collections.go collections
-app_wallpaper.go   set a library image as the desktop wallpaper
-app_rotation.go    rotation settings, timer and "Next wallpaper"
-app_saved_searches.go  saved searches
-app_fetched.go     fetched images, Keep, screen size
-gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
-frontend/          React + TypeScript + Vite
-  src/components/  reusable UI components
-  src/lib/         frontend helpers (backend errors, images, filters, screens)
-  wailsjs/         TypeScript bindings generated by Wails (do not edit)
-build/             icons and packaging resources
-docs/adr/          architecture decision records
-```
+- **The window stays blank or flickers:** start it without WebView
+  hardware acceleration: `KISETSU_WEBVIEW_GPU=never kisetsu`
+  (`ondemand` is the default, `always` is also accepted).
+- **More detail in the log:** `KISETSU_LOG_LEVEL=debug kisetsu`, then
+  look at `~/.local/state/kisetsu/kisetsu.log`.
+- **The wallpaper does not change:** the Wallpaper tab shows whether the
+  timer runs and when the next change is due. Check whether Variety is
+  running, and whether your desktop is in the table above.
 
 ## License
 
-[MIT](LICENSE)
+Kisetsu is released under the [MIT License](LICENSE). Images found with
+Kisetsu belong to their authors and keep their own licenses.
