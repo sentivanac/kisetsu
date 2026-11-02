@@ -53,7 +53,7 @@ created on first start with private permissions (`0700`):
 |---|---|
 | Settings | `~/.config/kisetsu` |
 | Data (database `kisetsu.db`, `images/`, `thumbs/`) | `~/.local/share/kisetsu` |
-| Cache (re-creatable, e.g. thumbnails) | `~/.cache/kisetsu` |
+| Cache (fetched images, `fetched/`, max 200 MB) | `~/.cache/kisetsu` |
 | State (logs) | `~/.local/state/kisetsu` |
 
 The `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME`
@@ -105,7 +105,8 @@ internal/          business logic, independent of the UI
   logging/         slog logger setup
   database/        SQLite connection and schema migrations
     migrations/    numbered SQL migration files (embedded)
-  downloads/       download queue into the local library
+  downloads/       download queue into the library or the fetched cache
+  fetched/         keeping and pruning fetched images
   images/          provider-independent image model
   imaging/         image validation, thumbnails, SHA-256 and dHash
   providers/       Provider interface, query, errors
@@ -127,6 +128,7 @@ app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
 app_rotation.go    rotation settings, timer and "Next wallpaper"
 app_saved_searches.go  saved searches
+app_fetched.go     fetched images, Keep, screen size
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

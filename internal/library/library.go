@@ -29,17 +29,34 @@ var (
 // migrations.
 const timeLayout = "2006-01-02T15:04:05.000Z"
 
+// Origin says how an image came into the database.
+type Origin string
+
+const (
+	// FromUser images are the user's library: downloaded or kept by hand.
+	FromUser Origin = "library"
+	// Fetched images were downloaded automatically from a saved search and
+	// live in the cache until kept (ADR 0028).
+	Fetched Origin = "fetched"
+)
+
 // Entry is one image in the library.
 type Entry struct {
 	ID int64
 	// Image keeps the provider metadata and attribution exactly as found.
 	Image images.Image
-	// FilePath and ThumbnailPath are relative to the library directory.
+	// FilePath and ThumbnailPath are relative paths understood by
+	// libfiles ("images/…", "thumbs/…", or "fetched/…" for fetched images).
 	FilePath      string
 	ThumbnailPath string
-	SHA256        string
-	DHash         uint64
-	AddedAt       time.Time
+	// SHA256 is the hash of the file as downloaded; fetched images may be
+	// stored smaller than that.
+	SHA256  string
+	DHash   uint64
+	AddedAt time.Time
+	// Origin is FromUser unless the image was fetched; empty means FromUser.
+	Origin        Origin
+	SavedSearchID int64 // the search a fetched image came from; 0 if none
 }
 
 // Store reads and writes library records.
@@ -54,7 +71,8 @@ func NewStore(db *sql.DB) *Store {
 
 const entryColumns = `id, provider, provider_id, page_url, download_url, source_url,
 	author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
-	width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, added_at`
+	width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, added_at,
+	origin, coalesce(saved_search_id, 0)`
 
 // Add stores a new entry and returns its ID. It fails with
 // ErrAlreadyInLibrary or ErrDuplicateFile instead of storing a duplicate.
@@ -83,14 +101,23 @@ func (s *Store) Add(ctx context.Context, e Entry) (int64, error) {
 	}
 
 	img := e.Image
+	origin := e.Origin
+	if origin == "" {
+		origin = FromUser
+	}
+	var savedSearch any // NULL unless the image came from a saved search
+	if e.SavedSearchID != 0 {
+		savedSearch = e.SavedSearchID
+	}
 	res, err := tx.ExecContext(ctx, `INSERT INTO images (
 			provider, provider_id, page_url, download_url, source_url,
 			author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
-			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, origin, saved_search_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		img.Provider, img.ProviderID, img.PageURL, img.DownloadURL, img.SourceURL,
 		img.Author.Name, img.Author.URL, img.Author.Credit, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
-		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, e.SHA256, int64(e.DHash))
+		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, e.SHA256, int64(e.DHash),
+		string(origin), savedSearch)
 	if err != nil {
 		return 0, fmt.Errorf("add image: %w", err)
 	}
@@ -148,7 +175,8 @@ func (s *Store) IDsBySource(ctx context.Context, refs []SourceRef) (map[SourceRe
 			args = append(args, r.Provider, r.ProviderID)
 		}
 		rows, err := s.db.QueryContext(ctx,
-			`SELECT id, provider, provider_id FROM images WHERE (provider, provider_id) IN (VALUES `+values+`)`, args...)
+			`SELECT id, provider, provider_id FROM images
+			WHERE origin = 'library' AND (provider, provider_id) IN (VALUES `+values+`)`, args...)
 		if err != nil {
 			return nil, fmt.Errorf("find images by source: %w", err)
 		}
@@ -173,19 +201,36 @@ func (s *Store) IDsBySource(ctx context.Context, refs []SourceRef) (map[SourceRe
 // ListOptions select and page library entries.
 type ListOptions struct {
 	CollectionID int64 // 0 means all images
-	Limit        int   // 0 means no limit
-	Offset       int
+	// Origin selects the user's library (default) or fetched images.
+	Origin Origin
+	// SavedSearchID limits fetched images to one saved search; 0 = all.
+	SavedSearchID int64
+	OldestFirst   bool
+	Limit         int // 0 means no limit
+	Offset        int
 }
 
-// List returns entries, newest first.
+// List returns entries, newest first unless OldestFirst is set.
 func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
-	query := `SELECT ` + entryColumns + ` FROM images`
-	var args []any
+	origin := opts.Origin
+	if origin == "" {
+		origin = FromUser
+	}
+	query := `SELECT ` + entryColumns + ` FROM images WHERE origin = ?`
+	args := []any{string(origin)}
 	if opts.CollectionID != 0 {
-		query += ` WHERE id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)`
+		query += ` AND id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)`
 		args = append(args, opts.CollectionID)
 	}
-	query += ` ORDER BY added_at DESC, id DESC`
+	if opts.SavedSearchID != 0 {
+		query += ` AND saved_search_id = ?`
+		args = append(args, opts.SavedSearchID)
+	}
+	if opts.OldestFirst {
+		query += ` ORDER BY added_at, id`
+	} else {
+		query += ` ORDER BY added_at DESC, id DESC`
+	}
 	if opts.Limit > 0 {
 		query += ` LIMIT ? OFFSET ?`
 		args = append(args, opts.Limit, opts.Offset)
@@ -211,14 +256,15 @@ func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
 	return out, nil
 }
 
-// IDs returns the IDs of the library (collectionID 0) or of one
-// collection, oldest first.
+// IDs returns the IDs of the user's library (collectionID 0) or of one
+// collection, oldest first. Fetched images are not included.
 func (s *Store) IDs(ctx context.Context, collectionID int64) ([]int64, error) {
-	query := `SELECT id FROM images ORDER BY added_at, id`
+	query := `SELECT id FROM images WHERE origin = 'library' ORDER BY added_at, id`
 	var args []any
 	if collectionID != 0 {
 		query = `SELECT id FROM images
-			WHERE id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)
+			WHERE origin = 'library'
+			AND id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)
 			ORDER BY added_at, id`
 		args = append(args, collectionID)
 	}
@@ -253,14 +299,42 @@ type Stats struct {
 	Bytes  int64 // total size of the original files
 }
 
-// Stats returns the number of images and their total size.
+// Stats returns the number of images in the user's library and their
+// total size.
 func (s *Store) Stats(ctx context.Context) (Stats, error) {
+	return s.stats(ctx, FromUser)
+}
+
+// FetchedStats returns the number and total size of fetched images.
+func (s *Store) FetchedStats(ctx context.Context) (Stats, error) {
+	return s.stats(ctx, Fetched)
+}
+
+func (s *Store) stats(ctx context.Context, origin Origin) (Stats, error) {
 	var st Stats
-	err := s.db.QueryRowContext(ctx, `SELECT count(*), coalesce(sum(file_size), 0) FROM images`).Scan(&st.Images, &st.Bytes)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT count(*), coalesce(sum(file_size), 0) FROM images WHERE origin = ?`, string(origin)).
+		Scan(&st.Images, &st.Bytes)
 	if err != nil {
 		return Stats{}, fmt.Errorf("library stats: %w", err)
 	}
 	return st, nil
+}
+
+// Keep moves a fetched image into the user's library: its files now live
+// at filePath and thumbPath, and it counts as added now.
+func (s *Store) Keep(ctx context.Context, id int64, filePath, thumbPath string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE images
+		SET origin = 'library', saved_search_id = NULL, file_path = ?, thumbnail_path = ?,
+			added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		WHERE id = ? AND origin = 'fetched'`, filePath, thumbPath, id)
+	if err != nil {
+		return fmt.Errorf("keep image %d: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("%w: fetched image %d", ErrNotFound, id)
+	}
+	return nil
 }
 
 // HashRef pairs an entry with its perceptual hash.
@@ -318,7 +392,8 @@ func scanEntry(row scanner) (Entry, error) {
 	img := &e.Image
 	err := row.Scan(&e.ID, &img.Provider, &img.ProviderID, &img.PageURL, &img.DownloadURL, &img.SourceURL,
 		&img.Author.Name, &img.Author.URL, &img.Author.Credit, &status, &img.License.Name, &img.License.URL, &img.License.Notice,
-		&img.Width, &img.Height, &img.MIMEType, &img.FileSize, &e.FilePath, &e.ThumbnailPath, &e.SHA256, &dhash, &added)
+		&img.Width, &img.Height, &img.MIMEType, &img.FileSize, &e.FilePath, &e.ThumbnailPath, &e.SHA256, &dhash, &added,
+		&e.Origin, &e.SavedSearchID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Entry{}, err

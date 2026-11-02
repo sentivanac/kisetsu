@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -15,10 +16,13 @@ func newLibrary(t *testing.T) (string, *Server) {
 	t.Helper()
 	root := t.TempDir()
 	files := map[string]string{
-		"images/wallhaven/abc.jpg": "original",
-		"thumbs/wallhaven/abc.jpg": "thumbnail",
-		"kisetsu.db":               "database",
-		"tmp/dl-1":                 "partial download",
+		"images/wallhaven/abc.jpg":               "original",
+		"thumbs/wallhaven/abc.jpg":               "thumbnail",
+		"kisetsu.db":                             "database",
+		"tmp/dl-1":                               "partial download",
+		"cache/fetched/images/wallhaven/new.jpg": "fetched image",
+		"cache/fetched/thumbs/wallhaven/new.jpg": "fetched thumbnail",
+		"cache/fetched/tmp/dl-2":                 "fetched partial",
 	}
 	for name, content := range files {
 		p := filepath.Join(root, name)
@@ -29,7 +33,7 @@ func newLibrary(t *testing.T) (string, *Server) {
 			t.Fatal(err)
 		}
 	}
-	s, err := New(root)
+	s, err := New(root, filepath.Join(root, "cache", "fetched"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,6 +182,67 @@ func TestOriginalPath(t *testing.T) {
 	} {
 		if _, err := s.OriginalPath(rel); err == nil {
 			t.Errorf("OriginalPath(%q) succeeded", rel)
+		}
+	}
+}
+
+func TestFetchedFiles(t *testing.T) {
+	root, s := newLibrary(t)
+
+	rec := get(t, s, http.MethodGet, "/library/fetched/images/wallhaven/new.jpg")
+	if rec.Code != http.StatusOK || rec.Body.String() != "fetched image" {
+		t.Errorf("serve fetched image: %d %q", rec.Code, rec.Body.String())
+	}
+	for _, target := range []string{"/library/fetched/tmp/dl-2", "/library/fetched/new.jpg", "/library/fetched/images/../tmp/dl-2"} {
+		if rec := get(t, s, http.MethodGet, target); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", target, rec.Code)
+		}
+	}
+
+	if p, err := s.OriginalPath("fetched/images/wallhaven/new.jpg"); err != nil || !strings.HasSuffix(p, "cache/fetched/images/wallhaven/new.jpg") {
+		t.Errorf("OriginalPath(fetched) = %q, %v", p, err)
+	}
+	if _, err := s.OriginalPath("fetched/thumbs/wallhaven/new.jpg"); err == nil {
+		t.Error("a fetched thumbnail was accepted as an image")
+	}
+	if err := s.Remove("fetched/tmp/dl-2"); err == nil {
+		t.Error("removed a fetched temporary file")
+	}
+	if _, err := os.Stat(filepath.Join(root, "cache", "fetched", "tmp", "dl-2")); err != nil {
+		t.Errorf("fetched temporary file gone: %v", err)
+	}
+}
+
+func TestCopyFetchedWithoutReplacing(t *testing.T) {
+	root, s := newLibrary(t)
+	// A library file with the same name already exists.
+	os.WriteFile(filepath.Join(root, "images", "wallhaven", "new.jpg"), []byte("keep me"), 0o600)
+
+	got, err := s.CopyFetched("fetched/images/wallhaven/new.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "images/wallhaven/new-2.jpg" {
+		t.Errorf("new path = %q", got)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, got)); string(data) != "fetched image" {
+		t.Errorf("moved content = %q", data)
+	}
+	if data, _ := os.ReadFile(filepath.Join(root, "images", "wallhaven", "new.jpg")); string(data) != "keep me" {
+		t.Errorf("existing library file replaced: %q", data)
+	}
+	// The fetched file stays until the caller removes it.
+	if _, err := os.Stat(filepath.Join(root, "cache", "fetched", "images", "wallhaven", "new.jpg")); err != nil {
+		t.Errorf("fetched file removed by the copy: %v", err)
+	}
+
+	thumb, err := s.CopyFetched("fetched/thumbs/wallhaven/new.jpg")
+	if err != nil || thumb != "thumbs/wallhaven/new.jpg" {
+		t.Errorf("thumbnail: %q, %v", thumb, err)
+	}
+	for _, bad := range []string{"images/wallhaven/abc.jpg", "fetched/tmp/dl-2", "kisetsu.db"} {
+		if _, err := s.CopyFetched(bad); err == nil {
+			t.Errorf("CopyFetched(%q) succeeded", bad)
 		}
 	}
 }

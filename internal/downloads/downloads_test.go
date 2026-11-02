@@ -3,6 +3,8 @@ package downloads
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"image"
 	"image/color"
@@ -111,12 +113,13 @@ func newEnv(t *testing.T, handler http.HandlerFunc) *env {
 
 	e := &env{root: root, store: library.NewStore(db), rec: newRecorder(), srv: srv}
 	e.mgr, err = New(Config{
-		Client:    srv.Client(),
-		UserAgent: "Kisetsu/test",
-		Root:      root,
-		Store:     e.store,
-		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Notify:    e.rec.notify,
+		Client:      srv.Client(),
+		UserAgent:   "Kisetsu/test",
+		Root:        root,
+		FetchedRoot: filepath.Join(root, "cache", "fetched"),
+		Store:       e.store,
+		Log:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Notify:      e.rec.notify,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -486,5 +489,87 @@ func TestSafeName(t *testing.T) {
 		if got := safeName(in); got != want {
 			t.Errorf("safeName(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestFetchedDownloadIsStoredSmallerInTheCache(t *testing.T) {
+	data := picture(t, 0, 90) // 640×400
+	e := newEnv(t, serve(map[string][]byte{"/a.jpg": data}))
+	ctx := context.Background()
+	insertSavedSearch(t, e) // the saved search must exist for the foreign key
+
+	img := e.image("fetched1", "/a.jpg")
+	if _, err := e.mgr.EnqueueFetched(ctx, img, FetchOptions{SavedSearchID: 1, Fit: imaging.Size{Width: 320, Height: 180}}); err != nil {
+		t.Fatal(err)
+	}
+	p := e.rec.wait(t)
+	if p.State != Done {
+		t.Fatalf("progress = %+v", p)
+	}
+
+	entry, err := e.store.Get(ctx, p.EntryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Origin != library.Fetched || entry.SavedSearchID != 1 {
+		t.Errorf("origin %q, search %d", entry.Origin, entry.SavedSearchID)
+	}
+	if entry.FilePath != filepath.Join("fetched", "images", "wallhaven", "fetched1.jpg") {
+		t.Errorf("FilePath = %q", entry.FilePath)
+	}
+	// 640×400 (16:10) covering 320×180 is 320×200.
+	if entry.Image.Width != 320 || entry.Image.Height != 200 {
+		t.Errorf("stored %dx%d, want 320x200", entry.Image.Width, entry.Image.Height)
+	}
+	stored, err := os.ReadFile(filepath.Join(e.root, "cache", entry.FilePath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(len(stored)) != entry.Image.FileSize || len(stored) >= len(data) {
+		t.Errorf("stored %d bytes (recorded %d), original %d", len(stored), entry.Image.FileSize, len(data))
+	}
+	if cfg, err := jpeg.DecodeConfig(bytes.NewReader(stored)); err != nil || cfg.Width != 320 {
+		t.Errorf("stored file %+v, %v", cfg, err)
+	}
+	sum := sha256.Sum256(data)
+	if entry.SHA256 != hex.EncodeToString(sum[:]) {
+		t.Error("SHA-256 must be the hash of the downloaded original")
+	}
+	if left := tmpFiles(t, filepath.Join(e.root, "cache", "fetched")); len(left) != 0 {
+		t.Errorf("temporary files left: %v", left)
+	}
+
+	// Downloading it by hand points to Keep instead.
+	if _, err := e.mgr.Enqueue(ctx, img); !errors.Is(err, ErrInFetched) {
+		t.Errorf("manual download of a fetched image: %v", err)
+	}
+	// Fetching it again is a plain "already there".
+	if _, err := e.mgr.EnqueueFetched(ctx, img, FetchOptions{SavedSearchID: 1}); !errors.Is(err, library.ErrAlreadyInLibrary) {
+		t.Errorf("fetching it twice: %v", err)
+	}
+}
+
+func TestFetchedSmallImageIsKeptAsIs(t *testing.T) {
+	data := picture(t, 0, 90) // 640×400, smaller than the screen
+	e := newEnv(t, serve(map[string][]byte{"/a.jpg": data}))
+	insertSavedSearch(t, e)
+
+	e.mgr.EnqueueFetched(context.Background(), e.image("small", "/a.jpg"), FetchOptions{SavedSearchID: 1, Fit: imaging.Size{Width: 1920, Height: 1080}})
+	p := e.rec.wait(t)
+	entry, _ := e.store.Get(context.Background(), p.EntryID)
+	if entry.Image.Width != 640 || entry.Image.FileSize != int64(len(data)) {
+		t.Errorf("small image changed: %dx%d, %d bytes", entry.Image.Width, entry.Image.Height, entry.Image.FileSize)
+	}
+}
+
+func insertSavedSearch(t *testing.T, e *env) {
+	t.Helper()
+	db, err := database.Open(context.Background(), filepath.Join(e.root, database.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`INSERT INTO saved_searches (id, name, query) VALUES (1, 'Test', '{}')`); err != nil {
+		t.Fatal(err)
 	}
 }

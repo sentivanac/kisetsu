@@ -15,6 +15,7 @@ import (
 	"image/jpeg"
 	_ "image/png" // registers the PNG decoder
 	"io"
+	"math"
 	"math/bits"
 
 	"golang.org/x/image/draw"
@@ -32,6 +33,8 @@ const (
 	SimilarDistance = 10
 
 	thumbnailQuality = 85
+	// fittedQuality is used for images reduced to screen size.
+	fittedQuality = 90
 )
 
 var (
@@ -55,14 +58,51 @@ var formats = map[string]string{
 type Result struct {
 	Width, Height int
 	MIMEType      string
-	SHA256        string // hex
+	SHA256        string // hex, of the file as read
 	DHash         uint64
 	Thumbnail     []byte // JPEG
+
+	// Fitted is a JPEG reduced to Options.Fit, or nil when the image is not
+	// larger than needed (images are never enlarged).
+	Fitted                    []byte
+	FittedWidth, FittedHeight int
+}
+
+// Size is a width and height in pixels.
+type Size struct {
+	Width, Height int
+}
+
+// Options change what Process produces.
+type Options struct {
+	// Fit, if set, also produces a copy just large enough to cover this
+	// size (for example the screen), keeping the aspect ratio.
+	Fit Size
+}
+
+// coverSize returns the smallest size with the aspect ratio of w×h that
+// covers fit, and false when w×h is not larger than that.
+func coverSize(w, h int, fit Size) (Size, bool) {
+	if fit.Width <= 0 || fit.Height <= 0 {
+		return Size{}, false
+	}
+	scale := max(float64(fit.Width)/float64(w), float64(fit.Height)/float64(h))
+	if scale >= 1 {
+		return Size{}, false
+	}
+	return Size{
+		Width:  max(fit.Width, int(math.Ceil(float64(w)*scale))),
+		Height: max(fit.Height, int(math.Ceil(float64(h)*scale))),
+	}, true
 }
 
 // Process reads an image file completely. It is read three times — for the
 // SHA-256, the header and the full decode — so it must be seekable.
-func Process(r io.ReadSeeker) (Result, error) {
+func Process(r io.ReadSeeker, opts ...Options) (Result, error) {
+	var opt Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	var res Result
 
 	h := sha256.New()
@@ -103,17 +143,29 @@ func Process(r io.ReadSeeker) (Result, error) {
 
 	thumb := thumbnail(img, ThumbnailSize)
 	res.DHash = DHash(thumb)
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, thumb, &jpeg.Options{Quality: thumbnailQuality}); err != nil {
+	if res.Thumbnail, err = jpegBytes(thumb, thumbnailQuality); err != nil {
 		return Result{}, fmt.Errorf("encode thumbnail: %w", err)
 	}
-	res.Thumbnail = buf.Bytes()
+
+	if size, ok := coverSize(res.Width, res.Height, opt.Fit); ok {
+		if res.Fitted, err = jpegBytes(resize(img, size.Width, size.Height), fittedQuality); err != nil {
+			return Result{}, fmt.Errorf("encode fitted image: %w", err)
+		}
+		res.FittedWidth, res.FittedHeight = size.Width, size.Height
+	}
 	return res, nil
 }
 
+func jpegBytes(img image.Image, quality int) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // thumbnail scales img so its longest side is at most size, keeping the
-// aspect ratio and never enlarging. Transparent areas become black, the
-// background of the app, because JPEG has no alpha channel.
+// aspect ratio and never enlarging.
 func thumbnail(img image.Image, size int) *image.RGBA {
 	b := img.Bounds()
 	w, h := b.Dx(), b.Dy()
@@ -121,7 +173,12 @@ func thumbnail(img image.Image, size int) *image.RGBA {
 		w = max(1, w*size/longest)
 		h = max(1, h*size/longest)
 	}
+	return resize(img, w, h)
+}
 
+// resize scales img to w×h. Transparent areas become black, the background
+// of the app, because JPEG has no alpha channel.
+func resize(img image.Image, w, h int) *image.RGBA {
 	// Catmull-Rom over a 20 MP original takes seconds, so the image is
 	// first halved while it stays at least twice the target size. Halving
 	// averages 2×2 pixels, which is a good downscaling filter; the final

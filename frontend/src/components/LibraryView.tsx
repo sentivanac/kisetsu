@@ -4,8 +4,11 @@ import {
     CreateCollection,
     DeleteCollection,
     DeleteFromLibrary,
+    GetFetchedStats,
     GetLibraryStats,
+    KeepFetched,
     ListCollections,
+    ListFetched,
     ListLibrary,
     RemoveFromCollection,
     RenameCollection,
@@ -13,8 +16,9 @@ import {
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
-import {formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
-import {CollectionBar} from './CollectionBar';
+import {formatFileSize} from '../lib/images';
+import {fetchedStatsLabel, formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
+import {CollectionBar, FetchedView} from './CollectionBar';
 import {CollectionPicker} from './CollectionPicker';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
@@ -32,6 +36,7 @@ export function LibraryView({active, sourceName}: Props) {
     const [items, setItems] = useState<main.LibraryItem[]>([]);
     const [hasMore, setHasMore] = useState(false);
     const [stats, setStats] = useState<main.LibraryStats | null>(null);
+    const [fetchedStats, setFetchedStats] = useState<main.FetchedStats | null>(null);
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
     const [collection, setCollection] = useState(0); // 0 = all images
     const [selected, setSelected] = useState<number | null>(null);
@@ -41,11 +46,14 @@ export function LibraryView({active, sourceName}: Props) {
 
     const refreshCounts = useCallback(() => {
         GetLibraryStats().then(setStats).catch(() => {});
+        GetFetchedStats().then(setFetchedStats).catch(() => {});
         ListCollections()
             .then((list) => {
                 setCollections(list);
                 // The shown collection may have been deleted meanwhile.
-                setCollection((current) => (current === 0 || list.some((c) => c.id === current) ? current : 0));
+                setCollection((current) =>
+                    current === 0 || current === FetchedView || list.some((c) => c.id === current) ? current : 0,
+                );
             })
             .catch((err: unknown) => setError(toBackendError(err)));
     }, []);
@@ -54,7 +62,7 @@ export function LibraryView({active, sourceName}: Props) {
         const request = ++latestRequest.current;
         setLoading(true);
         setError(null);
-        ListLibrary(collectionID, offset, pageSize)
+        (collectionID === FetchedView ? ListFetched(offset, pageSize) : ListLibrary(collectionID, offset, pageSize))
             .then((page) => {
                 if (request !== latestRequest.current) return;
                 setItems((current) => (offset === 0 ? page.items : [...current, ...page.items]));
@@ -116,20 +124,33 @@ export function LibraryView({active, sourceName}: Props) {
             .catch((err: unknown) => setError(toBackendError(err)));
     }
 
+    function keepItem(id: number) {
+        KeepFetched(id)
+            .then(() => {
+                dropItem(id);
+                refreshCounts();
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
+
     const selectedItem = selected === null ? null : items[selected];
     const current = collections.find((c) => c.id === collection);
+    const showingFetched = collection === FetchedView;
 
     return (
         <section className="library" aria-busy={loading}>
             <div className="library-header">
-                <h2>{current ? current.name : 'Library'}</h2>
-                {stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
+                <h2>{showingFetched ? 'Fetched' : current ? current.name : 'Library'}</h2>
+                {showingFetched
+                    ? fetchedStats && <p className="muted">{fetchedStatsLabel(fetchedStats)}</p>
+                    : stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
             </div>
 
             <CollectionBar
                 collections={collections}
                 selected={collection}
                 totalImages={stats?.images ?? 0}
+                fetchedImages={fetchedStats?.images ?? 0}
                 onSelect={setCollection}
                 onCreate={async (name) => {
                     const created = await CreateCollection(name);
@@ -148,11 +169,20 @@ export function LibraryView({active, sourceName}: Props) {
                     {describeError(error)}
                 </p>
             )}
+            {showingFetched && (
+                <p className="muted small">
+                    Images fetched automatically from saved searches. They are kept to{' '}
+                    {fetchedStats ? formatFileSize(fetchedStats.maxBytes) : '200 MB'}, stored at your screen
+                    size; the oldest are removed when that is full. Keep an image to move it into your library.
+                </p>
+            )}
             {!loading && items.length === 0 && stats !== null && (
                 <p className="muted">
-                    {stats.images === 0
-                        ? 'Your library is empty. Open an image in Search and choose Download.'
-                        : 'This collection is empty. Open an image and tick the collection to add it.'}
+                    {showingFetched
+                        ? 'No fetched images yet. Choose a saved search as the rotation source in the Wallpaper tab.'
+                        : stats.images === 0
+                          ? 'Your library is empty. Open an image in Search and choose Download.'
+                          : 'This collection is empty. Open an image and tick the collection to add it.'}
                 </p>
             )}
 
@@ -178,12 +208,24 @@ export function LibraryView({active, sourceName}: Props) {
                     providerName={sourceName(selectedItem.image.provider)}
                     actions={
                         <>
-                            <CollectionPicker
-                                imageID={selectedItem.id}
-                                collections={collections}
-                                onToggle={(id, member) => toggleMembership(id, selectedItem.id, member)}
-                                onCreateWith={(name) => createAndAdd(name, selectedItem.id)}
-                            />
+                            {showingFetched ? (
+                                <div className="library-actions">
+                                    <button type="button" className="btn" onClick={() => keepItem(selectedItem.id)}>
+                                        Keep in my library
+                                    </button>
+                                    <p className="muted small">
+                                        Stored at {selectedItem.image.width} × {selectedItem.image.height} for your
+                                        screen. The original stays available on its source page.
+                                    </p>
+                                </div>
+                            ) : (
+                                <CollectionPicker
+                                    imageID={selectedItem.id}
+                                    collections={collections}
+                                    onToggle={(id, member) => toggleMembership(id, selectedItem.id, member)}
+                                    onCreateWith={(name) => createAndAdd(name, selectedItem.id)}
+                                />
+                            )}
                             <LibraryActions
                                 key={selectedItem.id}
                                 imageID={selectedItem.id}

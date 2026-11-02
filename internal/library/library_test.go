@@ -83,6 +83,7 @@ func TestAddAndGetKeepAllAttribution(t *testing.T) {
 	// Thumbnail and preview URLs of the provider are not stored: the
 	// library has its own thumbnail.
 	want.Image.ThumbnailURL, want.Image.PreviewURL = "", ""
+	want.Origin = FromUser // the default when none is given
 	got.ID, got.AddedAt = 0, time.Time{}
 	if got != want {
 		t.Errorf("got  %+v\nwant %+v", got, want)
@@ -282,5 +283,60 @@ func TestIDsAndHasCollection(t *testing.T) {
 	}
 	if ok, err := s.HasCollection(ctx, 999); ok || err != nil {
 		t.Errorf("HasCollection(missing) = %v, %v", ok, err)
+	}
+}
+
+func TestFetchedImagesAreSeparateFromTheLibrary(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	mine := mustAdd(t, s, entry(1))
+
+	if _, err := s.db.Exec(`INSERT INTO saved_searches (name, query) VALUES ('Lakes', '{}')`); err != nil {
+		t.Fatal(err)
+	}
+	fetched := entry(2)
+	fetched.Origin, fetched.SavedSearchID = Fetched, 1
+	fetched.FilePath, fetched.ThumbnailPath = "fetched/images/w/2.jpg", "fetched/thumbs/w/2.jpg"
+	fid := mustAdd(t, s, fetched)
+
+	if ids, _ := s.IDs(ctx, 0); !slices.Equal(ids, []int64{mine}) {
+		t.Errorf("IDs (rotation source) = %v, want only the library image", ids)
+	}
+	if st, _ := s.Stats(ctx); st.Images != 1 {
+		t.Errorf("library Stats = %+v", st)
+	}
+	if st, _ := s.FetchedStats(ctx); st.Images != 1 || st.Bytes != fetched.Image.FileSize {
+		t.Errorf("FetchedStats = %+v", st)
+	}
+	lib, _ := s.List(ctx, ListOptions{})
+	fet, _ := s.List(ctx, ListOptions{Origin: Fetched, SavedSearchID: 1})
+	other, _ := s.List(ctx, ListOptions{Origin: Fetched, SavedSearchID: 9})
+	if len(lib) != 1 || lib[0].ID != mine || len(fet) != 1 || fet[0].ID != fid || fet[0].SavedSearchID != 1 || len(other) != 0 {
+		t.Errorf("List: library %v, fetched %v, other search %v", lib, fet, other)
+	}
+	// The search result mark (✓) is only for the user's library.
+	ref := SourceRef{Provider: fetched.Image.Provider, ProviderID: fetched.Image.ProviderID}
+	if got, _ := s.IDsBySource(ctx, []SourceRef{ref}); len(got) != 0 {
+		t.Errorf("IDsBySource found a fetched image: %v", got)
+	}
+
+	if err := s.Keep(ctx, fid, "images/w/2.jpg", "thumbs/w/2.jpg"); err != nil {
+		t.Fatal(err)
+	}
+	kept, _ := s.Get(ctx, fid)
+	if kept.Origin != FromUser || kept.SavedSearchID != 0 || kept.FilePath != "images/w/2.jpg" {
+		t.Errorf("after Keep: %+v", kept)
+	}
+	if err := s.Keep(ctx, fid, "x", "y"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("keeping a library image: %v", err)
+	}
+
+	// Deleting the saved search keeps its fetched images, unassigned.
+	again := entry(3)
+	again.Origin, again.SavedSearchID = Fetched, 1
+	gid := mustAdd(t, s, again)
+	s.db.Exec(`DELETE FROM saved_searches WHERE id = 1`)
+	if e, _ := s.Get(ctx, gid); e.Origin != Fetched || e.SavedSearchID != 0 {
+		t.Errorf("after deleting the search: %+v", e)
 	}
 }

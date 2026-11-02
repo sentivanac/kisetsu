@@ -14,6 +14,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/rotation"
@@ -48,6 +49,7 @@ type App struct {
 	schedule  Scheduler
 
 	savedSearches *searches.Store
+	fetched       *fetched.Service
 
 	// executable is this Kisetsu binary, to detect a timer that runs
 	// another one.
@@ -79,6 +81,7 @@ type Deps struct {
 	Rotation      *rotation.Rotator
 	Schedule      Scheduler
 	SavedSearches *searches.Store
+	Fetched       *fetched.Service
 	Executable    string
 	RotationLock  string
 }
@@ -100,6 +103,7 @@ func NewApp(d Deps) *App {
 		schedule:  d.Schedule,
 
 		savedSearches: d.SavedSearches,
+		fetched:       d.Fetched,
 
 		executable:   d.Executable,
 		rotationLock: d.RotationLock,

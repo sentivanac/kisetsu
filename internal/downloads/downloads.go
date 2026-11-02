@@ -51,7 +51,20 @@ var (
 	ErrFileTooLarge = errors.New("file is too large")
 	// ErrHTTP means the server did not return the file.
 	ErrHTTP = errors.New("download failed")
+	// ErrInFetched means the image was already fetched automatically; the
+	// user can keep it instead of downloading it again.
+	ErrInFetched = errors.New("image is among the fetched images")
 )
+
+// FetchOptions make a download a fetched image (ADR 0028): stored in the
+// fetched root (the cache), reduced to cover the screen, and linked to the
+// saved search it came from.
+type FetchOptions struct {
+	SavedSearchID int64
+	// Fit is the size the stored image must cover; larger images are
+	// reduced, smaller ones kept as they are.
+	Fit imaging.Size
+}
 
 // State is the stage of a download.
 type State string
@@ -92,8 +105,11 @@ type Config struct {
 	Client    *http.Client
 	UserAgent string
 	Root      string // library root: images/, thumbs/ and tmp/ live here
-	Store     *library.Store
-	Log       *slog.Logger
+	// FetchedRoot holds fetched images in the same layout; stored paths of
+	// fetched images start with "fetched/". Needed only for EnqueueFetched.
+	FetchedRoot string
+	Store       *library.Store
+	Log         *slog.Logger
 	// Notify receives progress updates. It is called from download
 	// goroutines and must not block for long.
 	Notify func(Progress)
@@ -113,12 +129,18 @@ type Manager struct {
 
 // New creates a Manager and removes temporary files left by an earlier run.
 func New(cfg Config) (*Manager, error) {
-	for _, dir := range []string{ImagesDir, ThumbsDir, tmpDir} {
-		if err := os.MkdirAll(filepath.Join(cfg.Root, dir), dirPerm); err != nil {
-			return nil, fmt.Errorf("downloads: %w", err)
-		}
+	roots := []string{cfg.Root}
+	if cfg.FetchedRoot != "" {
+		roots = append(roots, cfg.FetchedRoot)
 	}
-	removeStaleTemp(filepath.Join(cfg.Root, tmpDir), cfg.Log)
+	for _, root := range roots {
+		for _, dir := range []string{ImagesDir, ThumbsDir, tmpDir} {
+			if err := os.MkdirAll(filepath.Join(root, dir), dirPerm); err != nil {
+				return nil, fmt.Errorf("downloads: %w", err)
+			}
+		}
+		removeStaleTemp(filepath.Join(root, tmpDir), cfg.Log)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
@@ -151,16 +173,31 @@ func Key(img images.Image) string {
 	return img.Provider + "/" + img.ProviderID
 }
 
-// Enqueue starts downloading img and returns its key. An image that is
-// already being downloaded is not started twice. An image that is already
-// in the library fails with library.ErrAlreadyInLibrary.
+// Enqueue starts downloading img into the library and returns its key. An
+// image that is already being downloaded is not started twice. An image
+// that is already in the library fails with library.ErrAlreadyInLibrary,
+// one that was fetched automatically with ErrInFetched.
 func (m *Manager) Enqueue(ctx context.Context, img images.Image) (string, error) {
+	return m.enqueue(ctx, img, nil)
+}
+
+// EnqueueFetched starts downloading img as a fetched image.
+func (m *Manager) EnqueueFetched(ctx context.Context, img images.Image, opts FetchOptions) (string, error) {
+	if m.cfg.FetchedRoot == "" {
+		return "", errors.New("downloads: no fetched root configured")
+	}
+	return m.enqueue(ctx, img, &opts)
+}
+
+func (m *Manager) enqueue(ctx context.Context, img images.Image, fetch *FetchOptions) (string, error) {
 	if err := img.Validate(); err != nil {
 		return "", err
 	}
 	key := Key(img)
 	if e, found, err := m.cfg.Store.FindBySource(ctx, img.Provider, img.ProviderID); err != nil {
 		return "", err
+	} else if found && e.Origin == library.Fetched && fetch == nil {
+		return "", fmt.Errorf("%w: entry %d", ErrInFetched, e.ID)
 	} else if found {
 		return "", fmt.Errorf("%w: entry %d", library.ErrAlreadyInLibrary, e.ID)
 	}
@@ -179,7 +216,7 @@ func (m *Manager) Enqueue(ctx context.Context, img images.Image) (string, error)
 	m.notify(Progress{Key: key, State: Queued, Total: img.FileSize})
 	m.wg.Go(func() {
 		defer cancel()
-		p := m.run(jobCtx, key, img)
+		p := m.run(jobCtx, key, img, fetch)
 		m.mu.Lock()
 		delete(m.jobs, key)
 		m.mu.Unlock()
@@ -213,7 +250,7 @@ func (m *Manager) notify(p Progress) {
 }
 
 // run performs one download and returns its final progress.
-func (m *Manager) run(ctx context.Context, key string, img images.Image) Progress {
+func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *FetchOptions) Progress {
 	final := func(state State, err error) Progress {
 		if errors.Is(err, context.Canceled) {
 			state, err = Canceled, nil
@@ -231,7 +268,12 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image) Progres
 		return final(Canceled, ctx.Err())
 	}
 
-	tmp, err := m.fetch(ctx, key, img)
+	root := m.cfg.Root
+	var opts imaging.Options
+	if fetch != nil {
+		root, opts.Fit = m.cfg.FetchedRoot, fetch.Fit
+	}
+	tmp, err := m.fetch(ctx, key, img, root)
 	if err != nil {
 		return final(Failed, err)
 	}
@@ -239,7 +281,7 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image) Progres
 	defer tmp.Close()
 
 	m.notify(Progress{Key: key, State: Processing})
-	result, err := imaging.Process(tmp)
+	result, err := imaging.Process(tmp, opts)
 	if err != nil {
 		return final(Failed, err)
 	}
@@ -258,12 +300,13 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image) Progres
 	if err != nil {
 		return final(Failed, err)
 	}
-	size, err := tmp.Seek(0, io.SeekEnd)
+	file, err := m.storedFile(tmp, result, root)
 	if err != nil {
 		return final(Failed, err)
 	}
+	defer os.Remove(file.path) // no-op once moved into the library
 
-	id, err := m.store(ctx, img, tmp, result, size)
+	id, err := m.store(ctx, img, file, result, root, fetch)
 	if errors.Is(err, library.ErrDuplicateFile) {
 		// Another download with the same content finished first.
 		if existing, found, ferr := m.cfg.Store.FindBySHA256(ctx, result.SHA256); ferr == nil && found {
@@ -273,12 +316,13 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image) Progres
 	if err != nil {
 		return final(Failed, err)
 	}
-	m.cfg.Log.Info("download done", "key", key, "entry", id, "bytes", size, "similar", len(similar))
+	m.cfg.Log.Info("download done", "key", key, "entry", id, "bytes", file.size,
+		"fetched", fetch != nil, "fitted", result.Fitted != nil, "similar", len(similar))
 	return Progress{Key: key, State: Done, EntryID: id, SimilarIDs: similar}
 }
 
-// fetch streams img into a new temporary file, reporting progress.
-func (m *Manager) fetch(ctx context.Context, key string, img images.Image) (*os.File, error) {
+// fetch streams img into a new temporary file in root, reporting progress.
+func (m *Manager) fetch(ctx context.Context, key string, img images.Image, root string) (*os.File, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, img.DownloadURL, nil)
 	if err != nil {
 		return nil, err
@@ -298,7 +342,7 @@ func (m *Manager) fetch(ctx context.Context, key string, img images.Image) (*os.
 	}
 	total := max(resp.ContentLength, 0)
 
-	tmp, err := os.CreateTemp(filepath.Join(m.cfg.Root, tmpDir), tmpPrefix+"*")
+	tmp, err := os.CreateTemp(filepath.Join(root, tmpDir), tmpPrefix+"*")
 	if err != nil {
 		return nil, err
 	}
@@ -342,24 +386,59 @@ func (m *Manager) similar(ctx context.Context, h uint64) ([]int64, error) {
 	return ids, nil
 }
 
-// store moves the file and thumbnail into the library and records them.
-// On failure it removes only the files it created.
-func (m *Manager) store(ctx context.Context, img images.Image, tmp *os.File, res imaging.Result, size int64) (int64, error) {
+// stored describes the file that will be kept: the download itself, or
+// the copy reduced to screen size.
+type stored struct {
+	path          string // temporary file
+	size          int64
+	width, height int
+	mime          string
+}
+
+func (m *Manager) storedFile(tmp *os.File, res imaging.Result, root string) (stored, error) {
+	if res.Fitted == nil {
+		size, err := tmp.Seek(0, io.SeekEnd)
+		return stored{path: tmp.Name(), size: size, width: res.Width, height: res.Height, mime: res.MIMEType}, err
+	}
+	path, err := writeTemp(root, res.Fitted)
+	return stored{
+		path: path, size: int64(len(res.Fitted)),
+		width: res.FittedWidth, height: res.FittedHeight, mime: "image/jpeg",
+	}, err
+}
+
+func writeTemp(root string, data []byte) (string, error) {
+	f, err := os.CreateTemp(filepath.Join(root, tmpDir), tmpPrefix+"*")
+	if err != nil {
+		return "", err
+	}
+	_, werr := f.Write(data)
+	if err := errors.Join(werr, f.Close()); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
+}
+
+// store moves the file and thumbnail into root and records them. On
+// failure it removes only the files it created.
+func (m *Manager) store(ctx context.Context, img images.Image, file stored, res imaging.Result,
+	root string, fetch *FetchOptions) (int64, error) {
 	name := safeName(img.ProviderID)
 	provider := safeName(img.Provider)
 
-	filePath, err := m.place(tmp.Name(), filepath.Join(ImagesDir, provider), name, extension(res.MIMEType))
+	filePath, err := place(root, file.path, filepath.Join(ImagesDir, provider), name, extension(file.mime))
 	if err != nil {
 		return 0, err
 	}
 	created := []string{filePath}
 	cleanup := func() {
 		for _, p := range created {
-			os.Remove(filepath.Join(m.cfg.Root, p))
+			os.Remove(filepath.Join(root, p))
 		}
 	}
 
-	thumbTmp, err := os.CreateTemp(filepath.Join(m.cfg.Root, tmpDir), tmpPrefix+"*")
+	thumbTmp, err := os.CreateTemp(filepath.Join(root, tmpDir), tmpPrefix+"*")
 	if err != nil {
 		cleanup()
 		return 0, err
@@ -371,7 +450,7 @@ func (m *Manager) store(ctx context.Context, img images.Image, tmp *os.File, res
 		cleanup()
 		return 0, err
 	}
-	thumbPath, err := m.place(thumbTmp.Name(), filepath.Join(ThumbsDir, provider), name, ".jpg")
+	thumbPath, err := place(root, thumbTmp.Name(), filepath.Join(ThumbsDir, provider), name, ".jpg")
 	if err != nil {
 		os.Remove(thumbTmp.Name())
 		cleanup()
@@ -379,19 +458,25 @@ func (m *Manager) store(ctx context.Context, img images.Image, tmp *os.File, res
 	}
 	created = append(created, thumbPath)
 
-	// The decoded dimensions and format are the truth; the provider's
-	// attribution is kept as it was.
+	// The stored file's dimensions and format are the truth; the
+	// provider's attribution is kept as it was.
 	meta := img
-	meta.Width, meta.Height, meta.MIMEType, meta.FileSize = res.Width, res.Height, res.MIMEType, size
+	meta.Width, meta.Height, meta.MIMEType, meta.FileSize = file.width, file.height, file.mime, file.size
 	meta.ThumbnailURL, meta.PreviewURL = "", ""
 
-	id, err := m.cfg.Store.Add(ctx, library.Entry{
+	entry := library.Entry{
 		Image:         meta,
 		FilePath:      filePath,
 		ThumbnailPath: thumbPath,
 		SHA256:        res.SHA256,
 		DHash:         res.DHash,
-	})
+	}
+	if fetch != nil {
+		entry.Origin, entry.SavedSearchID = library.Fetched, fetch.SavedSearchID
+		entry.FilePath = filepath.Join("fetched", filePath)
+		entry.ThumbnailPath = filepath.Join("fetched", thumbPath)
+	}
+	id, err := m.cfg.Store.Add(ctx, entry)
 	if err != nil {
 		cleanup()
 		return 0, err
@@ -399,11 +484,11 @@ func (m *Manager) store(ctx context.Context, img images.Image, tmp *os.File, res
 	return id, nil
 }
 
-// place moves src to dir/name+ext inside the library root and returns the
-// path relative to the root. An existing file is never replaced: the name
-// gets a numeric suffix instead.
-func (m *Manager) place(src, dir, name, ext string) (string, error) {
-	if err := os.MkdirAll(filepath.Join(m.cfg.Root, dir), dirPerm); err != nil {
+// place moves src to dir/name+ext inside root and returns the path
+// relative to root. An existing file is never replaced: the name gets a
+// numeric suffix instead.
+func place(root, src, dir, name, ext string) (string, error) {
+	if err := os.MkdirAll(filepath.Join(root, dir), dirPerm); err != nil {
 		return "", err
 	}
 	if err := os.Chmod(src, filePerm); err != nil {
@@ -415,7 +500,7 @@ func (m *Manager) place(src, dir, name, ext string) (string, error) {
 			file = fmt.Sprintf("%s-%d%s", name, i, ext)
 		}
 		rel := filepath.Join(dir, file)
-		dst := filepath.Join(m.cfg.Root, rel)
+		dst := filepath.Join(root, rel)
 		// Link fails if dst exists, unlike Rename, so nothing is replaced.
 		err := os.Link(src, dst)
 		if errors.Is(err, os.ErrExist) {

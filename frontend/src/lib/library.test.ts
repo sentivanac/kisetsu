@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {formatAddedDate, libraryStatsLabel, removeItem} from './library';
+import {fetchedStatsLabel, formatAddedDate, libraryStatsLabel, removeItem} from './library';
 
 describe('libraryStatsLabel', () => {
     it('summarizes count and size', () => {
@@ -27,5 +27,14 @@ describe('removeItem', () => {
     it('handles the last item and unknown IDs', () => {
         expect(removeItem([{id: 1}], 1)).toEqual({items: [], next: null});
         expect(removeItem(items, 9)).toEqual({items, next: null});
+    });
+});
+
+describe('fetchedStatsLabel', () => {
+    it('shows use against the limit', () => {
+        expect(fetchedStatsLabel({images: 12, bytes: 84 * 1024 * 1024, maxBytes: 200 * 1024 * 1024})).toBe(
+            '12 images · 84 MB of 200 MB',
+        );
+        expect(fetchedStatsLabel({images: 0, bytes: 0, maxBytes: 200 * 1024 * 1024})).toBe('0 images · 0 B of 200 MB');
     });
 });

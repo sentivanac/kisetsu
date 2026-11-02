@@ -167,6 +167,22 @@ export namespace main {
 	        this.schemaVersion = source["schemaVersion"];
 	    }
 	}
+	export class FetchedStats {
+	    images: number;
+	    bytes: number;
+	    maxBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FetchedStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.images = source["images"];
+	        this.bytes = source["bytes"];
+	        this.maxBytes = source["maxBytes"];
+	    }
+	}
 	export class LibraryItem {
 	    id: number;
 	    image: images.Image;

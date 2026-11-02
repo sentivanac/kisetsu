@@ -34,6 +34,10 @@ export function Download(arg1) {
   return window['go']['main']['App']['Download'](arg1);
 }
 
+export function GetFetchedStats() {
+  return window['go']['main']['App']['GetFetchedStats']();
+}
+
 export function GetLibraryStats() {
   return window['go']['main']['App']['GetLibraryStats']();
 }
@@ -54,12 +58,20 @@ export function ImageCollections(arg1) {
   return window['go']['main']['App']['ImageCollections'](arg1);
 }
 
+export function KeepFetched(arg1) {
+  return window['go']['main']['App']['KeepFetched'](arg1);
+}
+
 export function LibraryStatus(arg1) {
   return window['go']['main']['App']['LibraryStatus'](arg1);
 }
 
 export function ListCollections() {
   return window['go']['main']['App']['ListCollections']();
+}
+
+export function ListFetched(arg1, arg2) {
+  return window['go']['main']['App']['ListFetched'](arg1, arg2);
 }
 
 export function ListLibrary(arg1, arg2, arg3) {
@@ -92,6 +104,10 @@ export function RenameSavedSearch(arg1, arg2) {
 
 export function RepairRotationTimer() {
   return window['go']['main']['App']['RepairRotationTimer']();
+}
+
+export function SaveDisplaySize(arg1, arg2) {
+  return window['go']['main']['App']['SaveDisplaySize'](arg1, arg2);
 }
 
 export function SaveRotation(arg1) {

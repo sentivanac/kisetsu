@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
@@ -83,21 +85,26 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		t.Fatal(err)
 	}
 
+	fetchedDir := filepath.Join(filepath.Dir(path), "cache", "fetched")
+	for _, d := range []string{"images", "thumbs"} {
+		os.MkdirAll(filepath.Join(fetchedDir, d), 0o700)
+	}
 	var app *App
 	lib := library.NewStore(db)
 	mgr, err := downloads.New(downloads.Config{
-		Client:    http.DefaultClient,
-		UserAgent: "Kisetsu/test",
-		Root:      filepath.Dir(path),
-		Store:     lib,
-		Log:       log,
-		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
+		Client:      http.DefaultClient,
+		UserAgent:   "Kisetsu/test",
+		Root:        filepath.Dir(path),
+		FetchedRoot: fetchedDir,
+		Store:       lib,
+		Log:         log,
+		Notify:      func(p downloads.Progress) { app.notifyDownload(p) },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(mgr.Close)
-	files, err := libfiles.New(filepath.Dir(path)) // after downloads.New created the directories
+	files, err := libfiles.New(filepath.Dir(path), fetchedDir) // after downloads.New created the directories
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,6 +120,7 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		},
 		Schedule:      &fakeSchedule{}, // never the real systemd
 		SavedSearches: searches.NewStore(db),
+		Fetched:       &fetched.Service{Library: lib, Files: files, Log: log},
 		Executable:    "/opt/kisetsu/kisetsu",
 		RotationLock:  filepath.Join(filepath.Dir(path), "rotate.lock"),
 	})

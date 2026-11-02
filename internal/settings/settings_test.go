@@ -191,3 +191,23 @@ func TestSearchFiltersReportsDatabaseFailure(t *testing.T) {
 		t.Error("expected an error from a closed database")
 	}
 }
+
+func TestDisplaySize(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+
+	if d, err := store.Display(ctx); err != nil || d != DefaultDisplaySize {
+		t.Errorf("default = %+v, %v", d, err)
+	}
+	if err := store.SaveDisplay(ctx, DisplaySize{Width: 3840, Height: 2160}); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := store.Display(ctx); d != (DisplaySize{Width: 3840, Height: 2160}) {
+		t.Errorf("saved = %+v", d)
+	}
+	for _, bad := range []DisplaySize{{0, 1080}, {1920, -1}, {20000, 1080}} {
+		if err := store.SaveDisplay(ctx, bad); err == nil {
+			t.Errorf("%+v accepted", bad)
+		}
+	}
+}

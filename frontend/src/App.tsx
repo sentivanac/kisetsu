@@ -1,6 +1,8 @@
 import {KeyboardEvent, useEffect, useState} from 'react';
 import './App.css';
-import {GetStatus, ListProviders} from '../wailsjs/go/main/App';
+import {GetStatus, ListProviders, SaveDisplaySize} from '../wailsjs/go/main/App';
+import {ScreenGetAll} from '../wailsjs/runtime/runtime';
+import {largestScreen, WailsScreen} from './lib/screen';
 import {main, search} from '../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from './lib/backend';
 import {SearchPanel} from './components/SearchPanel';
@@ -28,6 +30,14 @@ function App() {
         ListProviders()
             .then(setSources)
             .catch(() => {}); // names fall back to provider IDs
+        // The rotation timer runs without a window, so the screen size that
+        // fetched images must cover is stored here.
+        ScreenGetAll()
+            .then((screens) => {
+                const size = largestScreen(screens as WailsScreen[]);
+                if (size) return SaveDisplaySize(size.width, size.height);
+            })
+            .catch(() => {}); // the default size is used instead
     }, []);
 
     const sourceName = (id: string) => sources.find((p) => p.id === id)?.name ?? id;

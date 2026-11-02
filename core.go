@@ -13,6 +13,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/config"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
@@ -30,6 +31,8 @@ type core struct {
 	dbPath string
 	lib    *library.Store
 	files  *libfiles.Server
+	// fetchedDir holds fetched images and thumbnails, in the cache.
+	fetchedDir string
 
 	closers []io.Closer
 }
@@ -93,13 +96,19 @@ func openCore(ctx context.Context, component string, logMirror io.Writer) (*core
 	c.log.Info("database ready", "path", c.dbPath, "schema_version", schema)
 
 	// The library directories may not exist yet when a command runs before
-	// the first download.
-	for _, dir := range []string{downloads.ImagesDir, downloads.ThumbsDir} {
-		if err := os.MkdirAll(filepath.Join(paths.Data, dir), 0o700); err != nil {
+	// the first download. Fetched images live in the cache (ADR 0028).
+	c.fetchedDir = filepath.Join(paths.Cache, "fetched")
+	for _, dir := range []string{
+		filepath.Join(paths.Data, downloads.ImagesDir),
+		filepath.Join(paths.Data, downloads.ThumbsDir),
+		filepath.Join(c.fetchedDir, downloads.ImagesDir),
+		filepath.Join(c.fetchedDir, downloads.ThumbsDir),
+	} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("create library directory: %w", err)
 		}
 	}
-	files, err := libfiles.New(paths.Data)
+	files, err := libfiles.New(paths.Data, c.fetchedDir)
 	if err != nil {
 		return nil, err
 	}
@@ -137,4 +146,9 @@ func (c *core) rotator() *rotation.Rotator {
 // rotationLockPath is shared by the timer, the window and manual commands.
 func (c *core) rotationLockPath() string {
 	return filepath.Join(c.paths.State, "rotate.lock")
+}
+
+// fetchedService builds the service that keeps and prunes fetched images.
+func (c *core) fetchedService() *fetched.Service {
+	return &fetched.Service{Library: c.lib, Files: c.files, Log: c.log}
 }

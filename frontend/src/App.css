@@ -684,3 +684,7 @@
 .saved-searches .collection-list {
     align-items: center;
 }
+
+.chip-fetched {
+    border-style: dotted;
+}

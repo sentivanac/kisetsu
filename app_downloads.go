@@ -39,6 +39,9 @@ func (a *App) Download(img images.Image) (key string, err error) {
 	switch {
 	case errors.Is(err, library.ErrAlreadyInLibrary):
 		return "", apperr.New(AlreadyInLibrary, "This image is already in your library.", err)
+	case errors.Is(err, downloads.ErrInFetched):
+		return "", apperr.New(apperr.InvalidInput,
+			"This image was fetched automatically. Open it in Library → Fetched and choose Keep.", err)
 	case err != nil && img.Validate() != nil:
 		return "", apperr.New(apperr.InvalidInput, "This image cannot be downloaded.", err)
 	case err != nil:

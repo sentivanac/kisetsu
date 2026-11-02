@@ -27,3 +27,11 @@ export function removeItem<T extends {id: number}>(items: T[], id: number): {ite
     if (rest.length === 0) return {items: rest, next: null};
     return {items: rest, next: Math.min(index, rest.length - 1)};
 }
+
+// fetchedStatsLabel shows the space fetched images use against the limit,
+// e.g. "12 images · 84 MB of 200 MB".
+export function fetchedStatsLabel(stats: {images: number; bytes: number; maxBytes: number}): string {
+    const count = stats.images === 1 ? '1 image' : `${stats.images} images`;
+    const used = formatFileSize(stats.bytes) || '0 B';
+    return `${count} · ${used} of ${formatFileSize(stats.maxBytes)}`;
+}

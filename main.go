@@ -64,12 +64,13 @@ func run() error {
 	// no download can start before the app exists.
 	var app *App
 	downloader, err := downloads.New(downloads.Config{
-		Client:    httpClient,
-		UserAgent: appinfo.UserAgent(),
-		Root:      c.paths.Data,
-		Store:     c.lib,
-		Log:       log,
-		Notify:    func(p downloads.Progress) { app.notifyDownload(p) },
+		Client:      httpClient,
+		UserAgent:   appinfo.UserAgent(),
+		Root:        c.paths.Data,
+		FetchedRoot: c.fetchedDir,
+		Store:       c.lib,
+		Log:         log,
+		Notify:      func(p downloads.Progress) { app.notifyDownload(p) },
 	})
 	if err != nil {
 		return err
@@ -101,6 +102,7 @@ func run() error {
 
 		Schedule:      timer,
 		SavedSearches: searches.NewStore(c.db),
+		Fetched:       c.fetchedService(),
 		Executable:    timer.Executable,
 		RotationLock:  c.rotationLockPath(),
 	})

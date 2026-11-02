@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {screenFilters, screenPixels, WailsScreen} from './screen';
+import {largestScreen, screenFilters, screenPixels, WailsScreen} from './screen';
 
 const screen = (over: Partial<WailsScreen>): WailsScreen => ({
     isCurrent: false,
@@ -46,5 +46,16 @@ describe('screenFilters', () => {
         // A monitor turned on its side.
         expect(screenFilters({width: 1080, height: 1920})).toEqual({width: 1080, height: 1920, orientation: 'portrait'});
         expect(screenFilters({width: 1600, height: 1600})).toEqual({width: 1600, height: 1600, orientation: ''});
+    });
+});
+
+describe('largestScreen', () => {
+    it('takes the largest width and height of all screens', () => {
+        const screens = [
+            screen({physicalSize: {width: 1920, height: 1080}}),
+            screen({physicalSize: {width: 1080, height: 1920}}), // a monitor turned on its side
+        ];
+        expect(largestScreen(screens)).toEqual({width: 1920, height: 1920});
+        expect(largestScreen([])).toBeNull();
     });
 });

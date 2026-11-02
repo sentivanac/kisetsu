@@ -37,3 +37,16 @@ export function screenFilters(size: ScreenSize): {width: number; height: number;
     const o = orientationOf(size.width, size.height);
     return {width: size.width, height: size.height, orientation: o === 'landscape' || o === 'portrait' ? o : ''};
 }
+
+// largestScreen returns the largest width and the largest height of all
+// screens, in device pixels: fetched images are reduced to cover it.
+export function largestScreen(screens: WailsScreen[]): ScreenSize | null {
+    let width = 0;
+    let height = 0;
+    for (const s of screens) {
+        const size = s.physicalSize ?? s.size ?? {width: s.width, height: s.height};
+        width = Math.max(width, size.width || 0);
+        height = Math.max(height, size.height || 0);
+    }
+    return width > 0 && height > 0 ? {width, height} : null;
+}

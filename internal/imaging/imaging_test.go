@@ -236,3 +236,63 @@ func TestDistance(t *testing.T) {
 		t.Errorf("Distance = %d, want 2", d)
 	}
 }
+
+func TestProcessFitsToScreen(t *testing.T) {
+	data := encodeJPEG(t, scene(3000, 2000, 0), 90) // 3:2, larger than the screen
+
+	res, err := Process(bytes.NewReader(data), Options{Fit: Size{1920, 1080}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 3:2 covering 1920×1080 is 1920×1280: the width decides.
+	if res.FittedWidth != 1920 || res.FittedHeight != 1280 {
+		t.Errorf("fitted %dx%d, want 1920x1280", res.FittedWidth, res.FittedHeight)
+	}
+	if w, h := decodedSize(t, res.Fitted); w != 1920 || h != 1280 {
+		t.Errorf("fitted JPEG is %dx%d", w, h)
+	}
+	if res.Width != 3000 || res.Height != 2000 {
+		t.Errorf("original size changed: %dx%d", res.Width, res.Height)
+	}
+	sum := sha256.Sum256(data)
+	if res.SHA256 != hex.EncodeToString(sum[:]) {
+		t.Error("SHA-256 must stay the hash of the downloaded file")
+	}
+}
+
+func TestProcessNeverEnlarges(t *testing.T) {
+	data := encodeJPEG(t, scene(1600, 900, 0), 90) // smaller than the screen
+
+	res, err := Process(bytes.NewReader(data), Options{Fit: Size{1920, 1080}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Fitted != nil {
+		t.Errorf("a smaller image was re-encoded to %dx%d", res.FittedWidth, res.FittedHeight)
+	}
+}
+
+func TestCoverSize(t *testing.T) {
+	fit := Size{1920, 1080}
+	tests := []struct {
+		w, h int
+		want Size
+		ok   bool
+	}{
+		{7360, 4912, Size{1920, 1282}, true},  // 3:2 photo from Commons
+		{3840, 2160, Size{1920, 1080}, true},  // same shape as the screen
+		{2160, 3840, Size{1920, 3414}, true},  // portrait: width decides
+		{4000, 1000, Size{4320, 1080}, false}, // panorama: height decides, but 1000 < 1080
+		{1920, 1080, Size{}, false},
+		{100, 100, Size{}, false},
+	}
+	for _, tt := range tests {
+		got, ok := coverSize(tt.w, tt.h, fit)
+		if ok != tt.ok || (ok && got != tt.want) {
+			t.Errorf("coverSize(%d, %d) = %v, %v; want %v, %v", tt.w, tt.h, got, ok, tt.want, tt.ok)
+		}
+	}
+	if _, ok := coverSize(5000, 3000, Size{}); ok {
+		t.Error("no fit size must mean no fitted copy")
+	}
+}

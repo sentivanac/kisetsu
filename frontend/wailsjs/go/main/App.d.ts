@@ -23,6 +23,8 @@ export function DeleteSavedSearch(arg1:number):Promise<void>;
 
 export function Download(arg1:images.Image):Promise<string>;
 
+export function GetFetchedStats():Promise<main.FetchedStats>;
+
 export function GetLibraryStats():Promise<main.LibraryStats>;
 
 export function GetRotation():Promise<main.RotationState>;
@@ -33,9 +35,13 @@ export function GetStatus():Promise<main.Status>;
 
 export function ImageCollections(arg1:number):Promise<Array<number>>;
 
+export function KeepFetched(arg1:number):Promise<main.LibraryItem>;
+
 export function LibraryStatus(arg1:Array<string>):Promise<Record<string, number>>;
 
 export function ListCollections():Promise<Array<main.CollectionInfo>>;
+
+export function ListFetched(arg1:number,arg2:number):Promise<main.LibraryPage>;
 
 export function ListLibrary(arg1:number,arg2:number,arg3:number):Promise<main.LibraryPage>;
 
@@ -52,6 +58,8 @@ export function RenameCollection(arg1:number,arg2:string):Promise<void>;
 export function RenameSavedSearch(arg1:number,arg2:string):Promise<void>;
 
 export function RepairRotationTimer():Promise<main.RotationState>;
+
+export function SaveDisplaySize(arg1:number,arg2:number):Promise<void>;
 
 export function SaveRotation(arg1:main.RotationSettings):Promise<main.RotationState>;
 

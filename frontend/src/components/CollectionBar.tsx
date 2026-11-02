@@ -3,10 +3,14 @@ import {main} from '../../wailsjs/go/models';
 import {collectionCount} from '../lib/collections';
 import {NameForm} from './NameForm';
 
+// FetchedView is the "collection" value that shows fetched images.
+export const FetchedView = -1;
+
 interface Props {
     collections: main.CollectionInfo[];
-    selected: number; // 0 = all images
+    selected: number; // 0 = all images, FetchedView = fetched images
     totalImages: number;
+    fetchedImages: number;
     onSelect: (id: number) => void;
     onCreate: (name: string) => Promise<void>;
     onRename: (id: number, name: string) => Promise<void>;
@@ -17,7 +21,16 @@ type Mode = 'idle' | 'creating' | 'renaming' | 'confirmDelete';
 
 // CollectionBar picks the collection shown in the library and manages
 // collections.
-export function CollectionBar({collections, selected, totalImages, onSelect, onCreate, onRename, onDelete}: Props) {
+export function CollectionBar({
+    collections,
+    selected,
+    totalImages,
+    fetchedImages,
+    onSelect,
+    onCreate,
+    onRename,
+    onDelete,
+}: Props) {
     const [mode, setMode] = useState<Mode>('idle');
     const current = collections.find((c) => c.id === selected);
 
@@ -50,6 +63,18 @@ export function CollectionBar({collections, selected, totalImages, onSelect, onC
                         {c.name} <span className="chip-count">{c.images}</span>
                     </button>
                 ))}
+                <button
+                    type="button"
+                    className="chip chip-fetched"
+                    aria-pressed={selected === FetchedView}
+                    title="Images fetched automatically from saved searches"
+                    onClick={() => {
+                        setMode('idle');
+                        onSelect(FetchedView);
+                    }}
+                >
+                    Fetched <span className="chip-count">{fetchedImages}</span>
+                </button>
                 {mode !== 'creating' && (
                     <button type="button" className="chip chip-add" onClick={() => setMode('creating')}>
                         + New collection
