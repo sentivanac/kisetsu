@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -155,5 +156,48 @@ func TestMigrateRejectsNewerDatabase(t *testing.T) {
 	}
 	if tableExists(t, db, "a") {
 		t.Error("newer database was modified")
+	}
+}
+
+// Migration 0003 moves credit texts that were stored as author names into
+// the new author_credit column, without losing them.
+func TestMigration0003MovesLongAuthorNames(t *testing.T) {
+	ctx := context.Background()
+	all, err := embeddedMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := openTestDB(t, all[:2]) // the schema before 0003
+
+	long := strings.Repeat("Please mention me as the author. ", 5)
+	insert := `INSERT INTO images (provider, provider_id, page_url, download_url, author_name,
+		license_status, width, height, mime_type, file_size, file_path, sha256, dhash)
+		VALUES ('p', ?, 'https://x', 'https://x', ?, 'unknown', 1, 1, 'image/jpeg', 1, ?, ?, 0)`
+	for i, name := range []string{"Short Name", long} {
+		if _, err := db.Exec(insert, i, name, fmt.Sprint("f", i), fmt.Sprint("s", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := Migrate(ctx, db, all); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := map[string][2]string{}
+	r, err := db.Query(`SELECT provider_id, author_name, author_credit FROM images`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	for r.Next() {
+		var id, name, credit string
+		r.Scan(&id, &name, &credit)
+		rows[id] = [2]string{name, credit}
+	}
+	if rows["0"] != [2]string{"Short Name", ""} {
+		t.Errorf("short name changed: %q", rows["0"])
+	}
+	if rows["1"] != [2]string{"", long} {
+		t.Errorf("long name not moved to credit: %q", rows["1"])
 	}
 }

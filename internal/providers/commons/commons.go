@@ -297,7 +297,7 @@ func (pg page) toImage() (images.Image, bool) {
 		return images.Image{}, false
 	}
 
-	authorName, authorURL := parseHTML(ii.meta("Artist"))
+	authorName, authorURL, authorCredit := parseArtist(ii.meta("Artist"))
 	return images.Image{
 		Provider:     ID,
 		ProviderID:   strconv.Itoa(pg.PageID),
@@ -309,7 +309,7 @@ func (pg page) toImage() (images.Image, bool) {
 		Height:       ii.Height,
 		MIMEType:     ii.MIME,
 		FileSize:     ii.Size,
-		Author:       images.Author{Name: authorName, URL: authorURL},
+		Author:       images.Author{Name: authorName, URL: authorURL, Credit: authorCredit},
 		License:      license(ii),
 	}, true
 }
@@ -327,7 +327,8 @@ func license(ii imageInfo) images.License {
 			Notice: "Commons gives no license for this file. Check its page before reusing it.",
 		}
 	}
-	l := images.License{Status: images.LicenseKnown, Name: name, URL: absoluteLink(ii.meta("LicenseUrl"))}
+	licenseURL, _ := absoluteLink(ii.meta("LicenseUrl"))
+	l := images.License{Status: images.LicenseKnown, Name: name, URL: licenseURL}
 	if ii.meta("AttributionRequired") == "true" {
 		l.Notice = "Attribution required: credit the author and link the license when you share this image."
 	}

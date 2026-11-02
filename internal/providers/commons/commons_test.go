@@ -140,11 +140,12 @@ func TestSearchConvertsAuthorHTML(t *testing.T) {
 	}
 
 	derivative := byID(page, "113030211").Author
-	if derivative.Name != "Original: Florian Kriechbaumer Derivative work: Aristeas" {
-		t.Errorf("derivative author name = %q", derivative.Name)
+	if derivative.Name != "Florian Kriechbaumer" || derivative.Credit != "Original: Florian Kriechbaumer Derivative work: Aristeas" {
+		t.Errorf("derivative author = %+v", derivative)
 	}
-	// The first link is a redlink (missing user page) and is skipped.
-	if derivative.URL != "https://commons.wikimedia.org/wiki/User:Aristeas" {
+	// The original author's user page does not exist (redlink): no URL
+	// rather than a link to someone else.
+	if derivative.URL != "" {
 		t.Errorf("derivative author URL = %q", derivative.URL)
 	}
 
@@ -339,21 +340,102 @@ func TestLooksUnsafe(t *testing.T) {
 
 func TestParseHTML(t *testing.T) {
 	tests := []struct {
-		in, text, link string
+		in    string
+		text  string
+		links []link
 	}{
-		{`plain &amp; simple`, "plain & simple", ""},
-		{`<a href="//commons.wikimedia.org/wiki/User:A">A</a>`, "A", "https://commons.wikimedia.org/wiki/User:A"},
-		{`<a href="javascript:alert(1)">bad</a>`, "bad", ""},
-		{`<a href="/wiki/Relative">rel</a>`, "rel", ""},
-		{`<ul><li>One</li><li>Two</li></ul>`, "One Two", ""},
-		{`<a href="https://x.org/a">Some</a>thing`, "Something", "https://x.org/a"},
-		{`<b>unclosed`, "unclosed", ""},
+		{`plain &amp; simple`, "plain & simple", nil},
+		{`<a href="//commons.wikimedia.org/wiki/User:A">A</a>`, "A",
+			[]link{{href: "https://commons.wikimedia.org/wiki/User:A", text: "A"}}},
+		{`<a href="javascript:alert(1)">bad</a>`, "bad", []link{{text: "bad"}}},
+		{`<a href="/wiki/Relative">rel</a>`, "rel", []link{{text: "rel"}}},
+		{`<ul><li>One</li><li>Two</li></ul>`, "One Two", nil},
+		{`<a href="https://x.org/a">Some</a>thing`, "Something", []link{{href: "https://x.org/a", text: "Some"}}},
+		{`<a href="https://x.org/w?title=User:B&amp;redlink=1">B</a>`, "B",
+			[]link{{href: "https://x.org/w?title=User:B&redlink=1", text: "B", redlink: true}}},
+		{`<b>unclosed`, "unclosed", nil},
 	}
 	for _, tt := range tests {
-		text, link := parseHTML(tt.in)
-		if text != tt.text || link != tt.link {
-			t.Errorf("parseHTML(%q) = %q, %q; want %q, %q", tt.in, text, link, tt.text, tt.link)
+		text, links := parseHTML(tt.in)
+		if text != tt.text || !slices.Equal(links, tt.links) {
+			t.Errorf("parseHTML(%q) = %q, %+v; want %q, %+v", tt.in, text, links, tt.text, tt.links)
 		}
+	}
+}
+
+func TestParseArtist(t *testing.T) {
+	tests := []struct {
+		name                  string
+		in                    string
+		wantName, wantProfile string
+		wantCredit            string
+	}{
+		{
+			name:        "plain user link",
+			in:          `<a href="//commons.wikimedia.org/wiki/User:Argenberg" title="User:Argenberg">Vyacheslav Argenberg</a>`,
+			wantName:    "Vyacheslav Argenberg",
+			wantProfile: "https://commons.wikimedia.org/wiki/User:Argenberg",
+		},
+		{
+			name: "derivative work with a missing user page",
+			in: `<ul><li><b>Original: </b> <a href="//commons.wikimedia.org/w/index.php?title=User:Florian_Kriechbaumer&amp;action=edit&amp;redlink=1" class="new">Florian Kriechbaumer</a></li>
+<li><b>Derivative work: </b> <a href="//commons.wikimedia.org/wiki/User:Aristeas">Aristeas</a></li></ul>`,
+			wantName:   "Florian Kriechbaumer",
+			wantCredit: "Original: Florian Kriechbaumer Derivative work: Aristeas",
+		},
+		{
+			name:        "creator page",
+			in:          `<a href="//commons.wikimedia.org/wiki/Creator:Katsushika_Hokusai">Katsushika Hokusai</a> (1760–1849)`,
+			wantName:    "Katsushika Hokusai",
+			wantProfile: "https://commons.wikimedia.org/wiki/Creator:Katsushika_Hokusai",
+			wantCredit:  "Katsushika Hokusai (1760–1849)",
+		},
+		{
+			name:        "Wikipedia article, after a file link",
+			in:          `<a href="//commons.wikimedia.org/wiki/File:Icon.svg"><img></a> <a href="https://en.wikipedia.org/wiki/Hiroshige">Hiroshige</a>`,
+			wantName:    "Hiroshige",
+			wantProfile: "https://en.wikipedia.org/wiki/Hiroshige",
+		},
+		{name: "unknown author as text", in: `Unknown author`, wantName: "Unknown author"},
+		{
+			name:       "long text without a person link",
+			in:         strings.Repeat("Please credit the photographer. ", 5),
+			wantCredit: strings.TrimSpace(strings.Repeat("Please credit the photographer. ", 5)),
+		},
+		{name: "empty", in: ``},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			name, profile, credit := parseArtist(tt.in)
+			if name != tt.wantName || profile != tt.wantProfile || credit != tt.wantCredit {
+				t.Errorf("got name %q, profile %q, credit %q\nwant name %q, profile %q, credit %q",
+					name, profile, credit, tt.wantName, tt.wantProfile, tt.wantCredit)
+			}
+		})
+	}
+}
+
+// The Artist field of File:Giorgio_Moroder.jpg, saved from the live API:
+// a template with icons and usage conditions, where the first link is an
+// icon and the second the file itself.
+func TestParseArtistTemplateWithConditions(t *testing.T) {
+	data, err := os.ReadFile("testdata/artist_moroder.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	name, profile, credit := parseArtist(string(data))
+
+	if name != "Wolfgang Moroder" || profile != "https://commons.wikimedia.org/wiki/User:Moroder" {
+		t.Errorf("name %q, profile %q", name, profile)
+	}
+	for _, part := range []string{"This Photo was taken by Wolfgang Moroder", "social media", "derivative or extract"} {
+		if !strings.Contains(credit, part) {
+			t.Errorf("credit does not contain %q:\n%s", part, credit)
+		}
+	}
+	if strings.ContainsAny(credit, "<>") {
+		t.Errorf("credit contains markup: %s", credit)
 	}
 }
 

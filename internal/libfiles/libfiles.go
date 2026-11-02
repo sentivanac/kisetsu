@@ -1,17 +1,20 @@
-// Package libfiles serves library images and thumbnails to the WebView.
+// Package libfiles serves library images and thumbnails to the WebView
+// and removes them when the user deletes an image.
 //
 // The WebView may not load file:// URLs, so files are served by the Wails
 // asset server under URLPrefix. Only the images/ and thumbs/ directories
-// are reachable; the database, temporary files and anything else in the
-// data directory are not.
+// are reachable, for serving and for removal; the database, temporary
+// files and anything else in the data directory are not.
 package libfiles
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -19,8 +22,11 @@ import (
 // /library/thumbs/wallhaven/abc.jpg.
 const URLPrefix = "/library/"
 
+// ErrOutsideLibrary means a path does not name a file in images/ or thumbs/.
+var ErrOutsideLibrary = errors.New("path is not a library file")
+
 // servedDirs are the only directories under the library root that can be
-// served.
+// served or removed.
 var servedDirs = []string{"images", "thumbs"}
 
 // Server serves library files. Each directory is opened with os.Root,
@@ -99,6 +105,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A library path always refers to the same file.
 	h.Set("Cache-Control", "private, max-age=86400")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+}
+
+// Remove deletes a library file given by its stored path, such as
+// "images/wallhaven/abc.jpg". Paths outside images/ and thumbs/ are
+// refused, so a damaged database record cannot delete other files. A file
+// that is already gone is not an error.
+func (s *Server) Remove(relPath string) error {
+	dir, name, ok := strings.Cut(filepath.ToSlash(relPath), "/")
+	root := s.roots[dir]
+	if !ok || root == nil || !fs.ValidPath(name) {
+		return fmt.Errorf("%w: %q", ErrOutsideLibrary, relPath)
+	}
+	info, err := root.Lstat(name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%w: %q is not a regular file", ErrOutsideLibrary, relPath)
+	}
+	return root.Remove(name)
 }
 
 // URL returns the frontend URL of a library path such as

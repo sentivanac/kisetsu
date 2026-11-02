@@ -1,12 +1,12 @@
 export namespace apperr {
 	
-	export class Public {
+	export class PublicError {
 	    code: string;
 	    message: string;
 	    retryAfterSeconds?: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new Public(source);
+	        return new PublicError(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -47,6 +47,7 @@ export namespace images {
 	export class Author {
 	    name: string;
 	    url: string;
+	    credit: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Author(source);
@@ -56,6 +57,7 @@ export namespace images {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.url = source["url"];
+	        this.credit = source["credit"];
 	    }
 	}
 	export class License {
@@ -149,13 +151,95 @@ export namespace main {
 	        this.schemaVersion = source["schemaVersion"];
 	    }
 	}
+	export class LibraryItem {
+	    id: number;
+	    image: images.Image;
+	    fileUrl: string;
+	    addedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LibraryItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.image = this.convertValues(source["image"], images.Image);
+	        this.fileUrl = source["fileUrl"];
+	        this.addedAt = source["addedAt"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LibraryPage {
+	    items: LibraryItem[];
+	    hasMore: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new LibraryPage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], LibraryItem);
+	        this.hasMore = source["hasMore"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LibraryStats {
+	    images: number;
+	    bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LibraryStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.images = source["images"];
+	        this.bytes = source["bytes"];
+	    }
+	}
 	export class SourceStatus {
 	    providerId: string;
 	    name: string;
 	    page: number;
 	    hasMore: boolean;
 	    count: number;
-	    error?: apperr.Public;
+	    error?: apperr.PublicError;
 	
 	    static createFrom(source: any = {}) {
 	        return new SourceStatus(source);
@@ -168,7 +252,7 @@ export namespace main {
 	        this.page = source["page"];
 	        this.hasMore = source["hasMore"];
 	        this.count = source["count"];
-	        this.error = this.convertValues(source["error"], apperr.Public);
+	        this.error = this.convertValues(source["error"], apperr.PublicError);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -127,3 +127,35 @@ func TestURL(t *testing.T) {
 		}
 	}
 }
+
+func TestRemove(t *testing.T) {
+	root, s := newLibrary(t)
+	link := filepath.Join(root, "images", "link.db")
+	if err := os.Symlink(filepath.Join(root, "kisetsu.db"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Remove(filepath.Join("images", "wallhaven", "abc.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "images", "wallhaven", "abc.jpg")); !os.IsNotExist(err) {
+		t.Errorf("file still exists (err %v)", err)
+	}
+	if err := s.Remove("images/wallhaven/abc.jpg"); err != nil {
+		t.Errorf("removing a missing file: %v", err)
+	}
+
+	for _, rel := range []string{"kisetsu.db", "tmp/dl-1", "images/../kisetsu.db", "images/link.db", "images/wallhaven", ""} {
+		if err := s.Remove(rel); err == nil {
+			t.Errorf("Remove(%q) succeeded", rel)
+		}
+	}
+	for _, name := range []string{"kisetsu.db", "tmp/dl-1", "thumbs/wallhaven/abc.jpg"} {
+		if _, err := os.Stat(filepath.Join(root, name)); err != nil {
+			t.Errorf("%s was removed: %v", name, err)
+		}
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Errorf("symbolic link was removed: %v", err)
+	}
+}

@@ -20,12 +20,12 @@ func (a *App) ListProviders() (list []search.ProviderInfo, err error) {
 
 // SourceStatus reports how one source did in a multi-source search.
 type SourceStatus struct {
-	ProviderID string         `json:"providerId"`
-	Name       string         `json:"name"`
-	Page       int            `json:"page"`
-	HasMore    bool           `json:"hasMore"`
-	Count      int            `json:"count"`
-	Error      *apperr.Public `json:"error,omitempty"`
+	ProviderID string              `json:"providerId"`
+	Name       string              `json:"name"`
+	Page       int                 `json:"page"`
+	HasMore    bool                `json:"hasMore"`
+	Count      int                 `json:"count"`
+	Error      *apperr.PublicError `json:"error,omitempty"`
 }
 
 // SearchResult is the combined result of a multi-source search.

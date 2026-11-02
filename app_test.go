@@ -18,6 +18,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/images"
+	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/search"
@@ -94,10 +95,15 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		t.Fatal(err)
 	}
 	t.Cleanup(mgr.Close)
+	files, err := libfiles.New(filepath.Dir(path)) // after downloads.New created the directories
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { files.Close() })
 
 	app = NewApp(Deps{
 		Log: log, DB: db, DBPath: path, Search: svc,
-		Settings: settings.NewStore(db), Downloads: mgr, Library: lib,
+		Settings: settings.NewStore(db), Downloads: mgr, Library: lib, Files: files,
 	})
 	return app
 }

@@ -10,8 +10,16 @@ export function CancelSearch() {
   return window['go']['main']['App']['CancelSearch']();
 }
 
+export function DeleteFromLibrary(arg1) {
+  return window['go']['main']['App']['DeleteFromLibrary'](arg1);
+}
+
 export function Download(arg1) {
   return window['go']['main']['App']['Download'](arg1);
+}
+
+export function GetLibraryStats() {
+  return window['go']['main']['App']['GetLibraryStats']();
 }
 
 export function GetSearchFilters() {
@@ -24,6 +32,10 @@ export function GetStatus() {
 
 export function LibraryStatus(arg1) {
   return window['go']['main']['App']['LibraryStatus'](arg1);
+}
+
+export function ListLibrary(arg1, arg2) {
+  return window['go']['main']['App']['ListLibrary'](arg1, arg2);
 }
 
 export function ListProviders() {

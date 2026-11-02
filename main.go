@@ -134,6 +134,7 @@ func run() error {
 		Settings:  settings.NewStore(db),
 		Downloads: downloader,
 		Library:   lib,
+		Files:     files,
 	})
 
 	err = wails.Run(&options.App{

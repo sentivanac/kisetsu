@@ -1,6 +1,6 @@
 // Error handling for calls into the Go backend.
 //
-// Go methods reject with apperr.Public ({code, message, retryAfterSeconds?}).
+// Go methods reject with apperr.PublicError ({code, message, retryAfterSeconds?}).
 // Wails itself rejects with a plain string for some failures (for example
 // when arguments cannot be parsed), so both shapes are handled.
 

@@ -53,7 +53,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 const entryColumns = `id, provider, provider_id, page_url, download_url, source_url,
-	author_name, author_url, license_status, license_name, license_url, license_notice,
+	author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
 	width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, added_at`
 
 // Add stores a new entry and returns its ID. It fails with
@@ -85,11 +85,11 @@ func (s *Store) Add(ctx context.Context, e Entry) (int64, error) {
 	img := e.Image
 	res, err := tx.ExecContext(ctx, `INSERT INTO images (
 			provider, provider_id, page_url, download_url, source_url,
-			author_name, author_url, license_status, license_name, license_url, license_notice,
+			author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
 			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		img.Provider, img.ProviderID, img.PageURL, img.DownloadURL, img.SourceURL,
-		img.Author.Name, img.Author.URL, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
+		img.Author.Name, img.Author.URL, img.Author.Credit, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
 		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, e.SHA256, int64(e.DHash))
 	if err != nil {
 		return 0, fmt.Errorf("add image: %w", err)
@@ -281,7 +281,7 @@ func scanEntry(row scanner) (Entry, error) {
 	var dhash int64
 	img := &e.Image
 	err := row.Scan(&e.ID, &img.Provider, &img.ProviderID, &img.PageURL, &img.DownloadURL, &img.SourceURL,
-		&img.Author.Name, &img.Author.URL, &status, &img.License.Name, &img.License.URL, &img.License.Notice,
+		&img.Author.Name, &img.Author.URL, &img.Author.Credit, &status, &img.License.Name, &img.License.URL, &img.License.Notice,
 		&img.Width, &img.Height, &img.MIMEType, &img.FileSize, &e.FilePath, &e.ThumbnailPath, &e.SHA256, &dhash, &added)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

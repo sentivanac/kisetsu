@@ -9,7 +9,7 @@ export interface SourceInfo {
     enabledByDefault: boolean;
 }
 
-// SourceError mirrors apperr.Public as sent inside a source status.
+// SourceError mirrors apperr.PublicError as sent inside a source status.
 export interface SourceError {
     code: string;
     message: string;

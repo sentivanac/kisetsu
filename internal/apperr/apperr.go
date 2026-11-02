@@ -58,9 +58,9 @@ func (e *Error) Unwrap() error {
 	return e.Err
 }
 
-// Public is the form of an error sent to the frontend. It never
+// PublicError is the form of an error sent to the frontend. It never
 // contains the underlying error.
-type Public struct {
+type PublicError struct {
 	Code              Code   `json:"code"`
 	Message           string `json:"message"`
 	RetryAfterSeconds int    `json:"retryAfterSeconds,omitempty"`
@@ -69,15 +69,15 @@ type Public struct {
 // ToPublic converts any error into its frontend form. Errors that are not
 // an *Error anywhere in their chain become a generic internal error, so
 // unexpected details never reach the UI.
-func ToPublic(err error) Public {
+func ToPublic(err error) PublicError {
 	if e, ok := errors.AsType[*Error](err); ok {
-		return Public{
+		return PublicError{
 			Code:              e.Code,
 			Message:           e.Message,
 			RetryAfterSeconds: int((e.RetryAfter + time.Second - 1) / time.Second), // round up
 		}
 	}
-	return Public{Code: Internal, Message: internalMessage}
+	return PublicError{Code: Internal, Message: internalMessage}
 }
 
 // InternalError wraps err as an unexpected failure.

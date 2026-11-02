@@ -38,7 +38,13 @@ import {DownloadButton} from './DownloadButton';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
 
-export function SearchPanel() {
+interface Props {
+    // The panel rechecks which results are in the library when it becomes
+    // visible again, so images deleted in the library lose their mark.
+    active: boolean;
+}
+
+export function SearchPanel({active}: Props) {
     const [available, setAvailable] = useState<SourceInfo[]>([]);
     const [selectedSources, setSelectedSources] = useState<string[]>([]);
     const [text, setText] = useState('');
@@ -164,6 +170,14 @@ export function SearchPanel() {
             }
         });
     }
+
+    useEffect(() => {
+        if (!active || results.length === 0) return;
+        LibraryStatus(results.map(imageKey))
+            .then((found) => setInLibrary(found))
+            .catch(() => {});
+        // Only on becoming visible; new results are checked when they arrive.
+    }, [active]);
 
     const savedToLibrary = (key: string) =>
         key in inLibrary || downloads[key]?.state === 'done' || downloads[key]?.state === 'duplicate';

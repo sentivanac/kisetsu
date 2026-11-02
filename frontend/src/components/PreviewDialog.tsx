@@ -6,6 +6,9 @@ import {formatFileSize, formatType, licenseLabel} from '../lib/images';
 interface Props {
     image: images.Image;
     providerName: string;
+    // The full image to show; defaults to the provider's download URL.
+    // The library passes its local file instead.
+    fullUrl?: string;
     // Rendered under the details, e.g. a download button.
     actions?: ReactNode;
     onClose: () => void;
@@ -16,16 +19,17 @@ interface Props {
 // PreviewDialog shows one image large, with its details and attribution.
 // The uncropped thumbnail appears immediately; the full image replaces it
 // once downloaded. The full file is only fetched when a preview is opened.
-export function PreviewDialog({image, providerName, actions, onClose, onPrevious, onNext}: Props) {
+export function PreviewDialog({image, fullUrl, providerName, actions, onClose, onPrevious, onNext}: Props) {
+    const full = fullUrl || image.downloadUrl;
     const dialog = useRef<HTMLDialogElement>(null);
     // Status is derived from which URL finished loading, so switching images
     // cannot leave a stale "loaded" or "loading" state behind.
     const [result, setResult] = useState<{url: string; ok: boolean} | null>(null);
-    const status = result?.url !== image.downloadUrl ? 'loading' : result.ok ? 'loaded' : 'failed';
+    const status = result?.url !== full ? 'loading' : result.ok ? 'loaded' : 'failed';
     // The blurred placeholder is removed once the full image has faded in,
     // so it can never show through again.
     const [fadedUrl, setFadedUrl] = useState<string | null>(null);
-    const showPlaceholder = fadedUrl !== image.downloadUrl;
+    const showPlaceholder = fadedUrl !== full;
 
     useEffect(() => {
         const el = dialog.current;
@@ -34,11 +38,11 @@ export function PreviewDialog({image, providerName, actions, onClose, onPrevious
 
     useEffect(() => {
         if (status !== 'loaded') return;
-        const url = image.downloadUrl;
+        const url = full;
         // Slightly longer than the CSS fade (0.3 s).
         const timer = window.setTimeout(() => setFadedUrl(url), 350);
         return () => window.clearTimeout(timer);
-    }, [status, image.downloadUrl]);
+    }, [status, full]);
 
     function onKeyDown(event: KeyboardEvent) {
         if (event.key === 'ArrowLeft' && onPrevious) {
@@ -66,12 +70,12 @@ export function PreviewDialog({image, providerName, actions, onClose, onPrevious
                     />
                 )}
                 <img
-                    key={image.downloadUrl}
+                    key={full}
                     className={status === 'loaded' ? 'preview-full loaded' : 'preview-full'}
-                    src={image.downloadUrl}
+                    src={full}
                     alt={`Image from ${providerName}, ${image.width} by ${image.height}`}
-                    onLoad={() => setResult({url: image.downloadUrl, ok: true})}
-                    onError={() => setResult({url: image.downloadUrl, ok: false})}
+                    onLoad={() => setResult({url: full, ok: true})}
+                    onError={() => setResult({url: full, ok: false})}
                 />
                 {status === 'loading' && <p className="preview-status">Loading full image…</p>}
                 {status === 'failed' && <p className="preview-status error">The full image could not be loaded.</p>}
@@ -101,6 +105,8 @@ export function PreviewDialog({image, providerName, actions, onClose, onPrevious
                             ) : (
                                 image.author.name
                             )
+                        ) : image.author.credit ? (
+                            'See the author’s note below'
                         ) : (
                             'Unknown'
                         )}
@@ -116,6 +122,13 @@ export function PreviewDialog({image, providerName, actions, onClose, onPrevious
                         )}
                     </dd>
                 </dl>
+                {image.author.credit && (
+                    // Kept in full: it often holds the author's conditions of use.
+                    <details className="credit">
+                        <summary>Author’s note</summary>
+                        <p>{image.author.credit}</p>
+                    </details>
+                )}
                 {image.license.notice && <p className="notice">{image.license.notice}</p>}
 
                 {actions}

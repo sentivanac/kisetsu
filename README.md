@@ -2,11 +2,11 @@
 
 An open-source wallpaper discovery and management platform for Linux.
 
-> **Status:** early development (Phase 3 — multi-source search). The app
+> **Status:** early development (Phase 4 — local library). The app
 > searches Wallhaven and, if you enable it, Wikimedia Commons at the same
-> time, with size and orientation filters and `-word` exclusions; shows
-> results in a gallery and previews images with their author, source and
-> license. Filters are remembered between sessions.
+> time, with size and orientation filters and `-word` exclusions. Images
+> can be downloaded into a local library, which keeps their author, source
+> and license and works offline.
 >
 > Wikimedia Commons has no safe-for-work rating. Kisetsu limits it to
 > curated collections and filters risky results, but cannot guarantee
@@ -94,12 +94,13 @@ internal/          business logic, independent of the UI
     wallhaven/     Wallhaven API (SFW only)
     commons/       Wikimedia Commons API (curated collections, best-effort SFW)
   library/         downloaded images and collections (database records)
-  libfiles/        serves library files to the WebView under /library/
+  libfiles/        serves (and removes) library files under /library/
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
 app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
 app_downloads.go   downloads and their progress events
+app_library.go     library listing, statistics and deletion
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)
 frontend/          React + TypeScript + Vite
   src/components/  reusable UI components

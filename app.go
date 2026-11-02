@@ -14,6 +14,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
@@ -39,6 +40,7 @@ type App struct {
 	settings  *settings.Store
 	downloads *downloads.Manager
 	library   *library.Store
+	files     *libfiles.Server
 
 	// emit sends a Wails event. It is a no-op until startup, because the
 	// Wails runtime exits the process when called without its context.
@@ -60,6 +62,7 @@ type Deps struct {
 	Settings  *settings.Store
 	Downloads *downloads.Manager
 	Library   *library.Store
+	Files     *libfiles.Server
 }
 
 // NewApp creates a new App.
@@ -73,6 +76,7 @@ func NewApp(d Deps) *App {
 		settings:  d.Settings,
 		downloads: d.Downloads,
 		library:   d.Library,
+		files:     d.Files,
 		emit:      func(string, any) {},
 	}
 }

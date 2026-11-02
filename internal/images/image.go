@@ -51,6 +51,10 @@ type License struct {
 type Author struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
+	// Credit is the provider's full author text when it says more than the
+	// name, for example the photographer's conditions of use. It is kept
+	// in full, never shortened.
+	Credit string `json:"credit"`
 }
 
 // Image is one image result, normalized across providers.

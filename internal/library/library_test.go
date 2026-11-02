@@ -37,8 +37,12 @@ func entry(n int) Entry {
 			Height:       2688,
 			MIMEType:     "image/jpeg",
 			FileSize:     int64(1_000_000 + n),
-			Author:       images.Author{Name: "Vyacheslav Argenberg", URL: "https://commons.wikimedia.org/wiki/User:Argenberg"},
-			SourceURL:    "https://www.example.org/original",
+			Author: images.Author{
+				Name:   "Vyacheslav Argenberg",
+				URL:    "https://commons.wikimedia.org/wiki/User:Argenberg",
+				Credit: "Photo by Vyacheslav Argenberg. Please credit the author.",
+			},
+			SourceURL: "https://www.example.org/original",
 			License: images.License{
 				Status: images.LicenseKnown,
 				Name:   "CC BY 4.0",

@@ -12,7 +12,7 @@ func TestToPublicKeepsCodeAndMessage(t *testing.T) {
 	err := New(Unavailable, "Database is not available.", errors.New("disk I/O error at /secret/path"))
 
 	got := ToPublic(err)
-	want := Public{Code: Unavailable, Message: "Database is not available."}
+	want := PublicError{Code: Unavailable, Message: "Database is not available."}
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}

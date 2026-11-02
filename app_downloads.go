@@ -21,13 +21,13 @@ const AlreadyInLibrary apperr.Code = "already_in_library"
 
 // DownloadProgress is sent to the frontend for every download update.
 type DownloadProgress struct {
-	Key        string         `json:"key"` // provider "/" provider ID
-	State      string         `json:"state"`
-	Received   int64          `json:"received"`
-	Total      int64          `json:"total"`
-	EntryID    int64          `json:"entryId,omitempty"`
-	SimilarIDs []int64        `json:"similarIds,omitempty"`
-	Error      *apperr.Public `json:"error,omitempty"`
+	Key        string              `json:"key"` // provider "/" provider ID
+	State      string              `json:"state"`
+	Received   int64               `json:"received"`
+	Total      int64               `json:"total"`
+	EntryID    int64               `json:"entryId,omitempty"`
+	SimilarIDs []int64             `json:"similarIds,omitempty"`
+	Error      *apperr.PublicError `json:"error,omitempty"`
 }
 
 // Download starts downloading an image into the library and returns its
