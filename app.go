@@ -16,6 +16,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
+	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
@@ -42,6 +43,7 @@ type App struct {
 	library   *library.Store
 	files     *libfiles.Server
 	wallpaper WallpaperSetter
+	rotation  *rotation.Rotator
 
 	// emit sends a Wails event. It is a no-op until startup, because the
 	// Wails runtime exits the process when called without its context.
@@ -65,6 +67,7 @@ type Deps struct {
 	Library   *library.Store
 	Files     *libfiles.Server
 	Wallpaper WallpaperSetter
+	Rotation  *rotation.Rotator
 }
 
 // NewApp creates a new App.
@@ -80,6 +83,7 @@ func NewApp(d Deps) *App {
 		library:   d.Library,
 		files:     d.Files,
 		wallpaper: d.Wallpaper,
+		rotation:  d.Rotation,
 		emit:      func(string, any) {},
 	}
 }

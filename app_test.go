@@ -21,6 +21,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/providers"
+	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
@@ -105,6 +106,10 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		Log: log, DB: db, DBPath: path, Search: svc,
 		Settings: settings.NewStore(db), Downloads: mgr, Library: lib, Files: files,
 		Wallpaper: &fakeWallpaper{}, // never the real desktop
+		Rotation: &rotation.Rotator{
+			Library: lib, Settings: settings.NewStore(db), History: rotation.NewHistory(db),
+			Files: files, Setter: &fakeWallpaper{}, Log: log,
+		},
 	})
 	return app
 }

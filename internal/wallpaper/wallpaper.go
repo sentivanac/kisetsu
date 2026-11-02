@@ -68,6 +68,9 @@ type Setter struct {
 	ProcDir string
 	// UID is the user whose Variety counts (normally os.Getuid()).
 	UID int
+	// Direct skips Variety and always uses the desktop setting. Rotation
+	// uses it: the user chose that Kisetsu, not Variety, rotates.
+	Direct bool
 }
 
 // New returns a Setter for the current user and environment.
@@ -80,7 +83,7 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 	if !filepath.IsAbs(path) {
 		return "", fmt.Errorf("wallpaper path %q is not absolute", path)
 	}
-	if s.varietyRunning() {
+	if !s.Direct && s.varietyRunning() {
 		if _, err := s.Run.Run(ctx, "variety", "--set", path); err != nil {
 			return Variety, err
 		}
@@ -103,10 +106,16 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, s.Getenv("XDG_CURRENT_DESKTOP"))
 }
 
+// VarietyRunning reports whether the user runs Variety, which would also
+// change the wallpaper.
+func (s *Setter) VarietyRunning() bool {
+	return s.varietyRunning()
+}
+
 // desktop reads XDG_CURRENT_DESKTOP, a colon-separated list such as
 // "ubuntu:GNOME".
 func (s *Setter) desktop() Method {
-	for _, name := range strings.Split(s.Getenv("XDG_CURRENT_DESKTOP"), ":") {
+	for name := range strings.SplitSeq(s.Getenv("XDG_CURRENT_DESKTOP"), ":") {
 		switch strings.ToUpper(strings.TrimSpace(name)) {
 		case "MATE":
 			return MATE

@@ -211,6 +211,42 @@ func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
 	return out, nil
 }
 
+// IDs returns the IDs of the library (collectionID 0) or of one
+// collection, oldest first.
+func (s *Store) IDs(ctx context.Context, collectionID int64) ([]int64, error) {
+	query := `SELECT id FROM images ORDER BY added_at, id`
+	var args []any
+	if collectionID != 0 {
+		query = `SELECT id FROM images
+			WHERE id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)
+			ORDER BY added_at, id`
+		args = append(args, collectionID)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list image IDs: %w", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("list image IDs: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// HasCollection reports whether a collection exists.
+func (s *Store) HasCollection(ctx context.Context, id int64) (bool, error) {
+	err := s.exists(ctx, "collections", id)
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // Stats summarizes the library.
 type Stats struct {
 	Images int

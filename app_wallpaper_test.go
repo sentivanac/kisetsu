@@ -45,6 +45,11 @@ func TestSetWallpaperUsesTheLibraryOriginal(t *testing.T) {
 		t.Errorf("result = %+v", result)
 	}
 
+	st, err := app.rotation.History.State(app.ctx)
+	if err != nil || st.Current != ids[0] {
+		t.Errorf("history current = %d, %v; want %d", st.Current, err, ids[0])
+	}
+
 	fake.method = wallpaper.Variety
 	result, _ = app.SetWallpaper(ids[0])
 	if !strings.Contains(result.Message, "Variety") {

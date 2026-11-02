@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/logging"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
+	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -137,6 +140,7 @@ func run() error {
 		Library:   lib,
 		Files:     files,
 		Wallpaper: wallpaper.New(),
+		Rotation:  newRotator(db, lib, files, log),
 	})
 
 	err = wails.Run(&options.App{
@@ -176,4 +180,19 @@ func run() error {
 
 	log.Info("stopped")
 	return nil
+}
+
+// newRotator builds the rotation service. It sets wallpapers directly with
+// gsettings, never through Variety: the user chose that Kisetsu rotates.
+func newRotator(db *sql.DB, lib *library.Store, files *libfiles.Server, log *slog.Logger) *rotation.Rotator {
+	setter := wallpaper.New()
+	setter.Direct = true
+	return &rotation.Rotator{
+		Library:  lib,
+		Settings: settings.NewStore(db),
+		History:  rotation.NewHistory(db),
+		Files:    files,
+		Setter:   setter,
+		Log:      log,
+	}
 }

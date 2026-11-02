@@ -187,3 +187,19 @@ func TestErrors(t *testing.T) {
 		t.Errorf("failing variety: method %q, err %v", method, err)
 	}
 }
+
+func TestDirectSkipsVariety(t *testing.T) {
+	s, run := newSetter(t, "MATE", "variety")
+	s.Direct = true
+
+	method, err := s.Set(context.Background(), image)
+	if err != nil || method != MATE {
+		t.Fatalf("method %q, err %v", method, err)
+	}
+	if run.calls[0][0] != "gsettings" {
+		t.Errorf("calls = %q, want gsettings only", run.calls)
+	}
+	if !s.VarietyRunning() {
+		t.Error("VarietyRunning = false")
+	}
+}

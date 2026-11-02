@@ -97,6 +97,7 @@ internal/          business logic, independent of the UI
     commons/       Wikimedia Commons API (curated collections, best-effort SFW)
   library/         downloaded images and collections (database records)
   libfiles/        serves (and removes) library files under /library/
+  rotation/        chooses and sets the next wallpaper, rotation history
   search/          runs searches against registered providers
   settings/        user preferences stored in the database
   wallpaper/       sets the wallpaper (Variety, MATE, GNOME)

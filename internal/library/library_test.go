@@ -262,3 +262,25 @@ func TestIDsBySource(t *testing.T) {
 		t.Errorf("chunked lookup = %v, %v", got, err)
 	}
 }
+
+func TestIDsAndHasCollection(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	a, b, c := mustAdd(t, s, entry(1)), mustAdd(t, s, entry(2)), mustAdd(t, s, entry(3))
+	coll, _ := s.CreateCollection(ctx, "Pick")
+	s.AddToCollection(ctx, coll.ID, c)
+	s.AddToCollection(ctx, coll.ID, a)
+
+	if ids, err := s.IDs(ctx, 0); err != nil || !slices.Equal(ids, []int64{a, b, c}) {
+		t.Errorf("IDs(all) = %v, %v; want oldest first", ids, err)
+	}
+	if ids, err := s.IDs(ctx, coll.ID); err != nil || !slices.Equal(ids, []int64{a, c}) {
+		t.Errorf("IDs(collection) = %v, %v", ids, err)
+	}
+	if ok, err := s.HasCollection(ctx, coll.ID); !ok || err != nil {
+		t.Errorf("HasCollection(existing) = %v, %v", ok, err)
+	}
+	if ok, err := s.HasCollection(ctx, 999); ok || err != nil {
+		t.Errorf("HasCollection(missing) = %v, %v", ok, err)
+	}
+}
