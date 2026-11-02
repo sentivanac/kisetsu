@@ -44,6 +44,10 @@ install -d "$doc"
 } > "$doc/copyright"
 chmod 644 "$doc/copyright"
 
+# Licenses of the Go modules and npm packages built into the binary.
+"$root/scripts/third-party-licenses.sh" "$binary" | gzip -9n > "$doc/THIRD_PARTY_LICENSES.gz"
+chmod 644 "$doc/THIRD_PARTY_LICENSES.gz"
+
 # Debian changelog (required in every package), one entry per release.
 {
 	echo "kisetsu ($version) unstable; urgency=medium"

@@ -95,3 +95,47 @@ func TestOpenWithoutMirror(t *testing.T) {
 	defer closer.Close()
 	log.Info("file only") // must not panic or write elsewhere
 }
+
+func TestOpenStartsNewFileWhenTooLarge(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+	big := bytes.Repeat([]byte("x"), MaxSize+1)
+	if err := os.WriteFile(path, big, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path+".1", []byte("oldest\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	log, closer, err := Open(dir, slog.LevelInfo, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("after rotation")
+	closer.Close()
+
+	current, _ := os.ReadFile(path)
+	if !strings.Contains(string(current), "after rotation") || len(current) > 1000 {
+		t.Errorf("new log has %d bytes: %.80q", len(current), current)
+	}
+	previous, _ := os.ReadFile(path + ".1")
+	if len(previous) != MaxSize+1 {
+		t.Errorf("previous log has %d bytes, want the large file", len(previous))
+	}
+}
+
+func TestOpenKeepsFileUnderTheLimit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+	if err := os.WriteFile(path, bytes.Repeat([]byte("x"), MaxSize), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, closer, err := Open(dir, slog.LevelInfo, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closer.Close()
+	if _, err := os.Stat(path + ".1"); !os.IsNotExist(err) {
+		t.Errorf("a log at the limit was rotated (err %v)", err)
+	}
+}

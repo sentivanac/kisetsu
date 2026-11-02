@@ -82,6 +82,8 @@ export function WallpaperView({active}: Props) {
     const collectionMissing = s.collectionId !== 0 && !collections.some((c) => c.id === s.collectionId);
     const searchMissing = s.savedSearchId !== 0 && !savedSearches.some((x) => x.id === s.savedSearchId);
     const fromSearch = s.savedSearchId !== 0 && !searchMissing;
+    // A saved search downloads images when it has none, so it can always try.
+    const nothingToShow = state.sourceImages === 0 && !fromSearch;
 
     return (
         <section className="wallpaper" aria-busy={busy !== null}>
@@ -94,13 +96,23 @@ export function WallpaperView({active}: Props) {
             )}
 
             <div className="wallpaper-now">
-                <button type="button" className="btn" onClick={() => apply(NextWallpaper, 'next')} disabled={busy !== null}>
+                <button
+                    type="button"
+                    className="btn"
+                    onClick={() => apply(NextWallpaper, 'next')}
+                    disabled={busy !== null || nothingToShow}
+                    aria-describedby="wallpaper-now-note"
+                >
                     {busy === 'next' ? 'Changing…' : 'Next wallpaper'}
                 </button>
-                <p className="muted">
-                    {state.lastChange
-                        ? `Last changed ${relativeTime(state.lastChange)}.`
-                        : 'Kisetsu has not changed the wallpaper yet.'}
+                <p className="muted" id="wallpaper-now-note">
+                    {nothingToShow
+                        ? s.collectionId !== 0 && !collectionMissing
+                            ? 'This collection is empty. Add images to it in the Library tab, or choose other images below.'
+                            : 'There are no images yet. Download some in the Search tab, or choose a saved search below.'
+                        : state.lastChange
+                          ? `Last changed ${relativeTime(state.lastChange)}.`
+                          : 'Kisetsu has not changed the wallpaper yet.'}
                 </p>
             </div>
 

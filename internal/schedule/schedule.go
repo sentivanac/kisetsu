@@ -275,6 +275,10 @@ func (m *Manager) serviceUnit() string {
 	fmt.Fprintln(&b, "[Unit]")
 	fmt.Fprintln(&b, "Description=Kisetsu: change the wallpaper")
 	fmt.Fprintln(&b, "Documentation=https://github.com/sentivanac/kisetsu")
+	// After Kisetsu is uninstalled (or moved), the timer would start a
+	// missing program and log a failure at every interval. With this
+	// condition systemd skips the run quietly instead.
+	fmt.Fprintf(&b, "ConditionFileIsExecutable=%s\n", conditionPath(m.Executable))
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "[Service]")
 	fmt.Fprintln(&b, "Type=oneshot")
@@ -315,6 +319,11 @@ func quoteSystemd(s string) string {
 }
 
 func quoteExecPath(path string) string { return quoteSystemd(path) }
+
+// conditionPath writes a path for a Condition…= setting. These take the
+// rest of the line literally (no quotes or escapes), but expand "%"
+// specifiers, so only "%" needs doubling.
+func conditionPath(path string) string { return strings.ReplaceAll(path, "%", "%%") }
 
 // unquoteExecPath reverses quoteExecPath for the first word of ExecStart.
 func unquoteExecPath(execStart string) string {

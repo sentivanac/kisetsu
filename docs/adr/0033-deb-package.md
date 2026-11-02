@@ -25,7 +25,7 @@ nothing.
 
 - **Contents:** `/usr/bin/kisetsu`, the `.desktop` file, the icon (SVG
   and PNG sizes in `hicolor`), `/usr/share/doc/kisetsu/{copyright,
-  changelog.gz}`. The icon cache and menu are updated by dpkg triggers
+  changelog.gz, THIRD_PARTY_LICENSES.gz}`. The icon cache and menu are updated by dpkg triggers
   of `hicolor-icon-theme` and `desktop-file-utils`, so the package has
   no maintainer scripts.
 - **Depends** are computed by `dpkg-shlibdeps` from the libraries the
@@ -42,6 +42,17 @@ nothing.
   because the standard library is rebuilt; later ones are fast.
 - `--root-owner-group`: files are owned by root without `fakeroot`.
 
+### Third-party licenses (added in the pre-release review)
+
+The MIT, BSD and Apache 2.0 licenses of the code built into the binary
+require shipping their notices. `scripts/third-party-licenses.sh` lists
+what is actually built in — the Go standard library, every module
+recorded in the binary (`go version -m`) and the npm packages bundled
+into the frontend (`npm ls --omit=dev`) — and copies every license and
+notice file of each (some have several: `modernc.org/sqlite` also
+carries SQLite's). A component without a license file fails the build.
+For 0.1.0: 23 Go modules, Go itself, and react, react-dom, scheduler.
+
 ## Verification
 
 - `lintian`: only `no-manual-page` (a warning) remains.
@@ -53,7 +64,8 @@ nothing.
 
 ## Open
 
-- Uninstalling the package leaves the user's rotation timer, which then
-  starts a missing `/usr/bin/kisetsu`. To be handled in the pre-release
-  review (ADR to follow).
+- Uninstalling the package leaves the user's rotation timer (a package
+  cannot reach into users' systemd configuration). Since the pre-release
+  review the timer then skips its runs quietly (ADR 0025, "Missing
+  program"); the README explains how to remove it.
 - A manual page.

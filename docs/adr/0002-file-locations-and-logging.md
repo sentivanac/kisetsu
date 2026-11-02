@@ -34,3 +34,12 @@ reported by users.
   real setting. (Resolved by ADR 0009: settings are stored in SQLite.)
 - Log rotation. The log file grows without limit for now.
 - Routing Wails' internal log output into the same logger.
+
+## Addendum 2026-11-02: log size
+
+The window and every rotation run append to the same log, so it grew
+without limit. When the log is opened and is larger than 5 MB, it is
+renamed to `kisetsu.log.1` (replacing an older one) and a new log is
+started: at most about 10 MB in total. A process that still has the old
+file open keeps writing into it until it restarts, so no record is
+lost. No external `logrotate` configuration is needed.

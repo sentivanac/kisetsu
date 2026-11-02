@@ -688,3 +688,14 @@
 .chip-fetched {
     border-style: dotted;
 }
+
+/* Shown on the Search tab before the first search. */
+.search-intro {
+    margin-top: 2rem;
+    max-width: 60ch;
+    line-height: 1.5;
+}
+
+.search-intro p {
+    margin: 0 0 0.5rem;
+}

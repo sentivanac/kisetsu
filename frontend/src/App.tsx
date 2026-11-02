@@ -92,9 +92,11 @@ function App() {
             <footer className="app-footer" aria-live="polite">
                 {error && <span className="error">{describeError(error)}</span>}
                 {status && (
-                    <span title={status.database.path}>
-                        {status.app.name} {status.app.version} · {status.app.platform} · database schema v
-                        {status.database.schemaVersion}
+                    // Details for bug reports stay available on hover.
+                    <span
+                        title={`${status.app.platform} · database schema v${status.database.schemaVersion} · ${status.database.path}`}
+                    >
+                        {status.app.name} {status.app.version}
                     </span>
                 )}
             </footer>

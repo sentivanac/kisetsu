@@ -101,7 +101,7 @@ Kisetsu has no account, no telemetry and no server of its own.
 |---|---|
 | Library images, thumbnails, database | `~/.local/share/kisetsu` |
 | Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` |
-| Log file | `~/.local/state/kisetsu/kisetsu.log` |
+| Log file (a new one is started above 5 MB; the previous is kept as `.1`) | `~/.local/state/kisetsu/kisetsu.log` |
 | Rotation timer (only while rotation is on) | `~/.config/systemd/user/kisetsu-rotate.{service,timer}` |
 
 Kisetsu never deletes images from your library on its own; only the
@@ -123,8 +123,8 @@ cache of fresh images is cleaned up automatically.
    rm -r ~/.local/share/kisetsu ~/.cache/kisetsu ~/.local/state/kisetsu ~/.config/kisetsu
    ```
 
-If you removed the program while rotation was on, remove the timer by
-hand:
+If you removed the program while rotation was on, the timer stays but
+does nothing. To remove it as well:
 
 ```sh
 systemctl --user disable --now kisetsu-rotate.timer
@@ -155,5 +155,7 @@ kisetsu help
 
 ## License
 
-Kisetsu is released under the [MIT License](LICENSE). Images found with
+Kisetsu is released under the [MIT License](LICENSE). The licenses of
+the libraries it is built with are installed with it, in
+`/usr/share/doc/kisetsu/THIRD_PARTY_LICENSES.gz`. Images found with
 Kisetsu belong to their authors and keep their own licenses.

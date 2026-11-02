@@ -13,6 +13,12 @@ import (
 // FileName is the log file created in the state directory.
 const FileName = "kisetsu.log"
 
+// MaxSize is the size above which the log is started anew when it is
+// opened. The previous log is kept as FileName + ".1", so the logs take
+// at most about twice this much space. Every rotation run opens the log,
+// so the check happens often enough.
+const MaxSize = 5 << 20
+
 // LevelEnv is the environment variable that selects the log level.
 const LevelEnv = "KISETSU_LOG_LEVEL"
 
@@ -43,6 +49,14 @@ func New(w io.Writer, level slog.Level) *slog.Logger {
 // caller must close the returned file.
 func Open(dir string, level slog.Level, mirror io.Writer) (*slog.Logger, io.Closer, error) {
 	path := filepath.Join(dir, FileName)
+	if info, err := os.Stat(path); err == nil && info.Size() > MaxSize {
+		// Replaces an older ".1". A process that still has the log open
+		// (the window, while the timer rotates) keeps writing into the
+		// renamed file until it is restarted; nothing is lost.
+		if err := os.Rename(path, path+".1"); err != nil {
+			return nil, nil, fmt.Errorf("start a new log file: %w", err)
+		}
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open log file: %w", err)

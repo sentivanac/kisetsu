@@ -366,6 +366,15 @@ export function SearchPanel({active}: Props) {
                 {selectedSources.length === 0 && filtersLoaded && (
                     <p className="muted">Select at least one source to search.</p>
                 )}
+                {!activeQuery && loading === null && !error && selectedSources.length > 0 && (
+                    <div className="search-intro muted">
+                        <p>
+                            Describe what you would like to see, for example <q>misty mountains -snow</q>, and press
+                            Search. A word with a minus in front is left out.
+                        </p>
+                        <p>Search without words to see popular images.</p>
+                    </div>
+                )}
                 {statuses.length > 0 && (
                     <ul className="source-status">
                         {statuses.map((s) => (

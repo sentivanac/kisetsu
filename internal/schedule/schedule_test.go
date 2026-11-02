@@ -66,6 +66,7 @@ func TestEnableWritesUnitsAndStartsTimer(t *testing.T) {
 		marker,
 		"Type=oneshot",
 		`ExecStart="/home/user/apps/kisetsu" rotate --scheduled`,
+		"ConditionFileIsExecutable=/home/user/apps/kisetsu\n",
 		`Environment="KISETSU_DESKTOP_FALLBACK=MATE"`,
 	} {
 		if !strings.Contains(service, want) {

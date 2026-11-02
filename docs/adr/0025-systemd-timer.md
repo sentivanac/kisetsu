@@ -64,6 +64,16 @@ if the service has not run yet. `OnActiveSec` counts from the timer's start
 (enabling, and each login), so the first change happens one interval after
 that, and the following ones one interval after each change.
 
+### Missing program (added 2026-11-02)
+
+The service has `ConditionFileIsExecutable=<path of kisetsu>`. When
+Kisetsu was uninstalled or moved while rotation was on, systemd skips
+the run (`ConditionResult=no`, result `success`) instead of failing at
+every interval. Condition values are taken literally, so only `%` is
+escaped. Checked with `systemd-analyze --user verify` and a transient
+unit with a missing path. (`ConditionPathIsExecutable` does not exist;
+systemd ignores it with a warning.)
+
 ### Environment
 
 The service sets `KISETSU_DESKTOP_FALLBACK` to the desktop found when
