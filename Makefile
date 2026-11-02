@@ -5,11 +5,12 @@ TAGS := webkit2_41
 # The version of the next release; the only place it is written.
 VERSION := 0.1.0
 LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(VERSION)
+# The release binary is position independent, so ASLR covers it fully.
 
 # Application ID, used for the .desktop file and the icon name.
 APP_ID := io.github.sentivanac.Kisetsu
 
-.PHONY: dev build test test-live test-frontend vet check check-node icons
+.PHONY: dev build test test-live test-frontend vet check check-node icons deb
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -17,7 +18,11 @@ dev: check-node
 
 ## build: produce a production binary in build/bin/
 build: check-node
-	wails build -ldflags "$(LDFLAGS)"
+	GOFLAGS=-buildmode=pie wails build -ldflags "$(LDFLAGS)"
+
+## deb: build a .deb package into build/deb/ (does not install it)
+deb: build
+	scripts/build-deb.sh $(VERSION) $(APP_ID)
 
 ## icons: render the PNG icons from the SVG source (needs inkscape; the
 ## results are committed, so this is only needed after editing the SVG)
