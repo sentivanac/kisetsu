@@ -279,10 +279,11 @@ func (m *Manager) serviceUnit() string {
 	fmt.Fprintln(&b, "[Service]")
 	fmt.Fprintln(&b, "Type=oneshot")
 	fmt.Fprintf(&b, "ExecStart=%s rotate --scheduled\n", quoteExecPath(m.Executable))
-	// Fallback for sessions that do not export the desktop to systemd;
-	// an exported value is the same desktop.
+	// Only a fallback: Kisetsu asks loginctl for the session the user is
+	// logged into now. Setting XDG_CURRENT_DESKTOP here would override it
+	// and keep the desktop of the moment rotation was enabled.
 	if desktop := m.Getenv("XDG_CURRENT_DESKTOP"); desktop != "" {
-		fmt.Fprintf(&b, "Environment=%s\n", quoteSystemd("XDG_CURRENT_DESKTOP="+desktop))
+		fmt.Fprintf(&b, "Environment=%s\n", quoteSystemd("KISETSU_DESKTOP_FALLBACK="+desktop))
 	}
 	return b.String()
 }

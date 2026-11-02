@@ -71,11 +71,23 @@ type Setter struct {
 	// Direct skips Variety and always uses the desktop setting. Rotation
 	// uses it: the user chose that Kisetsu, not Variety, rotates.
 	Direct bool
+	// DataDirs are searched for xsessions/ and wayland-sessions/ (normally
+	// $XDG_DATA_DIRS, or /usr/local/share and /usr/share).
+	DataDirs []string
 }
+
+// FallbackEnv names the variable the rotation timer sets to the desktop
+// found when rotation was enabled. It is used only when the desktop cannot
+// be found otherwise; it never overrides the running session.
+const FallbackEnv = "KISETSU_DESKTOP_FALLBACK"
 
 // New returns a Setter for the current user and environment.
 func New() *Setter {
-	return &Setter{Run: ExecRunner{}, Getenv: os.Getenv, ProcDir: "/proc", UID: os.Getuid()}
+	dirs := filepath.SplitList(os.Getenv("XDG_DATA_DIRS"))
+	if len(dirs) == 0 {
+		dirs = []string{"/usr/local/share", "/usr/share"}
+	}
+	return &Setter{Run: ExecRunner{}, Getenv: os.Getenv, ProcDir: "/proc", UID: os.Getuid(), DataDirs: dirs}
 }
 
 // Set makes the image at path the wallpaper. path must be absolute.
@@ -90,7 +102,8 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 		return Variety, nil
 	}
 
-	switch desktop := s.desktop(); desktop {
+	names := s.desktopNames(ctx)
+	switch desktop := match(names); desktop {
 	case MATE:
 		return MATE, s.gsettings(ctx, "org.mate.background", "picture-filename", path)
 	case GNOME:
@@ -103,7 +116,7 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 		}
 		return GNOME, nil
 	}
-	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, s.Getenv("XDG_CURRENT_DESKTOP"))
+	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, strings.Join(names, ":"))
 }
 
 // VarietyRunning reports whether the user runs Variety, which would also
@@ -112,11 +125,104 @@ func (s *Setter) VarietyRunning() bool {
 	return s.varietyRunning()
 }
 
-// desktop reads XDG_CURRENT_DESKTOP, a colon-separated list such as
-// "ubuntu:GNOME".
-func (s *Setter) desktop() Method {
-	for name := range strings.SplitSeq(s.Getenv("XDG_CURRENT_DESKTOP"), ":") {
-		switch strings.ToUpper(strings.TrimSpace(name)) {
+// desktopNames returns the names of the desktop the user is logged into,
+// such as ["ubuntu", "GNOME"], in this order of trust:
+//
+//  1. the user's active graphical session according to loginctl, and the
+//     DesktopNames of its session file — the same source the login
+//     manager uses for XDG_CURRENT_DESKTOP. This stays right for the
+//     rotation timer, whose environment can be stale: the systemd user
+//     manager keeps the variables of the first session, and sessions such
+//     as i3 do not update them;
+//  2. XDG_CURRENT_DESKTOP;
+//  3. FallbackEnv, set by the timer unit.
+func (s *Setter) desktopNames(ctx context.Context) []string {
+	if names := s.sessionDesktop(ctx); len(names) > 0 {
+		return names
+	}
+	for _, env := range []string{"XDG_CURRENT_DESKTOP", FallbackEnv} {
+		if names := splitNames(s.Getenv(env)); len(names) > 0 {
+			return names
+		}
+	}
+	return nil
+}
+
+// sessionDesktop asks loginctl for the user's graphical session and reads
+// DesktopNames from its session file.
+func (s *Setter) sessionDesktop(ctx context.Context) []string {
+	if _, err := s.Run.LookPath("loginctl"); err != nil {
+		return nil
+	}
+	out, err := s.Run.Run(ctx, "loginctl", "show-user", strconv.Itoa(s.UID), "--property=Display", "--value")
+	session := strings.TrimSpace(string(out))
+	if err != nil || session == "" {
+		return nil
+	}
+	// Read by name: loginctl prints properties in its own order, not in
+	// the order they were asked for.
+	out, err = s.Run.Run(ctx, "loginctl", "show-session", session, "--property=Desktop", "--property=Type")
+	if err != nil {
+		return nil
+	}
+	var name, kind string
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if v, ok := strings.CutPrefix(line, "Desktop="); ok {
+			name = strings.TrimSpace(v)
+		} else if v, ok := strings.CutPrefix(line, "Type="); ok {
+			kind = strings.TrimSpace(v)
+		}
+	}
+	// The name becomes part of a file path.
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return nil
+	}
+	return s.sessionFileNames(name, kind)
+}
+
+// sessionFileNames reads DesktopNames from a session file (Wayland
+// sessions are looked up first for Wayland). A file without DesktopNames,
+// or no file at all, means the session name itself.
+func (s *Setter) sessionFileNames(name, kind string) []string {
+	subdirs := []string{"xsessions", "wayland-sessions"}
+	if kind == "wayland" {
+		subdirs = []string{"wayland-sessions", "xsessions"}
+	}
+	for _, sub := range subdirs {
+		for _, dir := range s.DataDirs {
+			data, err := os.ReadFile(filepath.Join(dir, sub, name+".desktop"))
+			if err != nil {
+				continue
+			}
+			for line := range strings.SplitSeq(string(data), "\n") {
+				if v, ok := strings.CutPrefix(strings.TrimSpace(line), "DesktopNames="); ok {
+					if names := splitNames(v); len(names) > 0 {
+						return names
+					}
+				}
+			}
+			return []string{name}
+		}
+	}
+	return []string{name}
+}
+
+// splitNames splits a desktop list; session files use ";" and the
+// environment ":".
+func splitNames(s string) []string {
+	var names []string
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == ':' || r == ';' }) {
+		if part = strings.TrimSpace(part); part != "" {
+			names = append(names, part)
+		}
+	}
+	return names
+}
+
+// match returns the supported desktop among names, or "".
+func match(names []string) Method {
+	for _, name := range names {
+		switch strings.ToUpper(name) {
 		case "MATE":
 			return MATE
 		case "GNOME":

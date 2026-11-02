@@ -18,6 +18,10 @@ type fakeRunner struct {
 	missing  map[string]bool   // commands LookPath does not find
 	fail     string            // command whose Run fails
 	ignore   bool              // gsettings set "succeeds" without changing anything
+	// session is what loginctl reports: the graphical session's Desktop
+	// and Type, e.g. "ubuntu x11"; empty means no graphical session.
+	// loginctl only reads, so its calls are not recorded.
+	session string
 }
 
 func (f *fakeRunner) LookPath(name string) (string, error) {
@@ -28,6 +32,17 @@ func (f *fakeRunner) LookPath(name string) (string, error) {
 }
 
 func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if name == "loginctl" {
+		switch {
+		case f.session == "":
+			return nil, nil
+		case args[0] == "show-user":
+			return []byte("c2\n"), nil
+		default:
+			desktop, kind, _ := strings.Cut(f.session, " ")
+			return []byte("Type=" + kind + "\nDesktop=" + desktop + "\n"), nil // not in the order asked for
+		}
+	}
 	f.calls = append(f.calls, append([]string{name}, args...))
 	if name == f.fail {
 		return nil, errors.New(name + " failed")
@@ -201,5 +216,66 @@ func TestDirectSkipsVariety(t *testing.T) {
 	}
 	if !s.VarietyRunning() {
 		t.Error("VarietyRunning = false")
+	}
+}
+
+// sessionDirs creates xsessions/ and wayland-sessions/ like the user's
+// system (Ubuntu 22.04 with MATE, GNOME and i3).
+func sessionDirs(t *testing.T) []string {
+	t.Helper()
+	dir := t.TempDir()
+	files := map[string]string{
+		"xsessions/mate.desktop":                  "[Desktop Entry]\nName=MATE\nDesktopNames=MATE\n",
+		"xsessions/ubuntu.desktop":                "[Desktop Entry]\nName=Ubuntu\nDesktopNames=ubuntu:GNOME\n",
+		"xsessions/i3.desktop":                    "[Desktop Entry]\nName=i3\nDesktopNames=i3\n",
+		"xsessions/i3-with-shmlog.desktop":        "[Desktop Entry]\nName=i3 (with debug log)\n",
+		"wayland-sessions/ubuntu-wayland.desktop": "[Desktop Entry]\nName=Ubuntu on Wayland\nDesktopNames=ubuntu;GNOME\n",
+	}
+	for name, content := range files {
+		os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755)
+		os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644)
+	}
+	return []string{dir}
+}
+
+// The rotation timer's environment can name another desktop than the one
+// the user is logged into; the active session decides.
+func TestActiveSessionDecidesTheDesktop(t *testing.T) {
+	tests := []struct {
+		session, env string
+		want         Method
+		wantErr      bool
+	}{
+		{"ubuntu x11", "MATE", GNOME, false},         // stale MATE value, logged into GNOME
+		{"ubuntu-wayland wayland", "", GNOME, false}, // Wayland session file, ";" separated
+		{"mate x11", "ubuntu:GNOME", MATE, false},    // stale GNOME value, logged into MATE
+		{"i3 x11", "ubuntu:GNOME", "", true},         // i3 is not supported, whatever the env says
+		{"i3-with-shmlog x11", "", "", true},         // no DesktopNames: the session name
+		{"", "ubuntu:GNOME", GNOME, false},           // no graphical session found: the env
+	}
+	for _, tt := range tests {
+		s, run := newSetter(t, tt.env)
+		s.DataDirs = sessionDirs(t)
+		run.session = tt.session
+
+		method, err := s.Set(context.Background(), image)
+		if tt.wantErr {
+			if !errors.Is(err, ErrUnsupportedDesktop) {
+				t.Errorf("%q / %q: err = %v, want ErrUnsupportedDesktop", tt.session, tt.env, err)
+			}
+			continue
+		}
+		if err != nil || method != tt.want {
+			t.Errorf("%q / %q: method %q, err %v; want %q", tt.session, tt.env, method, err, tt.want)
+		}
+	}
+}
+
+func TestFallbackDesktopFromTheTimer(t *testing.T) {
+	s, _ := newSetter(t, "")
+	s.Getenv = func(k string) string { return map[string]string{FallbackEnv: "MATE"}[k] }
+
+	if method, err := s.Set(context.Background(), image); err != nil || method != MATE {
+		t.Errorf("method %q, err %v; want the fallback MATE", method, err)
 	}
 }

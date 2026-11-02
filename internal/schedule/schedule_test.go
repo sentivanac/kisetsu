@@ -66,7 +66,7 @@ func TestEnableWritesUnitsAndStartsTimer(t *testing.T) {
 		marker,
 		"Type=oneshot",
 		`ExecStart="/home/user/apps/kisetsu" rotate --scheduled`,
-		`Environment="XDG_CURRENT_DESKTOP=MATE"`,
+		`Environment="KISETSU_DESKTOP_FALLBACK=MATE"`,
 	} {
 		if !strings.Contains(service, want) {
 			t.Errorf("service unit lacks %q:\n%s", want, service)

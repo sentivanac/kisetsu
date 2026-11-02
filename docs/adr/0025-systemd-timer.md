@@ -15,7 +15,7 @@
 [Service]
 Type=oneshot
 ExecStart="/path/to/kisetsu" rotate --scheduled
-Environment="XDG_CURRENT_DESKTOP=MATE"
+Environment="KISETSU_DESKTOP_FALLBACK=MATE"
 
 # kisetsu-rotate.timer
 [Timer]
@@ -66,8 +66,11 @@ that, and the following ones one interval after each change.
 
 ### Environment
 
-The service sets `XDG_CURRENT_DESKTOP` to the value found when rotation
-was enabled, as a fallback for sessions that do not export it to systemd.
+The service sets `KISETSU_DESKTOP_FALLBACK` to the desktop found when
+rotation was enabled. It is used only when the desktop cannot be found
+otherwise (ADR 0031). Until 2026-11-02 the service set
+`XDG_CURRENT_DESKTOP` itself, which overrode the session the user was
+logged into.
 The user's MATE session does export it, together with the D-Bus address
 `gsettings` needs. User timers run while the user is logged in, which is
 what a wallpaper needs.

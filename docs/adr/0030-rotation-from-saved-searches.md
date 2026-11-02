@@ -50,6 +50,7 @@ new ones are downloaded at screen size when fewer than 3 are left unshown.
   existing images, no images, deleted search fallback, both sources
   rejected.
 - In a sandbox with `XDG_CURRENT_DESKTOP=NONE` (so no wallpaper can be
-  set), `kisetsu rotate` with a saved search "forest -snow" as source
+  set — no longer enough since ADR 0031, which asks `loginctl`; a `PATH`
+  without `gsettings` is needed now), `kisetsu rotate` with a saved search "forest -snow" as source
   fetched 5 images from the live Wallhaven API (3.5 MB in total) in 4.5 s
   and then stopped at setting the wallpaper, as intended.

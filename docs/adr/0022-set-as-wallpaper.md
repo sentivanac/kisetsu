@@ -19,8 +19,9 @@ example its clock).
    for processes owned by the current user — not by calling `variety`,
    because `variety --get`/`--set` start a new Variety when none runs. If
    it runs: `variety --set <path>`.
-2. Otherwise the desktop from `XDG_CURRENT_DESKTOP` (colon-separated, e.g.
-   `ubuntu:GNOME`):
+2. Otherwise the desktop of the session the user is logged into
+   (since 2026-11-02 found via `loginctl`, see ADR 0031; before that
+   `XDG_CURRENT_DESKTOP`, colon-separated, e.g. `ubuntu:GNOME`):
    - **MATE**: `org.mate.background picture-filename` (a plain path);
    - **GNOME**: `org.gnome.desktop.background picture-uri` and
      `picture-uri-dark` (GNOME 42+ has a separate dark picture) as a
