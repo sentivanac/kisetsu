@@ -153,6 +153,12 @@ kisetsu help
   timer runs and when the next change is due. Check whether Variety is
   running, and whether your desktop is in the table above.
 
+## Contributing
+
+Bug reports and contributions are welcome; see
+[CONTRIBUTING.md](CONTRIBUTING.md). Changes between versions are listed
+in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 Kisetsu is released under the [MIT License](LICENSE). The licenses of

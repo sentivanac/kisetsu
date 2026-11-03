@@ -68,4 +68,6 @@ For 0.1.0: 23 Go modules, Go itself, and react, react-dom, scheduler.
   cannot reach into users' systemd configuration). Since the pre-release
   review the timer then skips its runs quietly (ADR 0025, "Missing
   program"); the README explains how to remove it.
-- A manual page.
+- ~~A manual page.~~ Added in Phase 7 step 3: `docs/man/kisetsu.1`,
+  installed as `/usr/share/man/man1/kisetsu.1.gz`; a test checks that it
+  lists every command of `kisetsu help`.

@@ -29,6 +29,10 @@ for png in "$root"/build/linux/icons/*.png; do
 	install -Dm644 "$png" "$pkg/usr/share/icons/hicolor/${size}x${size}/apps/$app_id.png"
 done
 
+install -d "$pkg/usr/share/man/man1"
+gzip -9n < "$root/docs/man/kisetsu.1" > "$pkg/usr/share/man/man1/kisetsu.1.gz"
+chmod 644 "$pkg/usr/share/man/man1/kisetsu.1.gz"
+
 # Debian's copyright file: the project's MIT license.
 doc=$pkg/usr/share/doc/kisetsu
 install -d "$doc"

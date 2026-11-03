@@ -1,0 +1,100 @@
+.TH KISETSU 1 "2026-11-03" "Kisetsu 0.1.0" "User Commands"
+.SH NAME
+kisetsu \- wallpaper discovery and management
+.SH SYNOPSIS
+.B kisetsu
+.br
+.B kisetsu rotate
+.RB [ \-\-scheduled ]
+.br
+.B kisetsu fetch
+.I NAME
+.RB [ \-\-count
+.IR N ]
+.br
+.B kisetsu version
+.br
+.B kisetsu help
+.SH DESCRIPTION
+Kisetsu searches several image sources at once, keeps a local library
+of images with their author, source and license, and sets or rotates the
+desktop wallpaper.
+.PP
+Without a command, the Kisetsu window opens.
+.SH COMMANDS
+.TP
+.B rotate
+Change the wallpaper to the next image from the source chosen in the
+Wallpaper tab. The wallpaper is set directly, not through Variety.
+.TP
+.B rotate \-\-scheduled
+The same, but only if automatic rotation is turned on. The systemd user
+timer runs this.
+.TP
+.BI "fetch " NAME " \fR[\fB\-\-count \fIN\fR]"
+Download up to
+.I N
+(1 to 24, default 5) new images for the saved search called
+.I NAME
+into the cache of fetched images.
+.TP
+.B version
+Show the version.
+.TP
+.B help
+Show a short help.
+.SH ENVIRONMENT
+.TP
+.B KISETSU_LOG_LEVEL
+.BR debug ,
+.BR info " (default),"
+.B warn
+or
+.BR error .
+At debug level, search text is written to the log.
+.TP
+.B KISETSU_WEBVIEW_GPU
+WebView hardware acceleration:
+.BR ondemand " (default),"
+.B always
+or
+.BR never .
+Use
+.B never
+if the window stays blank or flickers.
+.TP
+.BR XDG_DATA_HOME ", " XDG_CACHE_HOME ", " XDG_STATE_HOME ", " XDG_CONFIG_HOME
+Change where the files below are kept.
+.SH FILES
+.TP
+.I ~/.local/share/kisetsu
+Library images, thumbnails and the database.
+.TP
+.I ~/.cache/kisetsu
+Images fetched for saved searches (at most 200 MB).
+.TP
+.I ~/.local/state/kisetsu/kisetsu.log
+Log; a new one is started above 5 MB, the previous is kept as
+.IR kisetsu.log.1 .
+.TP
+.I ~/.config/systemd/user/kisetsu\-rotate.{service,timer}
+Rotation timer, present only while rotation is turned on.
+.SH EXIT STATUS
+.TP
+.B 0
+The wallpaper changed, or there was nothing to do (no images, rotation
+turned off, another change in progress).
+.TP
+.B 1
+Failure; details are in the log.
+.TP
+.B 2
+Invalid usage, or no saved search with that name.
+.SH NOTES
+Kisetsu shows the license of every image but does not make images free
+to use. Check the license on the source page before publishing an image.
+.SH SEE ALSO
+.BR variety (1),
+.BR systemctl (1)
+.PP
+https://github.com/sentivanac/kisetsu

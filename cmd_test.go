@@ -169,3 +169,25 @@ func TestFetchCommandArguments(t *testing.T) {
 		}
 	}
 }
+
+// Every command in the help text is described in the manual page.
+func TestManualPageListsEveryCommand(t *testing.T) {
+	page, err := os.ReadFile("docs/man/kisetsu.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := 0
+	for _, line := range strings.Split(usage, "\n") {
+		fields := strings.Fields(line)
+		if !strings.HasPrefix(line, "  ") || len(fields) == 0 || fields[0] != strings.ToLower(fields[0]) || strings.HasPrefix(line, "   ") {
+			continue
+		}
+		commands++
+		if !strings.Contains(string(page), ".B kisetsu "+fields[0]) {
+			t.Errorf("manual page does not list %q", fields[0])
+		}
+	}
+	if commands < 4 {
+		t.Fatalf("found only %d commands in the help text; the test no longer reads it correctly", commands)
+	}
+}
