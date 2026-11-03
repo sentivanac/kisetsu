@@ -279,3 +279,20 @@ func TestFallbackDesktopFromTheTimer(t *testing.T) {
 		t.Errorf("method %q, err %v; want the fallback MATE", method, err)
 	}
 }
+
+func TestExecRunner(t *testing.T) {
+	if _, err := (ExecRunner{}).LookPath("sh"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (ExecRunner{}).LookPath("kisetsu-no-such-command"); err == nil {
+		t.Error("a missing command was found")
+	}
+	out, err := ExecRunner{}.Run(context.Background(), "sh", "-c", "echo picture")
+	if err != nil || strings.TrimSpace(string(out)) != "picture" {
+		t.Errorf("output %q, err %v", out, err)
+	}
+	_, err = ExecRunner{}.Run(context.Background(), "sh", "-c", "echo 'No such schema' >&2; exit 1")
+	if err == nil || !strings.Contains(err.Error(), "No such schema") {
+		t.Errorf("error does not include stderr: %v", err)
+	}
+}

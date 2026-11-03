@@ -273,3 +273,44 @@ func TestRestart(t *testing.T) {
 		t.Errorf("calls = %q", run.calls)
 	}
 }
+
+func TestWriteFileReplacesAtomically(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ServiceName)
+	if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writeFile(path, "new"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	info, _ := os.Stat(path)
+	if string(data) != "new" || info.Mode().Perm() != 0o644 {
+		t.Errorf("content %q, mode %v", data, info.Mode().Perm())
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 1 {
+		t.Errorf("temporary files left behind: %v", entries)
+	}
+}
+
+func TestWriteFileFailsWithoutDirectory(t *testing.T) {
+	if err := writeFile(filepath.Join(t.TempDir(), "missing", ServiceName), "x"); err == nil {
+		t.Error("expected an error")
+	}
+}
+
+// systemctl dates are parsed, so they must not depend on the user's language.
+func TestExecRunnerUsesCLocale(t *testing.T) {
+	t.Setenv("LC_ALL", "sr_RS.UTF-8")
+	out, err := ExecRunner{}.Run(context.Background(), "sh", "-c", `echo "$LC_ALL"`)
+	if err != nil || strings.TrimSpace(string(out)) != "C" {
+		t.Errorf("LC_ALL = %q, err %v", out, err)
+	}
+
+	_, err = ExecRunner{}.Run(context.Background(), "sh", "-c", "echo 'unit not found' >&2; exit 4")
+	if err == nil || !strings.Contains(err.Error(), "unit not found") {
+		t.Errorf("error does not include stderr: %v", err)
+	}
+}
