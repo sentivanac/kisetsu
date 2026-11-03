@@ -32,6 +32,10 @@ make build       # production binary in build/bin/kisetsu
 
 When calling Go tools directly, pass the tag: `go test -tags webkit2_41 ./...`.
 
+## Releasing
+
+See [releasing.md](releasing.md).
+
 ## Release package
 
 ```sh
