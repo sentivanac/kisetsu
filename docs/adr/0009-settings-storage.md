@@ -14,7 +14,7 @@ resolution, orientation), remembered between sessions.
 1. **Settings live in SQLite**, table `settings (key, value, updated_at)`
    created by migration `0001_settings.sql`, not in a separate file.
    - One storage location, atomic writes, schema migrations already exist,
-     and CLAUDE.md lists user preferences as database content.
+     and the project requirements list user preferences as database content.
    - Cost: settings are not hand-editable in a text editor.
 2. Values are JSON (`CHECK (json_valid(value))`, `STRICT` table), accessed
    through `internal/settings.Store` (`Load`/`Save`) and typed helpers
