@@ -35,6 +35,30 @@ has no tray). Needs a monochrome icon and a single-instance window. Not
 shown on plain GNOME without an extension. Good companion to the next
 item, which is tested on the same desktops.
 
+### Tray process as the home of live overlays
+
+If both the tray indicator and the per-minute overlays (clock, command
+output) are built, they belong in the same process. `kisetsu tray` runs
+anyway while the user is logged in, so it can refresh the overlay every
+minute itself, without starting the program each minute from a timer —
+the way Variety keeps its clock in its own long-running process.
+
+Division of work:
+
+- **Rotation stays on the systemd timer** (ADR 0025): choosing and
+  setting the next image keeps working when the tray is not running or
+  has crashed.
+- **The tray refreshes only the overlay**: it recomposes the current
+  image (kept as a cached base) with the clock or command output and
+  sets it again. After the timer changes the image, the tray picks up
+  the new base.
+- Without the tray, static overlays (effects, author and license) still
+  work, applied when the timer sets the image; live overlays are simply
+  not refreshed. The settings should say that live overlays need the
+  tray.
+- The tray and the timer must not set the wallpaper at the same moment:
+  both take the existing rotation lock (`rotate.lock`).
+
 ## More desktops (planned after 0.1.0)
 
 Cinnamon (`org.cinnamon.desktop.background`), KDE Plasma
