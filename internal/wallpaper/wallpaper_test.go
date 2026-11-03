@@ -165,6 +165,35 @@ func TestSetsCinnamonPicture(t *testing.T) {
 	}
 }
 
+func TestSetsPlasmaWallpaper(t *testing.T) {
+	s, run := newSetter(t, "KDE")
+
+	method, err := s.Set(context.Background(), "/home/user/a b.jpg")
+	if err != nil || method != KDE {
+		t.Fatalf("method %q, err %v", method, err)
+	}
+	want := [][]string{{"plasma-apply-wallpaperimage", "/home/user/a b.jpg"}} // a plain path, not a URI
+	if !slices.EqualFunc(run.calls, want, slices.Equal) {
+		t.Errorf("calls = %q, want %q", run.calls, want)
+	}
+}
+
+func TestPlasmaErrors(t *testing.T) {
+	ctx := context.Background()
+
+	s, run := newSetter(t, "KDE")
+	run.missing["plasma-apply-wallpaperimage"] = true
+	if _, err := s.Set(ctx, image); err == nil || !strings.Contains(err.Error(), "Plasma 5.24") {
+		t.Errorf("missing tool: err = %v", err)
+	}
+
+	s, run = newSetter(t, "KDE")
+	run.fail = "plasma-apply-wallpaperimage" // e.g. plasmashell is not running
+	if method, err := s.Set(ctx, image); err == nil || method != KDE {
+		t.Errorf("failing tool: method %q, err %v", method, err)
+	}
+}
+
 func TestQuoteGVariant(t *testing.T) {
 	tests := map[string]string{
 		"/a/b.jpg":           `'/a/b.jpg'`,
@@ -182,9 +211,9 @@ func TestQuoteGVariant(t *testing.T) {
 func TestErrors(t *testing.T) {
 	ctx := context.Background()
 
-	s, run := newSetter(t, "KDE")
+	s, run := newSetter(t, "Hyprland")
 	if _, err := s.Set(ctx, image); !errors.Is(err, ErrUnsupportedDesktop) {
-		t.Errorf("KDE: err = %v, want ErrUnsupportedDesktop", err)
+		t.Errorf("Hyprland: err = %v, want ErrUnsupportedDesktop", err)
 	}
 	if len(run.calls) != 0 {
 		t.Errorf("commands ran on an unsupported desktop: %q", run.calls)
@@ -246,6 +275,7 @@ func sessionDirs(t *testing.T) []string {
 		"xsessions/ubuntu.desktop":                "[Desktop Entry]\nName=Ubuntu\nDesktopNames=ubuntu:GNOME\n",
 		"xsessions/i3.desktop":                    "[Desktop Entry]\nName=i3\nDesktopNames=i3\n",
 		"xsessions/i3-with-shmlog.desktop":        "[Desktop Entry]\nName=i3 (with debug log)\n",
+		"wayland-sessions/plasma.desktop":         "[Desktop Entry]\nName=Plasma (Wayland)\nDesktopNames=KDE\n",
 		"wayland-sessions/ubuntu-wayland.desktop": "[Desktop Entry]\nName=Ubuntu on Wayland\nDesktopNames=ubuntu;GNOME\n",
 	}
 	for name, content := range files {
@@ -270,6 +300,8 @@ func TestActiveSessionDecidesTheDesktop(t *testing.T) {
 		{"i3-with-shmlog x11", "", "", true},         // no DesktopNames: the session name
 		{"cinnamon x11", "", Cinnamon, false},        // Linux Mint: no session file, loginctl name
 		{"cinnamon2d x11", "", Cinnamon, false},      // Mint's session without 3D
+		{"plasma wayland", "", KDE, false},           // Plasma's session file says KDE
+		{" wayland", "KDE", KDE, false},              // Kubuntu: loginctl gives no desktop name
 		{"", "ubuntu:GNOME", GNOME, false},           // no graphical session found: the env
 	}
 	for _, tt := range tests {

@@ -57,8 +57,9 @@ To build it yourself, see [docs/development.md](docs/development.md).
 | GNOME (X11 and Wayland) | ✓ | ✓ |
 | MATE | ✓ | ✓ |
 | Cinnamon (Linux Mint) | ✓ | ✓ |
+| KDE Plasma 5.24+ (X11 and Wayland) | ✓ | ✓ |
 | Variety running (any desktop) | ✓ through Variety | — see below |
-| KDE Plasma, XFCE, others | not yet | not yet |
+| XFCE, others | not yet | not yet |
 
 On other desktops, search and the library work fully; only setting the
 wallpaper says it is not supported yet.

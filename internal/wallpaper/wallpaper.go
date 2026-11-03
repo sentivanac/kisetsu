@@ -2,8 +2,9 @@
 //
 // When Variety is running it is asked to show the image (`variety --set`),
 // so it keeps managing the desktop and applies its effects. Otherwise the
-// desktop's own setting is changed with gsettings: MATE, GNOME and
-// Cinnamon are supported. Commands are run directly, never through a shell.
+// desktop's own setting is changed: with gsettings on MATE, GNOME and
+// Cinnamon, and with plasma-apply-wallpaperimage on KDE Plasma. Commands
+// are run directly, never through a shell.
 package wallpaper
 
 import (
@@ -27,6 +28,7 @@ const (
 	MATE     Method = "mate"
 	GNOME    Method = "gnome"
 	Cinnamon Method = "cinnamon"
+	KDE      Method = "kde"
 )
 
 var (
@@ -120,6 +122,8 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 		// Cinnamon has its own schema (no dark variant). Linux Mint also
 		// keeps GNOME's keys, but Cinnamon does not read them.
 		return Cinnamon, s.gsettings(ctx, "org.cinnamon.desktop.background", "picture-uri", fileURI(path))
+	case KDE:
+		return KDE, s.plasma(ctx, path)
 	}
 	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, strings.Join(names, ":"))
 }
@@ -239,9 +243,28 @@ func match(names []string) Method {
 			return GNOME
 		case "CINNAMON", "CINNAMON2D": // X-Cinnamon in the environment; cinnamon2d without 3D
 			return Cinnamon
+		case "KDE":
+			return KDE
 		}
 	}
 	return ""
+}
+
+// plasmaTool is Plasma's own command for setting the wallpaper (Plasma
+// 5.24 and newer). It asks the running plasmashell over D-Bus to show the
+// image on every screen, on Wayland and X11 alike.
+const plasmaTool = "plasma-apply-wallpaperimage"
+
+// plasma sets the wallpaper on KDE Plasma. Plasma saves the setting on its
+// own schedule, so there is nothing reliable to read back; a failure shows
+// in the command's exit status (for example when plasmashell is not
+// running).
+func (s *Setter) plasma(ctx context.Context, path string) error {
+	if _, err := s.Run.LookPath(plasmaTool); err != nil {
+		return fmt.Errorf("%s not found (Plasma 5.24 or newer is needed): %w", plasmaTool, err)
+	}
+	_, err := s.Run.Run(ctx, plasmaTool, path)
+	return err
 }
 
 // gsettings sets a string key and reads it back to confirm the change.

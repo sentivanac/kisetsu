@@ -61,9 +61,9 @@ Division of work:
 
 ## More desktops (before 0.1.0)
 
-KDE Plasma (`plasma-apply-wallpaperimage`), XFCE (`xfconf-query`, per
-monitor and workspace). Each verified in a VirtualBox live session before
-it is claimed as supported, as Cinnamon was (ADR 0037).
+XFCE (`xfconf-query`, per monitor and workspace). Verified in a
+VirtualBox live session before it is claimed as supported, as Cinnamon
+(ADR 0037) and KDE Plasma (ADR 0038) were.
 
 ## Later phases
 
