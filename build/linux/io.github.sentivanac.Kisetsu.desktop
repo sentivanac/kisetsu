@@ -8,5 +8,5 @@ Icon=io.github.sentivanac.Kisetsu
 Terminal=false
 Categories=Graphics;Viewer;GTK;
 Keywords=wallpaper;background;desktop;images;photos;
-StartupWMClass=kisetsu
+StartupWMClass=io.github.sentivanac.Kisetsu
 StartupNotify=true

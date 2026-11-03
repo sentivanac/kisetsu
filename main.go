@@ -19,6 +19,11 @@ import (
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
+// appID names the .desktop file and the icon (build/linux/, APP_ID in the
+// Makefile). The window carries the same name, so desktops on Wayland,
+// which match a window to its .desktop file by name only, show the icon.
+const appID = "io.github.sentivanac.Kisetsu"
+
 //go:embed all:frontend/dist
 var assets embed.FS
 
@@ -106,8 +111,9 @@ func run() error {
 		BackgroundColour: &options.RGBA{R: 24, G: 24, B: 27, A: 1},
 		Linux: &linux.Options{
 			WebviewGpuPolicy: gpuPolicy,
-			// Matches StartupWMClass in the .desktop file.
-			ProgramName: "kisetsu",
+			// The Wayland app_id and X11 WM_CLASS: desktops find the
+			// window's icon and menu entry by it (ADR 0032).
+			ProgramName: appID,
 			Icon:        windowIcon,
 		},
 		OnStartup: app.startup,

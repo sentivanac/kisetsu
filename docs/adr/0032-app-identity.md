@@ -10,9 +10,19 @@
 
 `io.github.sentivanac.Kisetsu` (reverse DNS of the project's home). It
 names the `.desktop` file and the icon, and is the ID a Flatpak or
-AppStream metadata would need later. The window's program name stays
-`kisetsu` (`StartupWMClass=kisetsu`), so the desktop links the running
-window to the menu entry.
+AppStream metadata would need later. The window carries the same name
+(GTK program name, which becomes the Wayland app_id and the X11
+WM_CLASS; `StartupWMClass` says the same), so the desktop links the
+running window to the menu entry and its icon.
+
+Addendum (2026-11-03): at first the window was named `kisetsu`. GNOME
+matched it through `StartupWMClass`, but KDE Plasma on Wayland matches
+only the app_id against `.desktop` file names and showed a generic icon.
+A side effect of the new name: WebKitGTK keeps its own files (HTTP cache,
+HSTS list) under the program name, so they move from
+`~/.local/share/kisetsu` and `~/.cache/kisetsu` to
+`…/io.github.sentivanac.Kisetsu`. The old ones are unused and harmless;
+the app's frontend keeps no state in browser storage.
 
 ### Icon
 
