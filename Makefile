@@ -5,18 +5,18 @@ TAGS := webkit2_41
 # The version of the next release; the only place it is written.
 VERSION := 0.1.0
 LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(VERSION)
-# The release binary is position independent, so ASLR covers it fully.
 
 # Application ID, used for the .desktop file and the icon name.
 APP_ID := io.github.sentivanac.Kisetsu
 
-.PHONY: dev build test test-live test-frontend vet check check-node icons deb
+.PHONY: dev build test test-live test-frontend vet check check-node icons deb version frontend-dist
 
 ## dev: run the app with hot reload
 dev: check-node
 	wails dev
 
 ## build: produce a production binary in build/bin/
+# The release binary is position independent, so ASLR covers it fully.
 build: check-node
 	GOFLAGS=-buildmode=pie wails build -ldflags "$(LDFLAGS)"
 
@@ -32,11 +32,21 @@ icons:
 	done
 	inkscape build/linux/$(APP_ID).svg -o build/appicon.png -w 1024 -h 1024
 
+## version: print the version of the next release
+version:
+	@echo $(VERSION)
+
+# The Go code embeds frontend/dist (//go:embed), which is not in Git and
+# which Vite empties on every build, so a fresh clone has none. Go tests
+# do not need the real frontend; an empty placeholder lets them compile.
+frontend-dist:
+	@[ -n "$$(ls -A frontend/dist 2>/dev/null)" ] || { mkdir -p frontend/dist && touch frontend/dist/.placeholder; }
+
 ## test: run Go tests
-test:
+test: frontend-dist
 	go test -tags $(TAGS) ./...
 
-## test-live: run tests against real provider APIs (uses the network)
+## test-live: frontend-dist run tests against real provider APIs (uses the network)
 test-live:
 	go test -tags $(TAGS),live -count=1 -v -run Live ./internal/providers/... ./internal/search/ ./internal/downloads/
 
@@ -45,7 +55,7 @@ test-frontend: check-node
 	cd frontend && npm test
 
 ## vet: run go vet
-vet:
+vet: frontend-dist
 	go vet -tags $(TAGS) ./...
 
 ## check: vet, Go tests, frontend type check and tests

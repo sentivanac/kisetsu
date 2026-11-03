@@ -1,0 +1,71 @@
+# On a version tag (v0.1.0), builds the .deb from exactly that commit and
+# attaches it to a draft GitHub release. Publishing the draft stays a
+# manual step (see docs/releasing.md).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the draft release
+
+jobs:
+  deb:
+    # Built on the oldest supported Ubuntu, so the package's library
+    # versions are satisfied there and on everything newer.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches the version
+        run: |
+          version=$(make -s version)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match VERSION $version in the Makefile"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Release notes from CHANGELOG.md
+        run: scripts/release-notes.sh "$VERSION" > "$RUNNER_TEMP/notes.md"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev lintian
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.0
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Check
+        run: make check
+
+      - name: Build the package
+        run: make deb
+
+      - name: Lint the package
+        run: lintian --fail-on warning build/deb/*.deb
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/deb/*.deb \
+            --draft \
+            --title "Kisetsu $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md"

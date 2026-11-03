@@ -50,18 +50,25 @@ while read -r path version; do
 	fi
 done < <(go version -m "$binary" | awk '$1 == "dep" { print $2, $3 }')
 
+# npm packages bundled into the frontend: the non-development entries of
+# package-lock.json (their paths are exact there; `npm ls` output may
+# mask parts of a path that look like IDs).
 frontend=$root/frontend
-while read -r dir; do
-	[[ $dir == "$frontend" ]] && continue
-	name=$(node -p "require('$dir/package.json').name")
-	version=$(node -p "require('$dir/package.json').version")
+while IFS=$'\t' read -r rel name version; do
+	dir=$frontend/$rel
 	if files=$(license_files "$dir"); then
 		mapfile -t list <<<"$files"
 		section "$name (npm)" "$version" "${list[@]}"
 	else
-		echo "no license file for npm package $name" >&2
+		echo "no license file for npm package $name in $dir" >&2
 		missing=1
 	fi
-done < <(cd "$frontend" && npm ls --omit=dev --all --parseable)
+done < <(node -e '
+	const lock = require(process.argv[1]);
+	for (const [path, p] of Object.entries(lock.packages)) {
+		if (path === "" || p.dev || p.devOptional) continue;
+		const name = path.slice(path.lastIndexOf("node_modules/") + "node_modules/".length);
+		console.log([path, name, p.version].join("\t"));
+	}' "$frontend/package-lock.json")
 
 exit $missing

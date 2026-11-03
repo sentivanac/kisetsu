@@ -48,7 +48,9 @@ The MIT, BSD and Apache 2.0 licenses of the code built into the binary
 require shipping their notices. `scripts/third-party-licenses.sh` lists
 what is actually built in — the Go standard library, every module
 recorded in the binary (`go version -m`) and the npm packages bundled
-into the frontend (`npm ls --omit=dev`) — and copies every license and
+into the frontend (the non-development entries of
+`frontend/package-lock.json`; `npm ls` was used first, but npm 11 masks
+parts of paths that look like IDs in its output) — and copies every license and
 notice file of each (some have several: `modernc.org/sqlite` also
 carries SQLite's). A component without a license file fails the build.
 For 0.1.0: 23 Go modules, Go itself, and react, react-dom, scheduler.
