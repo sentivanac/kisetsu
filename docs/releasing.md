@@ -29,8 +29,12 @@ The examples use version 0.1.0.
    nvm use
    make check
    make deb
-   lintian --fail-on warning build/deb/kisetsu_0.1.0_amd64.deb
+   lintian --fail-on warning build/deb/kisetsu_*_amd64.deb
    ```
+
+   This package is a development build (for example
+   `kisetsu_0.1.0~dev.142.g4d105fd_amd64.deb`): only a build from the
+   tag is named plain `0.1.0`, and that one is made by GitHub (step 4).
 
 4. Commit:
 
@@ -121,6 +125,20 @@ Start the next version:
 3. Commit.
 
 ## Version numbers
+
+`VERSION` in the Makefile is the version of the next release. A build
+calls itself that only when made from its tag without changes; every
+other build is a development build, named after the commit
+(`scripts/build-version.sh`):
+
+```sh
+make build-version   # e.g. 0.1.0~dev.142.g4d105fd
+kisetsu version      # what an installed build says
+```
+
+The `~` makes `apt` treat a development build as older than the release,
+so installing the release replaces it.
+
 
 [Semantic Versioning](https://semver.org/): `0.1.1` for fixes only,
 `0.2.0` for new features. Before 1.0, a minor version may also change

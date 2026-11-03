@@ -41,3 +41,15 @@ Written once, as `VERSION` in the Makefile (0.1.0 for the first
 release), and set at build time with `-ldflags -X …appinfo.Version`.
 `wails dev` and `go test` keep `dev`. `kisetsu version` prints it; it is
 also in the User-Agent sent to image providers.
+
+### Addendum (2026-11-03): development builds
+
+During testing in virtual machines, packages built from different
+commits all said 0.1.0, so the only way to tell them apart was a
+checksum. Now only a build from the tag `v$(VERSION)` without changes
+calls itself `VERSION`; any other build is `VERSION~dev.N.gHASH` (N
+commits, short hash), with `.dirty.<UTC time>` added when there are
+uncommitted changes (`scripts/build-version.sh`). `~` sorts before the
+release in Debian, so the release package replaces a development one.
+The release workflow passes the version explicitly after checking the
+tag.

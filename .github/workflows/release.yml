@@ -56,7 +56,8 @@ jobs:
         run: make check
 
       - name: Build the package
-        run: make deb
+        # The tag was checked against VERSION above; name the build after it.
+        run: make deb BUILD_VERSION="$VERSION"
 
       - name: Lint the package
         run: lintian --fail-on warning build/deb/*.deb

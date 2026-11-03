@@ -4,12 +4,21 @@ TAGS := webkit2_41
 
 # The version of the next release; the only place it is written.
 VERSION := 0.1.0
-LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(VERSION)
+
+# What this build calls itself: $(VERSION) only when built from the tag
+# v$(VERSION) without changes, otherwise a development version such as
+# 0.1.0~dev.142.g4d105fd (scripts/build-version.sh). Computed once, so
+# `make deb` packages the binary under the same name. The release workflow
+# passes it explicitly.
+ifndef BUILD_VERSION
+BUILD_VERSION := $(shell scripts/build-version.sh $(VERSION))
+endif
+LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(BUILD_VERSION)
 
 # Application ID, used for the .desktop file and the icon name.
 APP_ID := io.github.sentivanac.Kisetsu
 
-.PHONY: dev build test test-live test-frontend vet check check-node icons deb version frontend-dist
+.PHONY: dev build test test-live test-frontend vet check check-node icons deb version build-version frontend-dist
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -22,7 +31,7 @@ build: check-node
 
 ## deb: build a .deb package into build/deb/ (does not install it)
 deb: build
-	scripts/build-deb.sh $(VERSION) $(APP_ID)
+	scripts/build-deb.sh $(BUILD_VERSION) $(APP_ID)
 
 ## icons: render the PNG icons from the SVG source (needs inkscape; the
 ## results are committed, so this is only needed after editing the SVG)
@@ -35,6 +44,10 @@ icons:
 ## version: print the version of the next release
 version:
 	@echo $(VERSION)
+
+## build-version: print what a build made now would call itself
+build-version:
+	@echo $(BUILD_VERSION)
 
 # The Go code embeds frontend/dist (//go:embed), which is not in Git and
 # which Vite empties on every build, so a fresh clone has none. Go tests

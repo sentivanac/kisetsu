@@ -56,7 +56,11 @@ chmod 644 "$doc/THIRD_PARTY_LICENSES.gz"
 {
 	echo "kisetsu ($version) unstable; urgency=medium"
 	echo
-	echo "  * Release $version. See https://github.com/sentivanac/kisetsu for changes."
+	if [[ $version == *~* ]]; then
+		echo "  * Development build $version, not a release."
+	else
+		echo "  * Release $version. See https://github.com/sentivanac/kisetsu for changes."
+	fi
 	echo
 	echo " -- Miroslav Sentivanac <miroslav.sentivanac@gmail.com>  $(date -R)"
 } | gzip -9n > "$doc/changelog.gz"
@@ -89,7 +93,7 @@ Description: wallpaper discovery and management
  and duplicate detection, and sets or rotates the desktop wallpaper.
  Author, source and license of every image are kept.
  .
- Setting the wallpaper is supported on GNOME and MATE, directly or
+ Setting the wallpaper is supported on GNOME, MATE and Cinnamon, directly or
  through Variety. Rotation uses a systemd user timer.
 CONTROL
 
