@@ -47,3 +47,30 @@ information plus the database status.
   the code). `ErrorBoundary` is not tested yet: component tests need
   `jsdom` and Testing Library, which will be added when more components exist.
 - Frontend `console.error` output is not forwarded to the Go log.
+
+## Addendum 2026-11-03: errors reach the UI as JSON text
+
+Testing on Linux Mint showed "Something went wrong…" where the backend
+had sent "The wallpaper could not be changed." The Wails v2 runtime
+(`calls.js`, also in the production runtime) rejects a failed call with
+`new Error(value)`, where `value` is what the `ErrorFormatter` returned.
+An object becomes the message "[object Object]", so the code and message
+of **every** backend error were lost and the UI always showed the
+generic text. Frontend tests did not notice: they passed the object
+directly.
+
+Now:
+
+- `formatError` (`errorformat.go`) returns `apperr.PublicError` as **JSON
+  text**, which survives as the Error's message;
+- `toBackendError` (`frontend/src/lib/backend.ts`) reads that JSON from
+  an `Error`, from plain text, or takes an object as before; anything
+  else still gets the generic message;
+- tests build the rejection exactly as Wails does
+  (`new Error(JSON.stringify(…))`), and the result was checked in the
+  real app on a hidden display: "Next wallpaper" on an unsupported
+  desktop shows its own message.
+
+At the same time `NextWallpaper` started to report an unsupported desktop
+with the same message as "Set as wallpaper", instead of "The wallpaper
+could not be changed."

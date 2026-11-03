@@ -1,8 +1,10 @@
 // Error handling for calls into the Go backend.
 //
-// Go methods reject with apperr.PublicError ({code, message, retryAfterSeconds?}).
-// Wails itself rejects with a plain string for some failures (for example
-// when arguments cannot be parsed), so both shapes are handled.
+// Go methods fail with apperr.PublicError ({code, message, retryAfterSeconds?}),
+// which the ErrorFormatter (errorformat.go) sends as JSON text. The Wails v2
+// runtime rejects the promise with new Error(thatText), so the JSON arrives
+// as the Error's message. Wails also rejects with plain text for its own
+// failures (for example when arguments cannot be parsed).
 
 export type ErrorCode =
     | 'internal'
@@ -29,12 +31,27 @@ function isBackendError(value: unknown): value is BackendError {
     );
 }
 
+// parseBackendError reads an error sent as JSON text, or returns null.
+function parseBackendError(text: string): BackendError | null {
+    try {
+        const value: unknown = JSON.parse(text);
+        return isBackendError(value) ? value : null;
+    } catch {
+        return null;
+    }
+}
+
 export function toBackendError(err: unknown): BackendError {
     if (isBackendError(err)) {
         return err;
     }
+    if (err instanceof Error) {
+        // Other Error messages (for example Wails' "Call to … timed out")
+        // are technical, so they get the generic text.
+        return parseBackendError(err.message) ?? {code: 'internal', message: fallbackMessage};
+    }
     if (typeof err === 'string' && err.trim() !== '') {
-        return {code: 'internal', message: err};
+        return parseBackendError(err) ?? {code: 'internal', message: err};
     }
     return {code: 'internal', message: fallbackMessage};
 }

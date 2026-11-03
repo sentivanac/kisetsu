@@ -22,7 +22,33 @@ describe('describeError', () => {
 });
 
 describe('toBackendError', () => {
-    it('keeps errors sent by the Go ErrorFormatter', () => {
+    // What the Wails v2 runtime really does with the ErrorFormatter's value.
+    it('reads the JSON text that Wails wraps in an Error', () => {
+        const sent = {code: 'unsupported', message: 'Kisetsu cannot set the wallpaper on this desktop yet.'};
+
+        expect(toBackendError(new Error(JSON.stringify(sent)))).toEqual(sent);
+    });
+
+    it('keeps the retry delay through the Error wrapping', () => {
+        const sent = {code: 'rate_limited', message: 'Too many searches.', retryAfterSeconds: 30};
+
+        expect(toBackendError(new Error(JSON.stringify(sent)))).toEqual(sent);
+    });
+
+    it('reads canceled errors, so they stay hidden', () => {
+        const err = toBackendError(new Error('{"code":"canceled","message":"The search was canceled."}'));
+
+        expect(isCanceled(err)).toBe(true);
+    });
+
+    it('reads JSON text that arrives without the Error wrapping', () => {
+        expect(toBackendError('{"code":"invalid_input","message":"Name is empty."}')).toEqual({
+            code: 'invalid_input',
+            message: 'Name is empty.',
+        });
+    });
+
+    it('keeps errors sent by the Go ErrorFormatter as objects', () => {
         const err = {code: 'unavailable', message: 'The local database is not available.'};
 
         expect(toBackendError(err)).toEqual(err);
@@ -47,6 +73,8 @@ describe('toBackendError', () => {
         ['an empty string', '  '],
         ['an Error instance', new Error('boom')],
         ['an object with the wrong shape', {code: 42, message: 'nope'}],
+        ['an Error wrapping an object', new Error(String({code: 'x', message: 'y'}))],
+        ['an Error with JSON of the wrong shape', new Error('{"code": 1}')],
     ])('falls back to a generic message for %s', (_name, value) => {
         const result = toBackendError(value);
 

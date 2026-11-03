@@ -11,7 +11,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
-	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/schedule"
@@ -113,15 +112,7 @@ func run() error {
 		},
 		OnStartup: app.startup,
 		// Log the full error, send only the user-safe part to the frontend.
-		ErrorFormatter: func(err error) any {
-			public := apperr.ToPublic(err)
-			if public.Code == apperr.Canceled {
-				log.Debug("frontend call canceled", "err", err)
-			} else {
-				log.Error("frontend call failed", "err", err)
-			}
-			return public
-		},
+		ErrorFormatter: formatError(log),
 		Bind: []any{
 			app,
 		},
