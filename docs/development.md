@@ -32,6 +32,10 @@ make build       # production binary in build/bin/kisetsu
 
 When calling Go tools directly, pass the tag: `go test -tags webkit2_41 ./...`.
 
+## Ideas
+
+Discussed but unplanned features are collected in [ideas.md](ideas.md).
+
 ## Releasing
 
 See [releasing.md](releasing.md).
