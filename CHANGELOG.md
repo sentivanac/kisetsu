@@ -26,8 +26,8 @@ The first release. Linux only (Ubuntu 22.04+, Linux Mint 21+, Debian 12+).
 
 ### Wallpaper
 - Set an image as the wallpaper on GNOME and KDE Plasma (X11 and
-  Wayland), MATE and Cinnamon (Linux Mint), or through Variety when it
-  runs.
+  Wayland), Xfce, MATE and Cinnamon (Linux Mint), or through Variety when
+  it runs.
 - Automatic rotation every 15 minutes to once a day, in random or added
   order, from the library, a collection or a saved search; it runs as a
   systemd user timer, also while the window is closed.

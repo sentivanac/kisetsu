@@ -11,7 +11,7 @@ import (
 
 // unsupportedDesktopMessage is shown when neither Variety nor a supported
 // desktop can set the wallpaper.
-const unsupportedDesktopMessage = "Kisetsu cannot set the wallpaper on this desktop yet. GNOME, KDE Plasma, MATE, Cinnamon and Variety are supported."
+const unsupportedDesktopMessage = "Kisetsu cannot set the wallpaper on this desktop yet. GNOME, KDE Plasma, Xfce, MATE, Cinnamon and Variety are supported."
 
 // Unsupported is the apperr code for features the user's system lacks.
 const Unsupported apperr.Code = "unsupported"

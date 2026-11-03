@@ -59,11 +59,12 @@ Division of work:
 - The tray and the timer must not set the wallpaper at the same moment:
   both take the existing rotation lock (`rotate.lock`).
 
-## More desktops (before 0.1.0)
+## More desktops
 
-XFCE (`xfconf-query`, per monitor and workspace). Verified in a
-VirtualBox live session before it is claimed as supported, as Cinnamon
-(ADR 0037) and KDE Plasma (ADR 0038) were.
+LXQt (`pcmanfm-qt --set-wallpaper`), Budgie and others, and Xfce on
+Wayland. Each verified in a VirtualBox live session before it is claimed
+as supported, as Cinnamon (ADR 0037), KDE Plasma (ADR 0038) and Xfce
+(ADR 0039) were.
 
 ## Later phases
 

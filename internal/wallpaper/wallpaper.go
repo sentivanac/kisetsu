@@ -3,18 +3,20 @@
 // When Variety is running it is asked to show the image (`variety --set`),
 // so it keeps managing the desktop and applies its effects. Otherwise the
 // desktop's own setting is changed: with gsettings on MATE, GNOME and
-// Cinnamon, and with plasma-apply-wallpaperimage on KDE Plasma. Commands
-// are run directly, never through a shell.
+// Cinnamon, with plasma-apply-wallpaperimage on KDE Plasma, and with
+// xfconf-query on XFCE. Commands are run directly, never through a shell.
 package wallpaper
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,6 +31,7 @@ const (
 	GNOME    Method = "gnome"
 	Cinnamon Method = "cinnamon"
 	KDE      Method = "kde"
+	XFCE     Method = "xfce"
 )
 
 var (
@@ -124,6 +127,8 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 		return Cinnamon, s.gsettings(ctx, "org.cinnamon.desktop.background", "picture-uri", fileURI(path))
 	case KDE:
 		return KDE, s.plasma(ctx, path)
+	case XFCE:
+		return XFCE, s.xfce(ctx, path)
 	}
 	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, strings.Join(names, ":"))
 }
@@ -245,6 +250,8 @@ func match(names []string) Method {
 			return Cinnamon
 		case "KDE":
 			return KDE
+		case "XFCE":
+			return XFCE
 		}
 	}
 	return ""
@@ -265,6 +272,94 @@ func (s *Setter) plasma(ctx context.Context, path string) error {
 	}
 	_, err := s.Run.Run(ctx, plasmaTool, path)
 	return err
+}
+
+// xfceChannel holds xfdesktop's settings. Each monitor and workspace has
+// its own picture, at /backdrop/screen0/monitor<NAME>/workspace<N>/last-image;
+// xfdesktop shows a change at once.
+const xfceChannel = "xfce4-desktop"
+
+// xfce sets the picture of every monitor and workspace on XFCE (X11).
+// xfdesktop stores only pictures the user has changed, so the properties
+// that exist are combined with the ones for the current monitors (xrandr)
+// and workspaces (xfwm4), and missing ones are created. Each is read back.
+func (s *Setter) xfce(ctx context.Context, path string) error {
+	if _, err := s.Run.LookPath("xfconf-query"); err != nil {
+		return fmt.Errorf("xfconf-query not found: %w", err)
+	}
+	props, err := s.xfceProperties(ctx)
+	if err != nil {
+		return err
+	}
+	for _, prop := range props {
+		if _, err := s.Run.Run(ctx, "xfconf-query", "-c", xfceChannel, "-p", prop, "--create", "-t", "string", "-s", path); err != nil {
+			return err
+		}
+		out, err := s.Run.Run(ctx, "xfconf-query", "-c", xfceChannel, "-p", prop)
+		if err != nil {
+			return err
+		}
+		if got := strings.TrimSpace(string(out)); got != path {
+			return fmt.Errorf("%w: %s %s is %s", ErrNotApplied, xfceChannel, prop, got)
+		}
+	}
+	return nil
+}
+
+// xfceProperties lists the last-image properties to set, sorted.
+func (s *Setter) xfceProperties(ctx context.Context) ([]string, error) {
+	found := map[string]bool{}
+	out, err := s.Run.Run(ctx, "xfconf-query", "-c", xfceChannel, "-l")
+	if err == nil { // an empty channel is an error too
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if p := strings.TrimSpace(line); strings.HasPrefix(p, "/backdrop/") && strings.HasSuffix(p, "/last-image") {
+				found[p] = true
+			}
+		}
+	}
+	workspaces := 1
+	if out, err := s.Run.Run(ctx, "xfconf-query", "-c", "xfwm4", "-p", "/general/workspace_count"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(string(out))); err == nil && n > 0 && n <= 64 {
+			workspaces = n
+		}
+	}
+	for _, monitor := range s.monitors(ctx) {
+		for i := range workspaces {
+			found[fmt.Sprintf("/backdrop/screen0/monitor%s/workspace%d/last-image", monitor, i)] = true
+		}
+	}
+	if len(found) == 0 {
+		return nil, errors.New("no XFCE monitors found (xrandr gave none and no picture is set yet)")
+	}
+	return slices.Sorted(maps.Keys(found)), nil
+}
+
+// monitors returns the names of the connected monitors, such as
+// "Virtual-1" or "HDMI-1", which xfdesktop uses in its property names.
+func (s *Setter) monitors(ctx context.Context) []string {
+	if _, err := s.Run.LookPath("xrandr"); err != nil {
+		return nil
+	}
+	out, err := s.Run.Run(ctx, "xrandr", "--listmonitors")
+	if err != nil {
+		return nil
+	}
+	// "Monitors: 1", then lines like " 0: +*Virtual-1 1280/339x800/212+0+0  Virtual-1".
+	var names []string
+	for line := range strings.SplitSeq(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if _, err := strconv.Atoi(strings.TrimSuffix(fields[0], ":")); err != nil || !strings.HasSuffix(fields[0], ":") {
+			continue // the "Monitors: 1" header
+		}
+		name := fields[len(fields)-1]
+		if !strings.ContainsAny(name, "/ ") {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // gsettings sets a string key and reads it back to confirm the change.

@@ -22,6 +22,8 @@ type fakeRunner struct {
 	// and Type, e.g. "ubuntu x11"; empty means no graphical session.
 	// loginctl only reads, so its calls are not recorded.
 	session string
+	// xrandr is what `xrandr --listmonitors` prints.
+	xrandr string
 }
 
 func (f *fakeRunner) LookPath(name string) (string, error) {
@@ -47,6 +49,12 @@ func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]by
 	if name == f.fail {
 		return nil, errors.New(name + " failed")
 	}
+	if name == "xrandr" {
+		return []byte(f.xrandr), nil
+	}
+	if name == "xfconf-query" {
+		return f.xfconf(args)
+	}
 	if name == "gsettings" && len(args) >= 3 {
 		key := args[1] + " " + args[2]
 		switch args[0] {
@@ -59,6 +67,48 @@ func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]by
 		}
 	}
 	return nil, nil
+}
+
+// xfconf acts like xfconf-query on a store keyed "channel property".
+func (f *fakeRunner) xfconf(args []string) ([]byte, error) {
+	channel, prop, value := args[1], "", ""
+	list, set := false, false
+	for i := 2; i < len(args); i++ {
+		switch args[i] {
+		case "-l":
+			list = true
+		case "-p":
+			i++
+			prop = args[i]
+		case "-s":
+			i++
+			value, set = args[i], true
+		}
+	}
+	switch {
+	case list:
+		var out []string
+		for key := range f.settings {
+			if p, ok := strings.CutPrefix(key, channel+" "); ok {
+				out = append(out, p)
+			}
+		}
+		if len(out) == 0 {
+			return nil, errors.New("channel is empty")
+		}
+		slices.Sort(out)
+		return []byte(strings.Join(out, "\n") + "\n"), nil
+	case set:
+		if !f.ignore {
+			f.settings[channel+" "+prop] = value
+		}
+		return nil, nil
+	}
+	v, ok := f.settings[channel+" "+prop]
+	if !ok {
+		return nil, errors.New("property does not exist")
+	}
+	return []byte(v + "\n"), nil
 }
 
 // fakeProc creates a /proc-like directory with the given process names.
@@ -194,6 +244,64 @@ func TestPlasmaErrors(t *testing.T) {
 	}
 }
 
+const xrandrOneMonitor = "Monitors: 1\n 0: +*Virtual-1 1280/339x800/212+0+0  Virtual-1\n"
+
+func TestSetsXfcePictures(t *testing.T) {
+	s, run := newSetter(t, "XFCE")
+	run.xrandr = "Monitors: 2\n 0: +*eDP-1 1920/344x1080/194+0+0  eDP-1\n 1: +HDMI-1 2560/597x1440/336+1920+0  HDMI-1\n"
+	run.settings["xfwm4 /general/workspace_count"] = "2"
+	// Set by the user earlier, for a monitor that is not connected now.
+	run.settings["xfce4-desktop /backdrop/screen0/monitorDP-2/workspace0/last-image"] = "/old.jpg"
+	run.settings["xfce4-desktop /desktop-icons/icon-size"] = "48"
+
+	method, err := s.Set(context.Background(), "/home/user/a b.jpg")
+	if err != nil || method != XFCE {
+		t.Fatalf("method %q, err %v", method, err)
+	}
+	for _, p := range []string{
+		"monitorDP-2/workspace0", "monitoreDP-1/workspace0", "monitoreDP-1/workspace1",
+		"monitorHDMI-1/workspace0", "monitorHDMI-1/workspace1",
+	} {
+		key := "xfce4-desktop /backdrop/screen0/" + p + "/last-image"
+		if got := run.settings[key]; got != "/home/user/a b.jpg" { // a plain path, not a URI
+			t.Errorf("%s = %q", key, got)
+		}
+	}
+	if run.settings["xfce4-desktop /desktop-icons/icon-size"] != "48" {
+		t.Error("an unrelated setting changed")
+	}
+}
+
+func TestXfceErrors(t *testing.T) {
+	ctx := context.Background()
+
+	s, run := newSetter(t, "XFCE")
+	run.missing["xfconf-query"] = true
+	if _, err := s.Set(ctx, image); err == nil || !strings.Contains(err.Error(), "xfconf-query not found") {
+		t.Errorf("missing xfconf-query: err = %v", err)
+	}
+
+	s, run = newSetter(t, "XFCE") // no xrandr output, nothing set yet
+	if _, err := s.Set(ctx, image); err == nil || !strings.Contains(err.Error(), "no XFCE monitors") {
+		t.Errorf("no monitors: err = %v", err)
+	}
+
+	s, run = newSetter(t, "XFCE")
+	run.xrandr = xrandrOneMonitor
+	run.settings["xfce4-desktop /backdrop/screen0/monitorVirtual-1/workspace0/last-image"] = "/old.jpg"
+	run.ignore = true
+	if _, err := s.Set(ctx, image); !errors.Is(err, ErrNotApplied) {
+		t.Errorf("unchanged setting: err = %v, want ErrNotApplied", err)
+	}
+
+	s, run = newSetter(t, "XFCE")
+	run.xrandr = xrandrOneMonitor
+	run.fail = "xfconf-query"
+	if _, err := s.Set(ctx, image); err == nil {
+		t.Error("a failing xfconf-query was ignored")
+	}
+}
+
 func TestQuoteGVariant(t *testing.T) {
 	tests := map[string]string{
 		"/a/b.jpg":           `'/a/b.jpg'`,
@@ -275,6 +383,7 @@ func sessionDirs(t *testing.T) []string {
 		"xsessions/ubuntu.desktop":                "[Desktop Entry]\nName=Ubuntu\nDesktopNames=ubuntu:GNOME\n",
 		"xsessions/i3.desktop":                    "[Desktop Entry]\nName=i3\nDesktopNames=i3\n",
 		"xsessions/i3-with-shmlog.desktop":        "[Desktop Entry]\nName=i3 (with debug log)\n",
+		"xsessions/xubuntu.desktop":               "[Desktop Entry]\nName=Xubuntu Session\nDesktopNames=XFCE\n",
 		"wayland-sessions/plasma.desktop":         "[Desktop Entry]\nName=Plasma (Wayland)\nDesktopNames=KDE\n",
 		"wayland-sessions/ubuntu-wayland.desktop": "[Desktop Entry]\nName=Ubuntu on Wayland\nDesktopNames=ubuntu;GNOME\n",
 	}
@@ -301,6 +410,7 @@ func TestActiveSessionDecidesTheDesktop(t *testing.T) {
 		{"cinnamon x11", "", Cinnamon, false},        // Linux Mint: no session file, loginctl name
 		{"cinnamon2d x11", "", Cinnamon, false},      // Mint's session without 3D
 		{"plasma wayland", "", KDE, false},           // Plasma's session file says KDE
+		{"xubuntu x11", "", XFCE, false},             // Xubuntu's session file says XFCE
 		{" wayland", "KDE", KDE, false},              // Kubuntu: loginctl gives no desktop name
 		{"", "ubuntu:GNOME", GNOME, false},           // no graphical session found: the env
 	}
@@ -308,6 +418,7 @@ func TestActiveSessionDecidesTheDesktop(t *testing.T) {
 		s, run := newSetter(t, tt.env)
 		s.DataDirs = sessionDirs(t)
 		run.session = tt.session
+		run.xrandr = xrandrOneMonitor
 
 		method, err := s.Set(context.Background(), image)
 		if tt.wantErr {

@@ -93,8 +93,8 @@ Description: wallpaper discovery and management
  and duplicate detection, and sets or rotates the desktop wallpaper.
  Author, source and license of every image are kept.
  .
- Setting the wallpaper is supported on GNOME, KDE Plasma, MATE and Cinnamon,
- directly or through Variety. Rotation uses a systemd user timer.
+ Setting the wallpaper is supported on GNOME, KDE Plasma, Xfce, MATE and
+ Cinnamon, directly or through Variety. Rotation uses a systemd user timer.
 CONTROL
 
 dpkg-deb --build --root-owner-group -Zxz "$pkg" "$pkg.deb" >/dev/null
