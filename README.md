@@ -7,6 +7,11 @@ Kisetsu (Japanese for "season") searches several image sources at once,
 keeps a local library with the author and license of every image, and
 sets or rotates your desktop wallpaper. It is free and open source (MIT).
 
+![Kisetsu searching Wikimedia Commons for "autumn forest"](docs/screenshot.jpg)
+
+<sub>Photographs from Wikimedia Commons by their authors, under CC BY-SA
+and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
+
 > **Status:** version 0.1.0, the first release. Linux only; Windows
 > support is planned after the Linux release.
 
@@ -164,4 +169,6 @@ in [CHANGELOG.md](CHANGELOG.md).
 Kisetsu is released under the [MIT License](LICENSE). The licenses of
 the libraries it is built with are installed with it, in
 `/usr/share/doc/kisetsu/THIRD_PARTY_LICENSES.gz`. Images found with
-Kisetsu belong to their authors and keep their own licenses.
+Kisetsu belong to their authors and keep their own licenses; the
+screenshot above is under CC BY-SA 4.0 (see its
+[credits](docs/screenshot-credits.md)).
