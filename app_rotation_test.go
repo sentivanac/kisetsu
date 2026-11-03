@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/searches"
+	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
 // fakeSchedule stands in for systemd.
@@ -153,6 +155,17 @@ func TestNextWallpaper(t *testing.T) {
 	defer unlock()
 	if _, err := app.NextWallpaper(); !strings.Contains(apperr.ToPublic(err).Message, "already being changed") {
 		t.Errorf("while locked: %v", err)
+	}
+}
+
+func TestNextWallpaperOnUnsupportedDesktop(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	downloadN(t, app, 1)
+	app.rotation.Setter = &fakeWallpaper{err: fmt.Errorf("%w: %q", wallpaper.ErrUnsupportedDesktop, "cinnamon")}
+
+	_, err := app.NextWallpaper()
+	if pub := apperr.ToPublic(err); pub.Code != Unsupported || pub.Message != unsupportedDesktopMessage {
+		t.Errorf("got %+v", pub)
 	}
 }
 

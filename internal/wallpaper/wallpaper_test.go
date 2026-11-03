@@ -148,6 +148,23 @@ func TestSetsGNOMELightAndDarkPictures(t *testing.T) {
 	}
 }
 
+func TestSetsCinnamonPicture(t *testing.T) {
+	s, run := newSetter(t, "X-Cinnamon")
+
+	method, err := s.Set(context.Background(), "/home/user/a b.jpg")
+	if err != nil || method != Cinnamon {
+		t.Fatalf("method %q, err %v", method, err)
+	}
+	if got := run.settings["org.cinnamon.desktop.background picture-uri"]; got != `'file:///home/user/a%20b.jpg'` {
+		t.Errorf("picture-uri = %s", got)
+	}
+	for key := range run.settings {
+		if strings.HasPrefix(key, "org.gnome") {
+			t.Errorf("GNOME setting changed on Cinnamon: %s", key)
+		}
+	}
+}
+
 func TestQuoteGVariant(t *testing.T) {
 	tests := map[string]string{
 		"/a/b.jpg":           `'/a/b.jpg'`,
@@ -251,6 +268,8 @@ func TestActiveSessionDecidesTheDesktop(t *testing.T) {
 		{"mate x11", "ubuntu:GNOME", MATE, false},    // stale GNOME value, logged into MATE
 		{"i3 x11", "ubuntu:GNOME", "", true},         // i3 is not supported, whatever the env says
 		{"i3-with-shmlog x11", "", "", true},         // no DesktopNames: the session name
+		{"cinnamon x11", "", Cinnamon, false},        // Linux Mint: no session file, loginctl name
+		{"cinnamon2d x11", "", Cinnamon, false},      // Mint's session without 3D
 		{"", "ubuntu:GNOME", GNOME, false},           // no graphical session found: the env
 	}
 	for _, tt := range tests {

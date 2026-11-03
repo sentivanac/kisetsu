@@ -25,8 +25,8 @@ The first release. Linux only (Ubuntu 22.04+, Linux Mint 21+, Debian 12+).
 - Thumbnails, deletion with confirmation, disk usage.
 
 ### Wallpaper
-- Set an image as the wallpaper on GNOME (X11 and Wayland) and MATE, or
-  through Variety when it runs.
+- Set an image as the wallpaper on GNOME (X11 and Wayland), MATE and
+  Cinnamon (Linux Mint), or through Variety when it runs.
 - Automatic rotation every 15 minutes to once a day, in random or added
   order, from the library, a collection or a saved search; it runs as a
   systemd user timer, also while the window is closed.

@@ -10,6 +10,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/settings"
+	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
 // Scheduler installs the rotation timer; *schedule.Manager in the app.
@@ -171,6 +172,9 @@ func (a *App) NextWallpaper() (state RotationState, err error) {
 		if errors.Is(err, rotation.ErrNoImages) {
 			return RotationState{}, apperr.New(apperr.InvalidInput,
 				"There are no images to show. Download images, or choose another collection.", err)
+		}
+		if errors.Is(err, wallpaper.ErrUnsupportedDesktop) {
+			return RotationState{}, apperr.New(Unsupported, unsupportedDesktopMessage, err)
 		}
 		return RotationState{}, apperr.New(apperr.Unavailable, "The wallpaper could not be changed.", err)
 	}

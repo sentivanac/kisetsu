@@ -89,7 +89,7 @@ internal/          business logic, independent of the UI
   search/          runs searches against registered providers
   searches/        saved searches
   settings/        user preferences stored in the database
-  wallpaper/       sets the wallpaper (Variety, MATE, GNOME)
+  wallpaper/       sets the wallpaper (Variety, MATE, GNOME, Cinnamon)
 app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
 app_downloads.go   downloads and their progress events

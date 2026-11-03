@@ -9,6 +9,10 @@ import (
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
+// unsupportedDesktopMessage is shown when neither Variety nor a supported
+// desktop can set the wallpaper.
+const unsupportedDesktopMessage = "Kisetsu cannot set the wallpaper on this desktop yet. GNOME, MATE, Cinnamon and Variety are supported."
+
 // Unsupported is the apperr code for features the user's system lacks.
 const Unsupported apperr.Code = "unsupported"
 
@@ -45,8 +49,7 @@ func (a *App) SetWallpaper(imageID int64) (result WallpaperResult, err error) {
 	method, err := a.wallpaper.Set(a.ctx, path)
 	switch {
 	case errors.Is(err, wallpaper.ErrUnsupportedDesktop):
-		return WallpaperResult{}, apperr.New(Unsupported,
-			"Kisetsu cannot set the wallpaper on this desktop yet. MATE, GNOME and Variety are supported.", err)
+		return WallpaperResult{}, apperr.New(Unsupported, unsupportedDesktopMessage, err)
 	case err != nil:
 		return WallpaperResult{}, apperr.New(apperr.Unavailable, "The wallpaper could not be set.", err)
 	}

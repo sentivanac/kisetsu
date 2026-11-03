@@ -59,12 +59,11 @@ Division of work:
 - The tray and the timer must not set the wallpaper at the same moment:
   both take the existing rotation lock (`rotate.lock`).
 
-## More desktops (planned after 0.1.0)
+## More desktops (before 0.1.0)
 
-Cinnamon (`org.cinnamon.desktop.background`), KDE Plasma
-(`plasma-apply-wallpaperimage`), XFCE (`xfconf-query`, per monitor and
-workspace). Each verified in a VirtualBox live session before it is
-claimed as supported.
+KDE Plasma (`plasma-apply-wallpaperimage`), XFCE (`xfconf-query`, per
+monitor and workspace). Each verified in a VirtualBox live session before
+it is claimed as supported, as Cinnamon was (ADR 0037).
 
 ## Later phases
 

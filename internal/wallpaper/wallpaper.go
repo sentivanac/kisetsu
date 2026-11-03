@@ -2,8 +2,8 @@
 //
 // When Variety is running it is asked to show the image (`variety --set`),
 // so it keeps managing the desktop and applies its effects. Otherwise the
-// desktop's own setting is changed with gsettings: MATE and GNOME are
-// supported. Commands are run directly, never through a shell.
+// desktop's own setting is changed with gsettings: MATE, GNOME and
+// Cinnamon are supported. Commands are run directly, never through a shell.
 package wallpaper
 
 import (
@@ -23,9 +23,10 @@ import (
 type Method string
 
 const (
-	Variety Method = "variety"
-	MATE    Method = "mate"
-	GNOME   Method = "gnome"
+	Variety  Method = "variety"
+	MATE     Method = "mate"
+	GNOME    Method = "gnome"
+	Cinnamon Method = "cinnamon"
 )
 
 var (
@@ -107,7 +108,7 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 	case MATE:
 		return MATE, s.gsettings(ctx, "org.mate.background", "picture-filename", path)
 	case GNOME:
-		uri := (&url.URL{Scheme: "file", Path: path}).String()
+		uri := fileURI(path)
 		// GNOME 42+ keeps a separate picture for the dark style.
 		for _, key := range []string{"picture-uri", "picture-uri-dark"} {
 			if err := s.gsettings(ctx, "org.gnome.desktop.background", key, uri); err != nil {
@@ -115,6 +116,10 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 			}
 		}
 		return GNOME, nil
+	case Cinnamon:
+		// Cinnamon has its own schema (no dark variant). Linux Mint also
+		// keeps GNOME's keys, but Cinnamon does not read them.
+		return Cinnamon, s.gsettings(ctx, "org.cinnamon.desktop.background", "picture-uri", fileURI(path))
 	}
 	return "", fmt.Errorf("%w: %q", ErrUnsupportedDesktop, strings.Join(names, ":"))
 }
@@ -219,14 +224,21 @@ func splitNames(s string) []string {
 	return names
 }
 
+// fileURI returns path as a percent-encoded file:// URI.
+func fileURI(path string) string {
+	return (&url.URL{Scheme: "file", Path: path}).String()
+}
+
 // match returns the supported desktop among names, or "".
 func match(names []string) Method {
 	for _, name := range names {
-		switch strings.ToUpper(name) {
+		switch strings.TrimPrefix(strings.ToUpper(name), "X-") {
 		case "MATE":
 			return MATE
 		case "GNOME":
 			return GNOME
+		case "CINNAMON", "CINNAMON2D": // X-Cinnamon in the environment; cinnamon2d without 3D
+			return Cinnamon
 		}
 	}
 	return ""
