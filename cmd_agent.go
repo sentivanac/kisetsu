@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/godbus/dbus/v5"
-
 	"github.com/sentivanac/kisetsu/internal/agent"
 	"github.com/sentivanac/kisetsu/internal/filelock"
 	"github.com/sentivanac/kisetsu/internal/rotation"
@@ -83,21 +81,10 @@ func runAgent(args []string) int {
 	c.log.Info("agent started", "tray", prefs.ShowInTray)
 	fmt.Println("Kisetsu agent is running. Press Ctrl+C to stop it.")
 
-	// The agent belongs to the login session: when the session's D-Bus
-	// goes away (logout), it ends too, instead of lingering.
+	// The agent belongs to the login session and ends with it.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	if conn, err := dbus.ConnectSessionBus(); err == nil {
-		defer conn.Close()
-		go func() {
-			select {
-			case <-conn.Context().Done():
-				c.log.Info("session bus closed; agent exits")
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
-	}
+	defer watchSession(ctx, cancel, c.log)()
 
 	if !prefs.ShowInTray {
 		a.Run(ctx)
@@ -148,7 +135,7 @@ func openWindow() error {
 		return err
 	}
 	cmd := exec.Command(exe)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}

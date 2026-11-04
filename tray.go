@@ -63,18 +63,7 @@ type trayActions struct {
 // Without a tray host (GNOME without the AppIndicator extension), the
 // icon is simply not shown; systray registers again when a host appears.
 func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActions, quit func()) {
-	// The icon goes out twice: by name, with a directory that holds it, for
-	// panels that only look icons up by name (Ayatana indicators, the
-	// default on Ubuntu MATE, show "image missing" otherwise), and as image
-	// data for the others. The installed package also puts it in the
-	// system icon theme. Set before Run, so the first query finds it.
-	if err := writeTrayIcon(iconDir); err != nil {
-		log.Warn("tray icon file not written; panels that need it show a placeholder", "err", err)
-	} else {
-		systray.SetIconThemePath(iconDir)
-	}
-	systray.SetIconName(appID)
-	systray.SetIcon(trayIcon)
+	setTrayIcon(log, iconDir)
 	systray.SetTitle("Kisetsu")
 	systray.SetTooltip("Kisetsu")
 

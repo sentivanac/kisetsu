@@ -18,7 +18,7 @@ LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(BUILD_VER
 # Application ID, used for the .desktop file and the icon name.
 APP_ID := io.github.sentivanac.Kisetsu
 
-.PHONY: dev build test test-live test-frontend vet check check-node icons deb version build-version frontend-dist
+.PHONY: dev build test test-live test-frontend vet check check-windows check-node icons deb version build-version frontend-dist
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -71,8 +71,13 @@ test-frontend: check-node
 vet: frontend-dist
 	go vet -tags $(TAGS) ./...
 
+## check-windows: type-check the code and its tests for Windows (no
+## Windows needed; the tests run on Windows in CI)
+check-windows: frontend-dist
+	GOOS=windows go vet ./...
+
 ## check: vet, Go tests, frontend type check and tests
-check: vet test check-node
+check: vet check-windows test check-node
 	cd frontend && npx tsc --noEmit && npm test
 
 check-node:

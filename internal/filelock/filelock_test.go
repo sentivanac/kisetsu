@@ -49,3 +49,20 @@ func TestLockIsReleasedWhenTheProcessEnds(t *testing.T) {
 	}
 	unlock()
 }
+
+// The agent writes its PID into its own lock file, and the window reads
+// it, while the lock is held.
+func TestLockedFileStaysReadableAndWritable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agent.lock")
+	unlock, err := Lock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	if err := os.WriteFile(path, []byte("1234\n"), 0o600); err != nil {
+		t.Fatalf("write while locked: %v", err)
+	}
+	if data, err := os.ReadFile(path); err != nil || string(data) != "1234\n" {
+		t.Errorf("read while locked: %q, %v", data, err)
+	}
+}

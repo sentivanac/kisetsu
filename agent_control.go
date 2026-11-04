@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/autostart"
@@ -64,9 +63,7 @@ func (c *agentControl) Start() error {
 		return nil
 	}
 	cmd := exec.Command(c.entry.Executable, "agent")
-	// Its own session: it keeps running when the window closes, and a
-	// Ctrl+C in a terminal that started the window does not reach it.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start agent: %w", err)
 	}
@@ -105,7 +102,7 @@ func (c *agentControl) Stop() error {
 	if err != nil || pid <= 1 {
 		return fmt.Errorf("invalid agent PID %q", strings.TrimSpace(string(data)))
 	}
-	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+	if err := terminate(pid); err != nil {
 		return fmt.Errorf("stop agent: %w", err)
 	}
 	for deadline := time.Now().Add(stopWait); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
