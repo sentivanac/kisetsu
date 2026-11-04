@@ -12,8 +12,8 @@ sets or rotates your desktop wallpaper. It is free and open source (MIT).
 <sub>Photographs from Wikimedia Commons by their authors, under CC BY-SA
 and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
-> **Status:** version 0.1.0, the first release. Linux only; Windows
-> support is planned after the Linux release.
+> **Status:** version 0.2.0. Linux only; Windows support is planned for
+> 0.3.0.
 
 ## Features
 
@@ -40,10 +40,12 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 Kisetsu is packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer
 and Debian 12 or newer** (64-bit).
 
-Download `kisetsu_0.1.0_amd64.deb` and install it with:
+Download `kisetsu_0.2.0_amd64.deb` from the
+[latest release](https://github.com/sentivanac/kisetsu/releases/latest)
+and install it with (an older version is replaced):
 
 ```sh
-sudo apt install ./kisetsu_0.1.0_amd64.deb
+sudo apt install ./kisetsu_0.2.0_amd64.deb
 ```
 
 `apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). Then
