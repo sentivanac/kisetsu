@@ -67,6 +67,8 @@ login session ([ADR 0031](adr/0031-desktop-from-login-session.md)).
 main.go            entry point: opens the window, or runs a command
 core.go            setup shared by the window and commands
 cmd.go             command-line commands (rotate, fetch, version, help)
+cmd_agent.go       `kisetsu agent`: the background process
+agent_control.go   the window starts, stops and checks the agent
 app.go             thin bridge exposing Go methods to the frontend
 internal/          business logic, independent of the UI
   agent/           background agent: changes the wallpaper when rotation is due
@@ -99,7 +101,8 @@ app_downloads.go   downloads and their progress events
 app_library.go     library listing, statistics and deletion
 app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
-app_rotation.go    rotation settings, background agent and "Next wallpaper"
+app_rotation.go    rotation settings, background agent, tray setting, "Next wallpaper"
+tray.go            the tray icon and its menu (shown by the agent)
 app_saved_searches.go  saved searches
 app_fetched.go     fetched images, Keep, screen size
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)

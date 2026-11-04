@@ -21,6 +21,10 @@ follow [Semantic Versioning](https://semver.org/).
   window replaces the timer of 0.1.0 the first time it opens.
 - The Wallpaper tab shows whether the background process runs, and
   starts it if it does not.
+- Optional tray icon with Next wallpaper, Change automatically, Open
+  Kisetsu and Quit (on plain GNOME it needs the AppIndicator extension).
+- Only one Kisetsu window: starting it again brings the open window to
+  the front.
 
 ## [0.1.0] - 2026-11-03
 

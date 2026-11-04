@@ -26,8 +26,9 @@ func TestAgentControlStartsAndDetectsTheAgent(t *testing.T) {
 	lock := filepath.Join(dir, "agent.lock")
 	pidFile := filepath.Join(dir, "pid")
 	script := filepath.Join(dir, "kisetsu")
+	// Like the agent, the holder of the lock writes its PID into it.
 	os.WriteFile(script, []byte("#!/bin/sh\n[ \"$1\" = agent ] || exit 2\necho $$ > "+pidFile+
-		"\nexec "+flock+" -n "+lock+" sleep 30\n"), 0o755)
+		"\nexec "+flock+" -n "+lock+` sh -c 'echo $$ > "$0"; exec sleep 30' `+lock+"\n"), 0o755)
 
 	c := &agentControl{
 		entry:    &autostart.Entry{Dir: filepath.Join(dir, "autostart"), Executable: script, TempDir: "/nonexistent"},
@@ -58,6 +59,15 @@ func TestAgentControlStartsAndDetectsTheAgent(t *testing.T) {
 	}
 	if err := c.Start(); err != nil {
 		t.Errorf("second start: %v", err)
+	}
+	if err := c.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := c.Status(); st.Running {
+		t.Error("still running after Stop")
+	}
+	if err := c.Stop(); err != nil {
+		t.Errorf("stop when not running: %v", err)
 	}
 	if err := c.Disable(); err != nil {
 		t.Fatal(err)

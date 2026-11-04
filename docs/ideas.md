@@ -26,38 +26,22 @@ In order of effort:
    decision on where the text goes with several monitors. Optional and
    off by default.
 
-## Tray indicator (discussed 2026-11-02)
+## Live overlays in the agent
 
-A small separate process (`kisetsu tray`, optional autostart) with Next
-wallpaper, Pause/Resume rotation, Open Kisetsu and Quit, through
-StatusNotifierItem over D-Bus (for example `fyne.io/systray`; Wails v2
-has no tray). Needs a monochrome icon and a single-instance window. Not
-shown on plain GNOME without an extension. Good companion to the next
-item, which is tested on the same desktops.
+The tray icon and rotation now live in `kisetsu agent` (ADR 0041, 0042),
+which runs while the user is logged in. Per-minute overlays (clock,
+command output) belong there too: the agent recomposes the current image
+(kept as a cached base) with the overlay and sets it again, under the
+rotation lock, without starting the program every minute. Static
+overlays (effects, author and license) are applied whenever an image is
+set.
 
-### Tray process as the home of live overlays
+## Restart the agent after a crash (decided 2026-11-04: later)
 
-If both the tray indicator and the per-minute overlays (clock, command
-output) are built, they belong in the same process. `kisetsu tray` runs
-anyway while the user is logged in, so it can refresh the overlay every
-minute itself, without starting the program each minute from a timer —
-the way Variety keeps its clock in its own long-running process.
-
-Division of work:
-
-- **Rotation stays on the systemd timer** (ADR 0025): choosing and
-  setting the next image keeps working when the tray is not running or
-  has crashed.
-- **The tray refreshes only the overlay**: it recomposes the current
-  image (kept as a cached base) with the clock or command output and
-  sets it again. After the timer changes the image, the tray picks up
-  the new base.
-- Without the tray, static overlays (effects, author and license) still
-  work, applied when the timer sets the image; live overlays are simply
-  not refreshed. The settings should say that live overlays need the
-  tray.
-- The tray and the timer must not set the wallpaper at the same moment:
-  both take the existing rotation lock (`rotate.lock`).
+If the agent crashes, rotation stops until the next login or until it is
+started from the Wallpaper tab. A small supervisor (or, where present, a
+systemd user service with `Restart=on-failure`) could restart it. Not
+needed while crashes are not seen.
 
 ## More desktops
 

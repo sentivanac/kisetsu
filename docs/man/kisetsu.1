@@ -26,7 +26,8 @@ Without a command, the Kisetsu window opens.
 .TP
 .B agent
 Run in the background and change the wallpaper whenever rotation is due,
-counting from the last change. It stops with Ctrl+C or at the end of the
+counting from the last change. If turned on in the Wallpaper tab, it also
+shows the tray icon. It runs while rotation or the tray icon is on. It stops with Ctrl+C or at the end of the
 session. Only one agent runs per user; starting a second one does
 nothing.
 .TP
@@ -82,7 +83,7 @@ Library images, thumbnails and the database.
 Images fetched for saved searches (at most 200 MB).
 .TP
 .I ~/.local/state/kisetsu/agent.lock
-Held by the running agent.
+Held by the running agent, and holds its process ID.
 .TP
 .I ~/.local/state/kisetsu/kisetsu.log
 Log; a new one is started above 5 MB, the previous is kept as

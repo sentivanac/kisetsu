@@ -607,7 +607,8 @@
     margin: 0;
 }
 
-.rotation {
+.rotation,
+.tray {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -617,7 +618,8 @@
     border-radius: 8px;
 }
 
-.rotation legend {
+.rotation legend,
+.tray legend {
     padding: 0 0.25rem;
     color: var(--muted);
 }
@@ -729,4 +731,8 @@
 
 .hidden-tags .chips {
     margin-top: 0.2rem;
+}
+
+.tray p {
+    margin: 0;
 }

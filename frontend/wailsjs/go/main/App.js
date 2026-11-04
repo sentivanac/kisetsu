@@ -134,6 +134,10 @@ export function SearchSources(arg1, arg2) {
   return window['go']['main']['App']['SearchSources'](arg1, arg2);
 }
 
+export function SetShowInTray(arg1) {
+  return window['go']['main']['App']['SetShowInTray'](arg1);
+}
+
 export function SetTagHidden(arg1, arg2) {
   return window['go']['main']['App']['SetTagHidden'](arg1, arg2);
 }

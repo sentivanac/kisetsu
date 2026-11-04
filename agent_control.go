@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +32,9 @@ type AgentControl interface {
 	Disable() error
 	// Start starts the agent if it is not running.
 	Start() error
+	// Stop ends a running agent, for example to restart it with or
+	// without the tray icon.
+	Stop() error
 	Status() (AgentStatus, error)
 }
 
@@ -80,6 +86,35 @@ func (c *agentControl) Start() error {
 func (c *agentControl) Status() (AgentStatus, error) {
 	st, err := c.entry.Status()
 	return AgentStatus{Running: c.running(), Autostart: st}, err
+}
+
+// stopWait is how long Stop waits for the agent to end.
+const stopWait = 3 * time.Second
+
+func (c *agentControl) Stop() error {
+	if !c.running() {
+		return nil
+	}
+	// The agent writes its PID into the lock file; while the lock is held,
+	// the PID belongs to the agent that holds it.
+	data, err := os.ReadFile(c.lockPath)
+	if err != nil {
+		return fmt.Errorf("read agent PID: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 1 {
+		return fmt.Errorf("invalid agent PID %q", strings.TrimSpace(string(data)))
+	}
+	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+		return fmt.Errorf("stop agent: %w", err)
+	}
+	for deadline := time.Now().Add(stopWait); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		if !c.running() {
+			c.log.Info("agent stopped", "pid", pid)
+			return nil
+		}
+	}
+	return fmt.Errorf("agent %d did not stop within %s", pid, stopWait)
 }
 
 // running reports whether an agent holds its lock.

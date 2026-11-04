@@ -73,6 +73,8 @@ export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
 export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query):Promise<main.SearchResult>;
 
+export function SetShowInTray(arg1:boolean):Promise<main.RotationState>;
+
 export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
 
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;

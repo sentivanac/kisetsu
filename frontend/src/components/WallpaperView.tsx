@@ -6,6 +6,7 @@ import {
     NextWallpaper,
     RepairAgent,
     SaveRotation,
+    SetShowInTray,
     StartAgent,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
@@ -203,9 +204,13 @@ export function WallpaperView({active}: Props) {
                         Next change at {clockTime(state.nextChange)} ({relativeTime(state.nextChange)}).
                     </p>
                 )}
-                {s.enabled && !state.agent.running && !state.agent.error && (
+                {(s.enabled || state.showInTray) && !state.agent.running && !state.agent.error && (
                     <div className="warning" role="alert">
-                        <p>Rotation is on, but the background process that changes the wallpaper is not running.</p>
+                        <p>
+                            {s.enabled
+                                ? 'Rotation is on, but the background process that changes the wallpaper is not running.'
+                                : 'The background process that shows the tray icon is not running.'}
+                        </p>
                         <button
                             type="button"
                             className="btn secondary"
@@ -223,6 +228,30 @@ export function WallpaperView({active}: Props) {
                     log in.
                 </p>
             </div>
+
+            <fieldset className="tray" disabled={busy === 'save'}>
+                <legend>Tray icon</legend>
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.showInTray}
+                        onChange={(e) => {
+                            const show = e.target.checked;
+                            apply(() => SetShowInTray(show), 'save');
+                        }}
+                    />
+                    <span>Show Kisetsu in the system tray</span>
+                </label>
+                <p className="muted small">
+                    The icon’s menu changes the wallpaper, turns rotation on or off and opens this window.
+                </p>
+                {state.showInTray && !state.trayHost && (
+                    <p className="warning" role="note">
+                        Your desktop does not show tray icons. On GNOME, turn on the extension “AppIndicator and
+                        KStatusNotifierItem Support” (Ubuntu has it on by default). Rotation works either way.
+                    </p>
+                )}
+            </fieldset>
 
             {state.agent.outdated && (
                 <div className="warning" role="alert">

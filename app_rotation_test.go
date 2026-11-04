@@ -21,6 +21,7 @@ type fakeAgent struct {
 	exe       string
 	enableErr error
 	starts    int
+	stops     int
 }
 
 func (f *fakeAgent) Enable() error {
@@ -41,6 +42,14 @@ func (f *fakeAgent) Start() error {
 		f.starts++
 	}
 	f.running = true
+	return nil
+}
+
+func (f *fakeAgent) Stop() error {
+	if f.running {
+		f.stops++
+	}
+	f.running = false
 	return nil
 }
 
@@ -273,5 +282,49 @@ func TestRotationFromSavedSearch(t *testing.T) {
 	_, err = app.SaveRotation(RotationSettings{Interval: "1h", Order: "random", SavedSearchID: saved.ID, CollectionID: 3})
 	if apperr.ToPublic(err).Code != apperr.InvalidInput {
 		t.Errorf("both sources: %v", err)
+	}
+}
+
+func TestShowInTray(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	fake := app.agent.(*fakeAgent)
+	app.trayHost = func() bool { return true }
+
+	// Tray on, rotation off: the agent runs for the icon alone.
+	state, err := app.SetShowInTray(true)
+	if err != nil || !state.ShowInTray || !state.TrayHost || !fake.autostart || !fake.running {
+		t.Fatalf("tray on: state %+v, agent %+v, %v", state, fake, err)
+	}
+
+	// Rotation on and off again: the tray keeps the agent.
+	app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
+	app.SaveRotation(RotationSettings{Enabled: false, Interval: "1h", Order: "random"})
+	if !fake.autostart {
+		t.Error("autostart entry removed although the tray icon is on")
+	}
+
+	// Showing or hiding the icon restarts the agent.
+	starts, stops := fake.starts, fake.stops
+	state, err = app.SetShowInTray(false)
+	if err != nil || state.ShowInTray || fake.autostart || fake.running || fake.stops != stops+1 {
+		t.Errorf("tray off: state %+v, agent %+v, %v", state, fake, err)
+	}
+	app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
+	starts = fake.starts
+	app.SetShowInTray(true)
+	if !fake.running || fake.starts != starts+1 {
+		t.Errorf("agent not restarted for the icon: %+v", fake)
+	}
+}
+
+func TestShowInTrayLeavesTheSettingOffWhenTheAgentFails(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	app.agent.(*fakeAgent).enableErr = autostart.ErrForeign
+
+	if _, err := app.SetShowInTray(true); apperr.ToPublic(err).Code != apperr.InvalidInput {
+		t.Errorf("err = %v", err)
+	}
+	if state, _ := app.GetRotation(); state.ShowInTray {
+		t.Error("tray setting saved although the agent could not be set up")
 	}
 }

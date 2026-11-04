@@ -99,6 +99,7 @@ func run() error {
 
 		Agent:         &agentControl{entry: entry, lockPath: c.agentLockPath(), log: log},
 		LegacyTimer:   legacy,
+		TrayHost:      trayHostPresent,
 		SavedSearches: searches.NewStore(c.db),
 		Fetched:       c.fetchedService(),
 		Executable:    entry.Executable,
@@ -124,6 +125,12 @@ func run() error {
 			Icon:        windowIcon,
 		},
 		OnStartup: app.startup,
+		// One window per user: starting Kisetsu again (from the menu or the
+		// tray) brings the open window to the front.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId:               appID,
+			OnSecondInstanceLaunch: app.onSecondInstance,
+		},
 		// Log the full error, send only the user-safe part to the frontend.
 		ErrorFormatter: formatError(log),
 		Bind: []any{

@@ -307,6 +307,8 @@ export namespace main {
 	    settings: RotationSettings;
 	    intervals: string[];
 	    agent: AgentState;
+	    showInTray: boolean;
+	    trayHost: boolean;
 	    nextChange: string;
 	    lastImageId: number;
 	    lastChange: string;
@@ -322,6 +324,8 @@ export namespace main {
 	        this.settings = this.convertValues(source["settings"], RotationSettings);
 	        this.intervals = source["intervals"];
 	        this.agent = this.convertValues(source["agent"], AgentState);
+	        this.showInTray = source["showInTray"];
+	        this.trayHost = source["trayHost"];
 	        this.nextChange = source["nextChange"];
 	        this.lastImageId = source["lastImageId"];
 	        this.lastChange = source["lastChange"];

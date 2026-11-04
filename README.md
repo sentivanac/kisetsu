@@ -79,6 +79,12 @@ it from there, and the process ends by itself. Desktops that do not
 start programs from `~/.config/autostart` (i3, sway and other window
 managers) need `kisetsu agent` in their own startup file.
 
+**Tray icon** (optional, in the Wallpaper tab): its menu changes the
+wallpaper, turns rotation on or off, opens the window, or quits until the
+next login. Plain GNOME shows tray icons only with the extension
+"AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
+default.
+
 ## Images and licenses
 
 Kisetsu shows where every image comes from and under which license, but

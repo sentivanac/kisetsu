@@ -5,11 +5,14 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/rotation"
+	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
 var start = time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
@@ -203,5 +206,35 @@ func TestRunExitsWhenNotWanted(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("Run did not return after rotation was turned off")
+	}
+}
+
+func TestChangeNow(t *testing.T) {
+	f := &fake{cfg: rotation.Settings{Interval: rotation.Hourly}, now: start} // rotation off
+	a := newAgent(f)
+	if err := a.ChangeNow(context.Background()); err != nil || f.rotated != 1 {
+		t.Errorf("rotated %d, err %v", f.rotated, err)
+	}
+	f.locked = true
+	if err := a.ChangeNow(context.Background()); !errors.Is(err, rotation.ErrLocked) {
+		t.Errorf("while locked: err = %v", err)
+	}
+}
+
+func TestPrefs(t *testing.T) {
+	db, err := database.Open(context.Background(), filepath.Join(t.TempDir(), "k.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	store := settings.NewStore(db)
+	ctx := context.Background()
+
+	if p, err := LoadPrefs(ctx, store); err != nil || p.ShowInTray {
+		t.Errorf("defaults: %+v, %v", p, err)
+	}
+	SavePrefs(ctx, store, Prefs{ShowInTray: true})
+	if p, _ := LoadPrefs(ctx, store); !p.ShowInTray {
+		t.Error("ShowInTray not saved")
 	}
 }

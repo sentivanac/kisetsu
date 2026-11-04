@@ -45,6 +45,11 @@ type RotationState struct {
 	Settings  RotationSettings `json:"settings"`
 	Intervals []string         `json:"intervals"`
 	Agent     AgentState       `json:"agent"`
+	// ShowInTray shows Kisetsu's icon in the system tray.
+	ShowInTray bool `json:"showInTray"`
+	// TrayHost is false when the desktop shows no tray icons (plain GNOME
+	// without the AppIndicator extension).
+	TrayHost bool `json:"trayHost"`
 	// NextChange is when rotation changes the wallpaper next (RFC 3339),
 	// "" when rotation is off.
 	NextChange     string `json:"nextChange"`
@@ -86,6 +91,10 @@ func (a *App) GetRotation() (state RotationState, err error) {
 		a.log.Warn("cannot read agent status", "err", err)
 		state.Agent.Error = "The state of the background process could not be read."
 	}
+	if prefs, err := agent.LoadPrefs(a.ctx, a.settings); err == nil {
+		state.ShowInTray = prefs.ShowInTray
+	}
+	state.TrayHost = a.trayHost != nil && a.trayHost()
 	state.Agent.Running = st.Running
 	state.Agent.Autostart = st.Autostart.Installed
 	state.Agent.Outdated = st.Autostart.Outdated(a.executable)
@@ -136,8 +145,10 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 			}
 			return RotationState{}, agentError(err)
 		}
-	} else if err := a.agent.Disable(); err != nil {
-		return RotationState{}, agentError(err)
+	} else if !a.agentWanted() {
+		if err := a.agent.Disable(); err != nil {
+			return RotationState{}, agentError(err)
+		}
 	}
 	a.retireTimer()
 
@@ -146,16 +157,50 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 	return a.GetRotation()
 }
 
+// SetShowInTray shows or hides Kisetsu's tray icon. The agent shows it,
+// so it is restarted; with rotation off as well, it stops.
+func (a *App) SetShowInTray(show bool) (state RotationState, err error) {
+	defer a.recoverPanic("SetShowInTray", &err)
+
+	if err := agent.SavePrefs(a.ctx, a.settings, agent.Prefs{ShowInTray: show}); err != nil {
+		return RotationState{}, apperr.New(apperr.Unavailable, "The setting could not be saved.", err)
+	}
+	if err := a.agent.Stop(); err != nil {
+		a.log.Warn("agent not stopped", "err", err)
+	}
+	if a.agentWanted() {
+		if err := a.agent.Enable(); err != nil {
+			if show {
+				if saveErr := agent.SavePrefs(a.ctx, a.settings, agent.Prefs{}); saveErr != nil {
+					a.log.Warn("agent preferences not saved", "err", saveErr)
+				}
+			}
+			return RotationState{}, agentError(err)
+		}
+	} else if err := a.agent.Disable(); err != nil {
+		return RotationState{}, agentError(err)
+	}
+	a.log.Info("tray icon setting saved", "show", show)
+	return a.GetRotation()
+}
+
+// agentWanted reports whether the agent has anything to do: rotation or
+// the tray icon is on. Unreadable settings count as wanted.
+func (a *App) agentWanted() bool {
+	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
+	if err != nil {
+		return true
+	}
+	prefs, err := agent.LoadPrefs(a.ctx, a.settings)
+	return err != nil || cfg.Enabled || prefs.ShowInTray
+}
+
 // RepairAgent rewrites the autostart entry for the running Kisetsu binary
 // (for example after Kisetsu was moved) and starts the agent.
 func (a *App) RepairAgent() (state RotationState, err error) {
 	defer a.recoverPanic("RepairAgent", &err)
 
-	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
-	if err != nil {
-		return RotationState{}, apperr.New(apperr.Unavailable, "Rotation settings could not be loaded.", err)
-	}
-	if cfg.Enabled {
+	if a.agentWanted() {
 		if err := a.agent.Enable(); err != nil {
 			return RotationState{}, agentError(err)
 		}
@@ -184,11 +229,7 @@ func (a *App) retireTimer() {
 	if installed, err := a.legacyTimer.Installed(); err != nil || !installed {
 		return
 	}
-	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
-	if err != nil {
-		return
-	}
-	if cfg.Enabled {
+	if a.agentWanted() {
 		if err := a.agent.Enable(); err != nil {
 			a.log.Warn("old rotation timer kept: the agent could not be set up", "err", err)
 			return

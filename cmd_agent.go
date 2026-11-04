@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/godbus/dbus/v5"
 
 	"github.com/sentivanac/kisetsu/internal/agent"
 	"github.com/sentivanac/kisetsu/internal/filelock"
@@ -44,6 +48,11 @@ func runAgent(args []string) int {
 		return 1
 	}
 	defer release()
+	// The window reads the PID to stop the agent (for example to show or
+	// hide the tray icon); the lock tells it the PID is current.
+	if err := os.WriteFile(c.agentLockPath(), []byte(strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
+		c.log.Warn("agent PID not written", "err", err)
+	}
 
 	// A saved search as rotation source may need new images first.
 	client := httpClient()
@@ -61,15 +70,90 @@ func runAgent(args []string) int {
 
 	a := newAgent(c, c.rotator(c.fetcher(searcher, dl)))
 	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
-		c.log.Info("rotation is off; agent not started")
-		fmt.Println("Rotation is off, so the agent has nothing to do. Turn it on in the Wallpaper tab.")
+		c.log.Info("rotation and the tray icon are off; agent not started")
+		fmt.Println("Rotation and the tray icon are off, so the agent has nothing to do. " +
+			"Turn one of them on in the Wallpaper tab.")
 		return 0
 	}
-	c.log.Info("agent started")
+	store := settings.NewStore(c.db)
+	prefs, err := agent.LoadPrefs(ctx, store)
+	if err != nil {
+		c.log.Warn("agent preferences not read; no tray icon", "err", err)
+	}
+	c.log.Info("agent started", "tray", prefs.ShowInTray)
 	fmt.Println("Kisetsu agent is running. Press Ctrl+C to stop it.")
-	a.Run(ctx)
+
+	// The agent belongs to the login session: when the session's D-Bus
+	// goes away (logout), it ends too, instead of lingering.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if conn, err := dbus.ConnectSessionBus(); err == nil {
+		defer conn.Close()
+		go func() {
+			select {
+			case <-conn.Context().Done():
+				c.log.Info("session bus closed; agent exits")
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+	}
+
+	if !prefs.ShowInTray {
+		a.Run(ctx)
+		c.log.Info("agent stopped")
+		return 0
+	}
+
+	// The tray runs on the main goroutine; the schedule beside it. Either
+	// ending ends the other.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		a.Run(ctx)
+		cancel()
+	}()
+	runTray(ctx, c.log, trayActions{
+		next: func(ctx context.Context) error {
+			ctx, stop := context.WithTimeout(ctx, rotateTimeout)
+			defer stop()
+			return a.ChangeNow(ctx)
+		},
+		rotating: func(ctx context.Context) (bool, error) {
+			cfg, err := rotation.LoadSettings(ctx, store)
+			return cfg.Enabled, err
+		},
+		setRotating: func(ctx context.Context, on bool) error {
+			cfg, err := rotation.LoadSettings(ctx, store)
+			if err != nil {
+				return err
+			}
+			cfg.Enabled = on
+			c.log.Info("rotation turned on or off from the tray", "enabled", on)
+			return rotation.SaveSettings(ctx, store, cfg)
+		},
+		open: openWindow,
+	}, cancel)
+	cancel()
+	<-done
 	c.log.Info("agent stopped")
 	return 0
+}
+
+// openWindow starts the Kisetsu window in its own session; if one is open
+// already, it comes to the front instead (single instance).
+func openWindow() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(exe)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
 }
 
 // newAgent connects the agent to the database and the rotator.
@@ -93,7 +177,11 @@ func newAgent(c *core, r *rotation.Rotator) *agent.Agent {
 		},
 		Wanted: func(ctx context.Context) (bool, error) {
 			cfg, err := rotation.LoadSettings(ctx, store)
-			return cfg.Enabled, err
+			if err != nil {
+				return true, err
+			}
+			prefs, err := agent.LoadPrefs(ctx, store)
+			return cfg.Enabled || prefs.ShowInTray, err
 		},
 		Log: c.log,
 	}

@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"sync"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
@@ -49,6 +50,8 @@ type App struct {
 	agent     AgentControl
 	// legacyTimer is the 0.1.0 systemd timer, removed when found.
 	legacyTimer LegacyTimer
+	// trayHost reports whether the desktop shows tray icons; nil: no.
+	trayHost func() bool
 
 	savedSearches *searches.Store
 	fetched       *fetched.Service
@@ -83,6 +86,7 @@ type Deps struct {
 	Rotation      *rotation.Rotator
 	Agent         AgentControl
 	LegacyTimer   LegacyTimer // may be nil
+	TrayHost      func() bool // may be nil
 	SavedSearches *searches.Store
 	Fetched       *fetched.Service
 	Executable    string
@@ -105,6 +109,7 @@ func NewApp(d Deps) *App {
 		rotation:    d.Rotation,
 		agent:       d.Agent,
 		legacyTimer: d.LegacyTimer,
+		trayHost:    d.TrayHost,
 
 		savedSearches: d.SavedSearches,
 		fetched:       d.Fetched,
@@ -121,6 +126,14 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.emit = func(name string, data any) { runtime.EventsEmit(ctx, name, data) }
 	a.retireTimer()
+}
+
+// onSecondInstance brings the window to the front when Kisetsu is started
+// again while it runs.
+func (a *App) onSecondInstance(options.SecondInstanceData) {
+	a.log.Info("Kisetsu started again; showing the open window")
+	runtime.WindowUnminimise(a.ctx)
+	runtime.WindowShow(a.ctx)
 }
 
 // recoverPanic turns a panic in a bound method into an internal error.

@@ -1,0 +1,97 @@
+package main
+
+import (
+	"context"
+	_ "embed"
+	"errors"
+	"log/slog"
+	"time"
+
+	"fyne.io/systray"
+
+	"github.com/sentivanac/kisetsu/internal/rotation"
+)
+
+// trayIcon is the application icon in color, like in the menu (ADR 0042).
+//
+//go:embed build/linux/icons/64.png
+var trayIcon []byte
+
+// traySync is how often the menu picks up changes made in the window.
+const traySync = 5 * time.Second
+
+// trayActions is what the tray menu does; runAgent connects them.
+type trayActions struct {
+	next        func(ctx context.Context) error
+	rotating    func(ctx context.Context) (bool, error)
+	setRotating func(ctx context.Context, on bool) error
+	open        func() error
+}
+
+// runTray shows the icon and its menu until ctx ends or the user chooses
+// Quit, which calls quit. It blocks, and runs on the main goroutine (the
+// Windows tray will need that).
+//
+// Without a tray host (GNOME without the AppIndicator extension), the
+// icon is simply not shown; systray registers again when a host appears.
+func runTray(ctx context.Context, log *slog.Logger, act trayActions, quit func()) {
+	systray.Run(func() {
+		systray.SetIcon(trayIcon)
+		systray.SetTitle("Kisetsu")
+		systray.SetTooltip("Kisetsu")
+
+		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
+		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
+		systray.AddSeparator()
+		open := systray.AddMenuItem("Open Kisetsu", "Open the Kisetsu window")
+		systray.AddSeparator()
+		quitItem := systray.AddMenuItem("Quit", "Hide the icon and stop changing the wallpaper until the next login")
+
+		sync := func() {
+			on, err := act.rotating(ctx)
+			if err != nil {
+				return
+			}
+			if on {
+				rotate.Check()
+			} else {
+				rotate.Uncheck()
+			}
+		}
+		sync()
+
+		go func() {
+			ticker := time.NewTicker(traySync)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					systray.Quit()
+					return
+				case <-ticker.C:
+					sync()
+				case <-next.ClickedCh:
+					next.Disable()
+					go func() {
+						defer next.Enable()
+						if err := act.next(ctx); err != nil && !errors.Is(err, rotation.ErrLocked) {
+							log.Warn("wallpaper change from the tray failed", "err", err)
+						}
+					}()
+				case <-rotate.ClickedCh:
+					if err := act.setRotating(ctx, !rotate.Checked()); err != nil {
+						log.Warn("rotation not changed from the tray", "err", err)
+					}
+					sync()
+				case <-open.ClickedCh:
+					if err := act.open(); err != nil {
+						log.Warn("window not opened from the tray", "err", err)
+					}
+				case <-quitItem.ClickedCh:
+					log.Info("quit from the tray")
+					quit()
+				}
+			}
+		}()
+	}, func() {})
+}

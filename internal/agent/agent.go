@@ -161,3 +161,14 @@ func (a *Agent) now() time.Time {
 	}
 	return time.Now()
 }
+
+// ChangeNow changes the wallpaper at once (the tray's "Next wallpaper"),
+// under the rotation lock. The next scheduled change counts from it.
+func (a *Agent) ChangeNow(ctx context.Context) error {
+	unlock, err := a.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return a.Rotate(ctx)
+}
