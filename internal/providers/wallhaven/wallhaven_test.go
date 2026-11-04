@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -221,6 +222,14 @@ func TestSearchRequest(t *testing.T) {
 			},
 		},
 		{
+			name:  "hidden tags, one quoted",
+			query: providers.Query{Text: "forest", Page: 1, HiddenTags: []string{"barefoot", "long hair"}},
+			want: url.Values{
+				"q": {`forest -barefoot -"long hair"`}, "sorting": {"relevance"}, "page": {"1"},
+				"categories": {"111"}, "purity": {"100"},
+			},
+		},
+		{
 			name:  "categories",
 			query: providers.Query{Page: 1, Categories: []images.Category{images.People, images.General}},
 			want:  url.Values{"sorting": {"toplist"}, "page": {"1"}, "categories": {"101"}, "purity": {"100"}},
@@ -368,5 +377,46 @@ func TestSearchWaitsForRateLimiter(t *testing.T) {
 	}
 	if calls.Load() != 1 {
 		t.Errorf("server received %d requests, want 1", calls.Load())
+	}
+}
+
+func TestTags(t *testing.T) {
+	var path string
+	p := newTestProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"data":{"id":"vp3m23","tags":[{"id":863,"name":"barefoot"},` +
+			`{"id":169,"name":"long  hair"},{"id":1,"name":"Barefoot"}]}}`))
+	})
+	var _ providers.Tagger = p
+
+	tags, err := p.Tags(context.Background(), "vp3m23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "/w/vp3m23" {
+		t.Errorf("path = %q", path)
+	}
+	if want := []string{"barefoot", "long hair"}; !slices.Equal(tags, want) {
+		t.Errorf("tags = %q, want %q", tags, want)
+	}
+}
+
+func TestTagsErrors(t *testing.T) {
+	requests := 0
+	p := newTestProvider(t, func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusNotFound)
+	})
+	for _, id := range []string{"", "../search", "ABC", "a b"} {
+		if _, err := p.Tags(context.Background(), id); !errors.Is(err, providers.ErrInvalidQuery) {
+			t.Errorf("%q: err = %v, want ErrInvalidQuery", id, err)
+		}
+	}
+	if requests != 0 {
+		t.Errorf("%d requests for invalid IDs", requests)
+	}
+	if _, err := p.Tags(context.Background(), "abc123"); !errors.Is(err, providers.ErrUnavailable) {
+		t.Errorf("HTTP 404: err = %v, want ErrUnavailable", err)
 	}
 }

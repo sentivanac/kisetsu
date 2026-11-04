@@ -514,6 +514,7 @@ export namespace providers {
 	    minHeight: number;
 	    orientation: string;
 	    categories: string[];
+	    hiddenTags: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Query(source);
@@ -528,6 +529,7 @@ export namespace providers {
 	        this.minHeight = source["minHeight"];
 	        this.orientation = source["orientation"];
 	        this.categories = source["categories"];
+	        this.hiddenTags = source["hiddenTags"];
 	    }
 	}
 
@@ -541,6 +543,7 @@ export namespace search {
 	    contentWarning?: string;
 	    enabledByDefault: boolean;
 	    categories: boolean;
+	    tags: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProviderInfo(source);
@@ -553,6 +556,7 @@ export namespace search {
 	        this.contentWarning = source["contentWarning"];
 	        this.enabledByDefault = source["enabledByDefault"];
 	        this.categories = source["categories"];
+	        this.tags = source["tags"];
 	    }
 	}
 	export class SourcePage {

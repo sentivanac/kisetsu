@@ -38,6 +38,10 @@ export function GetFetchedStats() {
   return window['go']['main']['App']['GetFetchedStats']();
 }
 
+export function GetHiddenTags() {
+  return window['go']['main']['App']['GetHiddenTags']();
+}
+
 export function GetLibraryStats() {
   return window['go']['main']['App']['GetLibraryStats']();
 }
@@ -56,6 +60,10 @@ export function GetStatus() {
 
 export function ImageCollections(arg1) {
   return window['go']['main']['App']['ImageCollections'](arg1);
+}
+
+export function ImageTags(arg1, arg2) {
+  return window['go']['main']['App']['ImageTags'](arg1, arg2);
 }
 
 export function KeepFetched(arg1) {
@@ -124,6 +132,10 @@ export function SaveSearchFilters(arg1) {
 
 export function SearchSources(arg1, arg2) {
   return window['go']['main']['App']['SearchSources'](arg1, arg2);
+}
+
+export function SetTagHidden(arg1, arg2) {
+  return window['go']['main']['App']['SetTagHidden'](arg1, arg2);
 }
 
 export function SetWallpaper(arg1) {

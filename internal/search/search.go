@@ -30,6 +30,9 @@ type ProviderInfo struct {
 	EnabledByDefault bool `json:"enabledByDefault"`
 	// Categories is true for providers that apply Query.Categories.
 	Categories bool `json:"categories"`
+	// Tags is true for providers whose images have tags (Query.HiddenTags
+	// applies to them).
+	Tags bool `json:"tags"`
 }
 
 // Service runs searches. It is safe for concurrent use.
@@ -38,6 +41,10 @@ type Service struct {
 	providers []providers.Provider // registration order, shown in the UI
 	byID      map[string]providers.Provider
 	timeout   time.Duration
+
+	// HiddenTags, if set, returns the tags to leave out of every search
+	// (from the user's settings). If it fails, searches run without them.
+	HiddenTags func(context.Context) ([]string, error)
 }
 
 // New returns a Service for the given providers. Provider IDs must be
@@ -72,6 +79,7 @@ func (s *Service) Providers() []ProviderInfo {
 		if c, ok := p.(providers.Categorizer); ok {
 			info.Categories = c.HasCategories()
 		}
+		_, info.Tags = p.(providers.Tagger)
 		out[i] = info
 	}
 	return out
@@ -91,6 +99,15 @@ func (s *Service) Search(ctx context.Context, providerID string, q providers.Que
 	p, ok := s.byID[providerID]
 	if !ok {
 		return providers.Page{}, fmt.Errorf("%w %q", ErrUnknownProvider, providerID)
+	}
+	// Hidden tags always come from the settings, never from the caller.
+	q.HiddenTags = nil
+	if s.HiddenTags != nil {
+		tags, err := s.HiddenTags(ctx)
+		if err != nil {
+			s.log.Warn("hidden tags could not be read; searching without them", "err", err)
+		}
+		q.HiddenTags = tags
 	}
 	// Split "-term" words into q.Exclude, then validate here as well, so an
 	// invalid query never costs an API call.
@@ -119,4 +136,24 @@ func (s *Service) Search(ctx context.Context, providerID string, q providers.Que
 	s.log.Info("search done", "provider", providerID, "page", q.Page,
 		"results", len(page.Images), "has_more", page.HasMore, "duration", elapsed)
 	return page, nil
+}
+
+// Tags returns the tags of one image, for providers whose images have
+// tags; others return none.
+func (s *Service) Tags(ctx context.Context, providerID, imageID string) ([]string, error) {
+	p, ok := s.byID[providerID]
+	if !ok {
+		return nil, fmt.Errorf("%w %q", ErrUnknownProvider, providerID)
+	}
+	t, ok := p.(providers.Tagger)
+	if !ok {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	tags, err := t.Tags(ctx, imageID)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		s.log.Warn("image tags failed", "provider", providerID, "err", err)
+	}
+	return tags, err
 }

@@ -10,6 +10,8 @@ follow [Semantic Versioning](https://semver.org/).
 - Wallhaven categories (General, Anime, People) can be turned off in the
   search form; saved searches remember them, so Fetched and rotation
   follow them too.
+- The preview of a Wallhaven image lists its tags; clicking one hides
+  images with that tag from all later searches, including Fetched.
 
 ## [0.1.0] - 2026-11-03
 

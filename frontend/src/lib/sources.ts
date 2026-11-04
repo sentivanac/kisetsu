@@ -9,6 +9,8 @@ export interface SourceInfo {
     enabledByDefault: boolean;
     // categories is true for sources that apply the category filter.
     categories?: boolean;
+    // tags is true for sources whose images have tags (Wallhaven).
+    tags?: boolean;
 }
 
 // SourceError mirrors apperr.PublicError as sent inside a source status.

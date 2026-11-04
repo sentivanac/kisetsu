@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,30 +75,9 @@ func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Pag
 	if err := q.Validate(); err != nil {
 		return providers.Page{}, p.fail(providers.ErrInvalidQuery, err)
 	}
-	if err := p.limiter.Wait(ctx); err != nil {
-		return providers.Page{}, p.fail(providers.ErrUnavailable, err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.searchURL(q), nil)
-	if err != nil {
-		return providers.Page{}, p.fail(providers.ErrInvalidQuery, err)
-	}
-	req.Header.Set("User-Agent", p.userAgent)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return providers.Page{}, p.fail(providers.ErrUnavailable, err)
-	}
-	defer resp.Body.Close()
-
-	if err := p.checkStatus(resp); err != nil {
-		return providers.Page{}, err
-	}
-
 	var body searchResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseSize)).Decode(&body); err != nil {
-		return providers.Page{}, p.fail(providers.ErrUnavailable, fmt.Errorf("decode response: %w", err))
+	if err := p.getJSON(ctx, p.searchURL(q), &body); err != nil {
+		return providers.Page{}, err
 	}
 
 	page := providers.Page{
@@ -136,6 +116,60 @@ func categoryBits(chosen []images.Category) string {
 	return string(bits)
 }
 
+// getJSON waits for the rate limiter, sends a GET request and decodes the
+// JSON response into out. Errors are *providers.Error.
+func (p *Provider) getJSON(ctx context.Context, url string, out any) error {
+	if err := p.limiter.Wait(ctx); err != nil {
+		return p.fail(providers.ErrUnavailable, err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return p.fail(providers.ErrInvalidQuery, err)
+	}
+	req.Header.Set("User-Agent", p.userAgent)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return p.fail(providers.ErrUnavailable, err)
+	}
+	defer resp.Body.Close()
+
+	if err := p.checkStatus(resp); err != nil {
+		return err
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseSize)).Decode(out); err != nil {
+		return p.fail(providers.ErrUnavailable, fmt.Errorf("decode response: %w", err))
+	}
+	return nil
+}
+
+// validID matches Wallhaven wallpaper IDs, such as "vp3m23".
+var validID = regexp.MustCompile(`^[a-z0-9]{1,16}$`)
+
+// Tags implements providers.Tagger: the tag names of one wallpaper, from
+// its detail page in the API (one call, through the rate limiter).
+func (p *Provider) Tags(ctx context.Context, imageID string) ([]string, error) {
+	if !validID.MatchString(imageID) {
+		return nil, p.fail(providers.ErrInvalidQuery, fmt.Errorf("invalid wallpaper ID %q", imageID))
+	}
+	var body struct {
+		Data struct {
+			Tags []struct {
+				Name string `json:"name"`
+			} `json:"tags"`
+		} `json:"data"`
+	}
+	if err := p.getJSON(ctx, p.baseURL+"/w/"+imageID, &body); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(body.Data.Tags))
+	for _, t := range body.Data.Tags {
+		names = append(names, t.Name)
+	}
+	return providers.NormalizeTags(names), nil
+}
+
 // searchURL translates a normalized q into Wallhaven search parameters.
 func (p *Provider) searchURL(q providers.Query) string {
 	v := url.Values{}
@@ -146,6 +180,14 @@ func (p *Provider) searchURL(q providers.Query) string {
 	}
 	for _, term := range q.Exclude {
 		terms = append(terms, "-"+term)
+	}
+	// A tag of several words is excluded as a quoted phrase; unquoted,
+	// only its first word would be excluded.
+	for _, tag := range q.HiddenTags {
+		if strings.Contains(tag, " ") {
+			tag = `"` + tag + `"`
+		}
+		terms = append(terms, "-"+tag)
 	}
 	if len(terms) > 0 {
 		v.Set("q", strings.Join(terms, " "))

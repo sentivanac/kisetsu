@@ -4,13 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/images"
+	"github.com/sentivanac/kisetsu/internal/providers"
 )
 
 func newTestStore(t *testing.T) (*Store, *sql.DB) {
@@ -211,5 +214,48 @@ func TestDisplaySize(t *testing.T) {
 		if err := store.SaveDisplay(ctx, bad); err == nil {
 			t.Errorf("%+v accepted", bad)
 		}
+	}
+}
+
+func TestHiddenTags(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+
+	if tags, err := store.HiddenTags(ctx); err != nil || tags != nil {
+		t.Fatalf("defaults: %q, %v", tags, err)
+	}
+	store.SetTagHidden(ctx, "barefoot", true)
+	store.SetTagHidden(ctx, " long  hair ", true)
+	tags, err := store.SetTagHidden(ctx, "BAREFOOT", true) // already hidden
+	if err != nil || !slices.Equal(tags, []string{"barefoot", "long hair"}) {
+		t.Errorf("after hiding: %q, %v", tags, err)
+	}
+	tags, err = store.SetTagHidden(ctx, "Barefoot", false)
+	if err != nil || !slices.Equal(tags, []string{"long hair"}) {
+		t.Errorf("after showing: %q, %v", tags, err)
+	}
+	if got, _ := store.HiddenTags(ctx); !slices.Equal(got, []string{"long hair"}) {
+		t.Errorf("stored: %q", got)
+	}
+
+	if _, err := store.SetTagHidden(ctx, `a "quoted" tag`, true); !errors.Is(err, ErrInvalidTag) {
+		t.Errorf("quoted tag: err = %v, want ErrInvalidTag", err)
+	}
+}
+
+func TestHiddenTagsLimit(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+	for i := range providers.MaxHiddenTags {
+		if _, err := store.SetTagHidden(ctx, fmt.Sprintf("tag%d", i), true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.SetTagHidden(ctx, "one more", true); !errors.Is(err, ErrInvalidTag) {
+		t.Errorf("over the limit: err = %v, want ErrInvalidTag", err)
+	}
+	// Showing a tag again always works, even at the limit.
+	if tags, err := store.SetTagHidden(ctx, "tag0", false); err != nil || len(tags) != providers.MaxHiddenTags-1 {
+		t.Errorf("showing at the limit: %d tags, %v", len(tags), err)
 	}
 }

@@ -699,3 +699,34 @@
 .search-intro p {
     margin: 0 0 0.5rem;
 }
+
+/* Tags of a previewed image and the hidden-tag list. */
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.image-tags {
+    margin-top: 1rem;
+}
+
+.image-tags h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.image-tags .small {
+    margin-top: 0.5rem;
+}
+
+.chip.tag-hidden {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+.hidden-tags .chips {
+    margin-top: 0.2rem;
+}

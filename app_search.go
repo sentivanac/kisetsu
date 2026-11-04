@@ -148,3 +148,16 @@ func (a *App) searchError(err error) error {
 	}
 	return apperr.InternalError(err)
 }
+
+// ImageTags returns the tags of one search result, for sources whose
+// images have tags (Wallhaven); others return none. It costs an API call,
+// so the frontend asks only for the image being previewed.
+func (a *App) ImageTags(providerID, imageID string) (tags []string, err error) {
+	defer a.recoverPanic("ImageTags", &err)
+
+	tags, err = a.search.Tags(a.ctx, providerID, imageID)
+	if err != nil {
+		return nil, a.searchError(err)
+	}
+	return nonNil(tags), nil
+}

@@ -66,6 +66,9 @@ type Query struct {
 	// Categories limits results to these kinds of content; empty means
 	// all. Sources without categories ignore it.
 	Categories []images.Category `json:"categories"`
+	// HiddenTags are tags the user never wants to see. The search service
+	// fills them from the settings; sources without tags ignore them.
+	HiddenTags []string `json:"hiddenTags"`
 }
 
 // Normalize moves "-term" words from Text into Exclude, collapses
@@ -97,6 +100,7 @@ func (q Query) Normalize() Query {
 		include = append(include, word)
 	}
 
+	q.HiddenTags = NormalizeTags(q.HiddenTags)
 	if cats, err := images.NormalizeCategories(q.Categories); err == nil {
 		q.Categories = cats // unknown ones are kept for Validate to report
 	}
@@ -133,6 +137,9 @@ func (q Query) Validate() error {
 		errs = append(errs, fmt.Errorf("unknown orientation %q", q.Orientation))
 	}
 	if _, err := images.NormalizeCategories(q.Categories); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidateTags(q.HiddenTags); err != nil {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)

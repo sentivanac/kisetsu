@@ -25,6 +25,8 @@ export function Download(arg1:images.Image):Promise<string>;
 
 export function GetFetchedStats():Promise<main.FetchedStats>;
 
+export function GetHiddenTags():Promise<Array<string>>;
+
 export function GetLibraryStats():Promise<main.LibraryStats>;
 
 export function GetRotation():Promise<main.RotationState>;
@@ -34,6 +36,8 @@ export function GetSearchFilters():Promise<settings.SearchFilters>;
 export function GetStatus():Promise<main.Status>;
 
 export function ImageCollections(arg1:number):Promise<Array<number>>;
+
+export function ImageTags(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function KeepFetched(arg1:number):Promise<main.LibraryItem>;
 
@@ -68,5 +72,7 @@ export function SaveSearch(arg1:string,arg2:searches.Query):Promise<main.SavedSe
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
 export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query):Promise<main.SearchResult>;
+
+export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
 
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;

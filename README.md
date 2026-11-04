@@ -85,7 +85,9 @@ page before publishing or sharing an image.
 - **Wallhaven:** only images rated safe for work are requested. Safe for
   work still includes suggestive pictures, mostly in the Anime and People
   categories; turn those categories off in the search form if you do not
-  want them. Licenses are often not stated; Kisetsu then says "License
+  want them. The preview of a Wallhaven image lists its tags: click one
+  (for example "barefoot") to hide images with it from all later
+  searches; the search form lists hidden tags and shows them again. Licenses are often not stated; Kisetsu then says "License
   unknown".
 - **Wikimedia Commons** (off by default): limited to its curated quality
   collections, with unsuitable results filtered out. Commons has no

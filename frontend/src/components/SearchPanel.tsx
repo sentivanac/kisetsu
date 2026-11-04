@@ -4,6 +4,7 @@ import {
     CancelSearch,
     DeleteSavedSearch,
     Download,
+    GetHiddenTags,
     GetSearchFilters,
     LibraryStatus,
     ListProviders,
@@ -12,6 +13,7 @@ import {
     SaveSearch,
     SaveSearchFilters,
     SearchSources,
+    SetTagHidden,
 } from '../../wailsjs/go/main/App';
 import {images, main, providers, search, searches, settings} from '../../wailsjs/go/models';
 import {ScreenGetAll} from '../../wailsjs/runtime/runtime';
@@ -44,6 +46,7 @@ import {
 } from '../lib/sources';
 import {DownloadButton} from './DownloadButton';
 import {Gallery} from './Gallery';
+import {ImageTags} from './ImageTags';
 import {PreviewDialog} from './PreviewDialog';
 import {SavedSearchBar} from './SavedSearchBar';
 
@@ -61,6 +64,8 @@ export function SearchPanel({active}: Props) {
     const [orientation, setOrientation] = useState('');
     // Content categories; empty means all.
     const [categories, setCategories] = useState<string[]>([]);
+    // Tags left out of every search (stored by the backend).
+    const [hiddenTags, setHiddenTags] = useState<string[]>([]);
     // Filters are saved only after the remembered ones were loaded, so the
     // defaults shown during startup never overwrite them.
     const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -113,6 +118,18 @@ export function SearchPanel({active}: Props) {
             }),
         ).catch((err: unknown) => setError(toBackendError(err)));
     }, [filtersLoaded, selectedSources, resolution, orientation, categories]);
+
+    useEffect(() => {
+        GetHiddenTags()
+            .then(setHiddenTags)
+            .catch(() => {}); // searching works without the list on screen
+    }, []);
+
+    function setTagHidden(tag: string, hide: boolean) {
+        SetTagHidden(tag, hide)
+            .then(setHiddenTags)
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
 
     function applyScreenSize() {
         ScreenGetAll()
@@ -278,6 +295,7 @@ export function SearchPanel({active}: Props) {
 
     // The category filter applies only to sources that classify images.
     const showCategories = available.some((p) => p.categories && selectedSources.includes(p.id));
+    const hasTags = (providerId: string) => available.some((p) => p.id === providerId && p.tags);
     const sourceName = (id: string) => available.find((p) => p.id === id)?.name ?? id;
     const selectedImage = selected === null ? null : results[selected];
     const morePages = nextPages(statuses);
@@ -385,6 +403,26 @@ export function SearchPanel({active}: Props) {
                         ))}
                     </fieldset>
                 )}
+
+                {showCategories && hiddenTags.length > 0 && (
+                    <fieldset className="sources hidden-tags">
+                        <legend>Hidden Wallhaven tags</legend>
+                        <div className="chips">
+                            {hiddenTags.map((tag) => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    className="chip"
+                                    title={`Show images tagged “${tag}” again`}
+                                    aria-label={`Show images tagged ${tag} again`}
+                                    onClick={() => setTagHidden(tag, false)}
+                                >
+                                    {tag} <span aria-hidden="true">×</span>
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
+                )}
             </form>
 
             <div aria-live="polite">
@@ -445,15 +483,20 @@ export function SearchPanel({active}: Props) {
                     image={selectedImage}
                     providerName={sourceName(selectedImage.provider)}
                     actions={
-                        <DownloadButton
-                            progress={downloads[imageKey(selectedImage)]}
-                            inLibrary={imageKey(selectedImage) in inLibrary}
-                            startError={startErrors[imageKey(selectedImage)]}
-                            onDownload={() => startDownload(selectedImage)}
-                            onCancel={() => {
-                                CancelDownload(imageKey(selectedImage)).catch(() => {});
-                            }}
-                        />
+                        <>
+                            <DownloadButton
+                                progress={downloads[imageKey(selectedImage)]}
+                                inLibrary={imageKey(selectedImage) in inLibrary}
+                                startError={startErrors[imageKey(selectedImage)]}
+                                onDownload={() => startDownload(selectedImage)}
+                                onCancel={() => {
+                                    CancelDownload(imageKey(selectedImage)).catch(() => {});
+                                }}
+                            />
+                            {hasTags(selectedImage.provider) && (
+                                <ImageTags image={selectedImage} hidden={hiddenTags} onToggle={setTagHidden} />
+                            )}
+                        </>
                     }
                     onClose={() => setSelected(null)}
                     onPrevious={selected > 0 ? () => setSelected(selected - 1) : undefined}

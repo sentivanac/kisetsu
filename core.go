@@ -169,11 +169,17 @@ func (c *core) fetchedService() *fetched.Service {
 
 // searchService registers the providers. Registration order is the order
 // sources appear in the UI.
+// Every search leaves out the tags the user hid.
 func (c *core) searchService(client *http.Client) (*search.Service, error) {
-	return search.New(c.log,
+	s, err := search.New(c.log,
 		wallhaven.New(client, appinfo.UserAgent()),
 		commons.New(client, appinfo.UserAgent()),
 	)
+	if err != nil {
+		return nil, err
+	}
+	s.HiddenTags = settings.NewStore(c.db).HiddenTags
+	return s, nil
 }
 
 // downloader builds a download manager for the library and fetched images.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -182,5 +183,64 @@ func TestSearchLogsTextOnlyAtDebug(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "search done") {
 		t.Errorf("search not logged: %q", buf.String())
+	}
+}
+
+func TestSearchAddsHiddenTags(t *testing.T) {
+	p := &fakeProvider{id: "w", name: "W"}
+	s, err := New(discardLogger(), p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.HiddenTags = func(context.Context) ([]string, error) { return []string{"barefoot", "long hair"}, nil }
+
+	// Tags sent by the caller are replaced by the settings.
+	if _, err := s.Search(context.Background(), "w", providers.Query{Page: 1, HiddenTags: []string{"other"}}); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"barefoot", "long hair"}; !slices.Equal(p.lastQ.HiddenTags, want) {
+		t.Errorf("HiddenTags = %q, want %q", p.lastQ.HiddenTags, want)
+	}
+
+	s.HiddenTags = func(context.Context) ([]string, error) { return nil, errors.New("database is locked") }
+	if _, err := s.Search(context.Background(), "w", providers.Query{Page: 1}); err != nil {
+		t.Errorf("search failed with unreadable hidden tags: %v", err)
+	}
+	if p.lastQ.HiddenTags != nil {
+		t.Errorf("HiddenTags = %q, want none", p.lastQ.HiddenTags)
+	}
+}
+
+// taggingProvider is a fakeProvider whose images have tags.
+type taggingProvider struct {
+	fakeProvider
+	tags  []string
+	gotID string
+}
+
+func (p *taggingProvider) Tags(ctx context.Context, id string) ([]string, error) {
+	p.gotID = id
+	return p.tags, nil
+}
+
+func TestTags(t *testing.T) {
+	tagger := &taggingProvider{fakeProvider: fakeProvider{id: "w", name: "W"}, tags: []string{"forest"}}
+	s, err := New(discardLogger(), tagger, &fakeProvider{id: "c", name: "C"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	if tags, err := s.Tags(ctx, "w", "abc"); err != nil || !slices.Equal(tags, []string{"forest"}) || tagger.gotID != "abc" {
+		t.Errorf("tags = %q, %v (id %q)", tags, err, tagger.gotID)
+	}
+	if tags, err := s.Tags(ctx, "c", "abc"); err != nil || tags != nil {
+		t.Errorf("provider without tags: %q, %v", tags, err)
+	}
+	if info := s.Providers(); !info[0].Tags || info[1].Tags {
+		t.Errorf("Tags = %v, %v; want true, false", info[0].Tags, info[1].Tags)
+	}
+	if _, err := s.Tags(ctx, "nope", "abc"); !errors.Is(err, ErrUnknownProvider) {
+		t.Errorf("unknown provider: err = %v", err)
 	}
 }
