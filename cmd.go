@@ -22,6 +22,8 @@ const usage = `Usage: kisetsu [command]
 Without a command, the Kisetsu window opens.
 
 Commands:
+  agent                run in the background: change the wallpaper when
+                       rotation is due (started at login)
   rotate               change the wallpaper to the next library image
   rotate --scheduled   the same, but only if rotation is enabled
                        (used by the systemd timer)
@@ -41,6 +43,8 @@ const rotateTimeout = 5 * time.Minute
 // runCommand runs a command-line command and returns the exit status.
 func runCommand(name string, args []string) int {
 	switch name {
+	case "agent":
+		return runAgent(args)
 	case "rotate":
 		return runRotate(args)
 	case "fetch":

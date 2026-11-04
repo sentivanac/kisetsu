@@ -69,6 +69,7 @@ core.go            setup shared by the window and commands
 cmd.go             command-line commands (rotate, fetch, version, help)
 app.go             thin bridge exposing Go methods to the frontend
 internal/          business logic, independent of the UI
+  agent/           background agent: changes the wallpaper when rotation is due
   apperr/          errors with user-safe messages and stable codes
   appinfo/         build and platform information
   config/          XDG directory resolution
@@ -77,6 +78,7 @@ internal/          business logic, independent of the UI
     migrations/    numbered SQL migration files (embedded)
   downloads/       download queue into the library or the fetched cache
   fetched/         keeping and pruning fetched images
+  filelock/        exclusive file locks between Kisetsu processes
   images/          provider-independent image model
   imaging/         image validation, thumbnails, SHA-256 and dHash
   providers/       Provider interface, query, errors

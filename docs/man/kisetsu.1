@@ -4,6 +4,8 @@ kisetsu \- wallpaper discovery and management
 .SH SYNOPSIS
 .B kisetsu
 .br
+.B kisetsu agent
+.br
 .B kisetsu rotate
 .RB [ \-\-scheduled ]
 .br
@@ -22,6 +24,12 @@ desktop wallpaper.
 .PP
 Without a command, the Kisetsu window opens.
 .SH COMMANDS
+.TP
+.B agent
+Run in the background and change the wallpaper whenever rotation is due,
+counting from the last change. It stops with Ctrl+C or at the end of the
+session. Only one agent runs per user; starting a second one does
+nothing.
 .TP
 .B rotate
 Change the wallpaper to the next image from the source chosen in the
@@ -72,6 +80,9 @@ Library images, thumbnails and the database.
 .TP
 .I ~/.cache/kisetsu
 Images fetched for saved searches (at most 200 MB).
+.TP
+.I ~/.local/state/kisetsu/agent.lock
+Held by the running agent.
 .TP
 .I ~/.local/state/kisetsu/kisetsu.log
 Log; a new one is started above 5 MB, the previous is kept as
