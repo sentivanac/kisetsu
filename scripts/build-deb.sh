@@ -83,7 +83,7 @@ Architecture: $arch
 Maintainer: Miroslav Sentivanac <miroslav.sentivanac@gmail.com>
 Installed-Size: $(du -sk --exclude=DEBIAN "$pkg" | cut -f1)
 Depends: $depends
-Recommends: libglib2.0-bin, systemd
+Recommends: libglib2.0-bin
 Section: graphics
 Priority: optional
 Homepage: https://github.com/sentivanac/kisetsu

@@ -14,7 +14,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/downloads"
-	"github.com/sentivanac/kisetsu/internal/schedule"
+	"github.com/sentivanac/kisetsu/internal/legacytimer"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -74,9 +74,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// The 0.1.0 timer is only looked for; without systemd there is none.
+	// The 0.1.0 timer is only looked for and removed.
 	var legacy LegacyTimer
-	if timer, err := schedule.New(); err == nil {
+	if timer, err := legacytimer.New(); err == nil {
 		legacy = timer
 	}
 

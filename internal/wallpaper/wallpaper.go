@@ -82,11 +82,6 @@ type Setter struct {
 	DataDirs []string
 }
 
-// FallbackEnv names the variable the rotation timer sets to the desktop
-// found when rotation was enabled. It is used only when the desktop cannot
-// be found otherwise; it never overrides the running session.
-const FallbackEnv = "KISETSU_DESKTOP_FALLBACK"
-
 // New returns a Setter for the current user and environment.
 func New() *Setter {
 	dirs := filepath.SplitList(os.Getenv("XDG_DATA_DIRS"))
@@ -144,22 +139,16 @@ func (s *Setter) VarietyRunning() bool {
 //
 //  1. the user's active graphical session according to loginctl, and the
 //     DesktopNames of its session file — the same source the login
-//     manager uses for XDG_CURRENT_DESKTOP. This stays right for the
-//     rotation timer, whose environment can be stale: the systemd user
-//     manager keeps the variables of the first session, and sessions such
-//     as i3 do not update them;
-//  2. XDG_CURRENT_DESKTOP;
-//  3. FallbackEnv, set by the timer unit.
+//     manager uses for XDG_CURRENT_DESKTOP. This stays right even where
+//     the environment is stale (as it was for the systemd timer of 0.1.0,
+//     ADR 0031);
+//  2. XDG_CURRENT_DESKTOP, which the agent, started inside the session,
+//     has right.
 func (s *Setter) desktopNames(ctx context.Context) []string {
 	if names := s.sessionDesktop(ctx); len(names) > 0 {
 		return names
 	}
-	for _, env := range []string{"XDG_CURRENT_DESKTOP", FallbackEnv} {
-		if names := splitNames(s.Getenv(env)); len(names) > 0 {
-			return names
-		}
-	}
-	return nil
+	return splitNames(s.Getenv("XDG_CURRENT_DESKTOP"))
 }
 
 // sessionDesktop asks loginctl for the user's graphical session and reads

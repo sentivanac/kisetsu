@@ -71,8 +71,14 @@ again, and logs each attempt. It never exits because of a failed change.
    rotation off exits at once. It finds out whether the agent runs by
    taking `agent.lock` for an instant, so a starting agent tries its
    lock a few times before it concludes that another one runs.
-3. Remove what only the timer needed: most of `internal/schedule`,
-   `--scheduled` and `KISETSU_DESKTOP_FALLBACK`.
+3. Remove what only the timer needed: `internal/schedule` becomes
+   `internal/legacytimer` (find Kisetsu's unit files, remove them), and
+   `KISETSU_DESKTOP_FALLBACK` goes. `kisetsu rotate --scheduled` stays,
+   undocumented in the help: after an upgrade the old timer keeps
+   calling it until the window first opens and replaces the timer.
+   Starting the agent from that call was considered, but systemd ends
+   every process of a service when the service finishes, the agent
+   included.
 4. Tray icon (ADR 0042).
 
 ## Consequences

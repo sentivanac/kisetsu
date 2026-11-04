@@ -1,6 +1,8 @@
 # ADR 0031: Desktop from the login session
 
-- **Status:** accepted
+- **Status:** accepted; `KISETSU_DESKTOP_FALLBACK` removed in 0.2.0 with
+  the timer (ADR 0041): the agent starts inside the session, so its
+  `XDG_CURRENT_DESKTOP` is right. Detection through loginctl stays.
 - **Date:** 2026-11-02
 - Changes desktop detection from ADR 0022 and the timer environment from
   ADR 0025.

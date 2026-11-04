@@ -1,6 +1,9 @@
 # ADR 0025: systemd user timer for rotation
 
-- **Status:** accepted
+- **Status:** superseded by [ADR 0041](0041-background-agent.md) (0.2.0):
+  the background agent rotates; `internal/legacytimer` only removes this
+  timer, and `rotate --scheduled` stays so a timer not yet removed keeps
+  working.
 - **Date:** 2026-11-02
 - Third step of Phase 6; the "Wallpaper" tab (next step) turns it on and off.
 

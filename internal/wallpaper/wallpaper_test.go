@@ -433,15 +433,6 @@ func TestActiveSessionDecidesTheDesktop(t *testing.T) {
 	}
 }
 
-func TestFallbackDesktopFromTheTimer(t *testing.T) {
-	s, _ := newSetter(t, "")
-	s.Getenv = func(k string) string { return map[string]string{FallbackEnv: "MATE"}[k] }
-
-	if method, err := s.Set(context.Background(), image); err != nil || method != MATE {
-		t.Errorf("method %q, err %v; want the fallback MATE", method, err)
-	}
-}
-
 func TestExecRunner(t *testing.T) {
 	if _, err := (ExecRunner{}).LookPath("sh"); err != nil {
 		t.Fatal(err)

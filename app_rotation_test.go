@@ -10,7 +10,6 @@ import (
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/rotation"
-	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
@@ -52,9 +51,7 @@ func (f *fakeAgent) Status() (AgentStatus, error) {
 // fakeTimer stands in for the systemd timer of Kisetsu 0.1.0.
 type fakeTimer struct{ installed bool }
 
-func (f *fakeTimer) Status(context.Context) (schedule.Status, error) {
-	return schedule.Status{Installed: f.installed}, nil
-}
+func (f *fakeTimer) Installed() (bool, error) { return f.installed, nil }
 
 func (f *fakeTimer) Disable(context.Context) error {
 	f.installed = false

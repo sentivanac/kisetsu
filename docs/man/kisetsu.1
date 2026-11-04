@@ -7,7 +7,6 @@ kisetsu \- wallpaper discovery and management
 .B kisetsu agent
 .br
 .B kisetsu rotate
-.RB [ \-\-scheduled ]
 .br
 .B kisetsu fetch
 .I NAME
@@ -36,8 +35,9 @@ Change the wallpaper to the next image from the source chosen in the
 Wallpaper tab. The wallpaper is set directly, not through Variety.
 .TP
 .B rotate \-\-scheduled
-The same, but only if automatic rotation is turned on. The systemd user
-timer runs this.
+The same, but only if automatic rotation is turned on. Kept for the
+rotation timer of Kisetsu 0.1.0, which the window replaces with the agent
+when it first opens.
 .TP
 .BI "fetch " NAME " \fR[\fB\-\-count \fIN\fR]"
 Download up to
@@ -105,7 +105,6 @@ Invalid usage, or no saved search with that name.
 Kisetsu shows the license of every image but does not make images free
 to use. Check the license on the source page before publishing an image.
 .SH SEE ALSO
-.BR variety (1),
-.BR systemctl (1)
+.BR variety (1)
 .PP
 https://github.com/sentivanac/kisetsu

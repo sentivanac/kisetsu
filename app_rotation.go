@@ -9,14 +9,13 @@ import (
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/rotation"
-	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
 // LegacyTimer is the systemd timer of Kisetsu 0.1.0, which the agent
-// replaces; *schedule.Manager in the app.
+// replaces; *legacytimer.Timer in the app.
 type LegacyTimer interface {
-	Status(ctx context.Context) (schedule.Status, error)
+	Installed() (bool, error)
 	Disable(ctx context.Context) error
 }
 
@@ -182,8 +181,7 @@ func (a *App) retireTimer() {
 	if a.legacyTimer == nil {
 		return
 	}
-	st, err := a.legacyTimer.Status(a.ctx)
-	if err != nil || !st.Installed {
+	if installed, err := a.legacyTimer.Installed(); err != nil || !installed {
 		return
 	}
 	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
