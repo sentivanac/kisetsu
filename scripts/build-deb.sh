@@ -94,7 +94,8 @@ Description: wallpaper discovery and management
  Author, source and license of every image are kept.
  .
  Setting the wallpaper is supported on GNOME, KDE Plasma, Xfce, MATE and
- Cinnamon, directly or through Variety. Rotation uses a systemd user timer.
+ Cinnamon, directly or through Variety. Rotation runs in a small background
+ process started at login.
 CONTROL
 
 dpkg-deb --build --root-owner-group -Zxz "$pkg" "$pkg.deb" >/dev/null

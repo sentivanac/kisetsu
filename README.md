@@ -72,9 +72,12 @@ as before. Kisetsu's own rotation sets the wallpaper directly, and the
 Wallpaper tab warns that Variety would change it too: turn off Variety's
 automatic change, or quit Variety, if Kisetsu should rotate.
 
-**Rotation** runs as a systemd user timer, so it continues while the
-window is closed and stops when you log out. The timer is created only
-when you turn rotation on, and removed when you turn it off.
+**Rotation** runs in a small background process, `kisetsu agent`, so it
+continues while the window is closed. Turning rotation on starts it and
+adds it to the programs started at login; turning rotation off removes
+it from there, and the process ends by itself. Desktops that do not
+start programs from `~/.config/autostart` (i3, sway and other window
+managers) need `kisetsu agent` in their own startup file.
 
 ## Images and licenses
 
@@ -116,15 +119,15 @@ Kisetsu has no account, no telemetry and no server of its own.
 | Library images, thumbnails, database | `~/.local/share/kisetsu` |
 | Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` |
 | Log file (a new one is started above 5 MB; the previous is kept as `.1`) | `~/.local/state/kisetsu/kisetsu.log` |
-| Rotation timer (only while rotation is on) | `~/.config/systemd/user/kisetsu-rotate.{service,timer}` |
+| Start at login (only while rotation is on) | `~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop` |
 
 Kisetsu never deletes images from your library on its own; only the
 cache of fresh images is cleaned up automatically.
 
 ## Uninstall
 
-1. In Kisetsu, open **Wallpaper** and turn rotation off. This removes
-   the timer.
+1. In Kisetsu, open **Wallpaper** and turn rotation off. The background
+   process stops and is no longer started at login.
 2. Remove the program:
 
    ```sh
@@ -137,19 +140,18 @@ cache of fresh images is cleaned up automatically.
    rm -r ~/.local/share/kisetsu ~/.cache/kisetsu ~/.local/state/kisetsu ~/.config/kisetsu
    ```
 
-If you removed the program while rotation was on, the timer stays but
-does nothing. To remove it as well:
+If you removed the program while rotation was on, its login entry stays
+but is skipped, because the program is gone. To remove it as well:
 
 ```sh
-systemctl --user disable --now kisetsu-rotate.timer
-rm ~/.config/systemd/user/kisetsu-rotate.service ~/.config/systemd/user/kisetsu-rotate.timer
-systemctl --user daemon-reload
+rm ~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop
 ```
 
 ## Command line
 
 ```sh
 kisetsu                              # open the window
+kisetsu agent                        # run the background process (normally started at login)
 kisetsu rotate                       # change to the next wallpaper now
 kisetsu fetch "Mountains" --count 5  # new images for the saved search "Mountains"
 kisetsu version
@@ -164,7 +166,8 @@ kisetsu help
 - **More detail in the log:** `KISETSU_LOG_LEVEL=debug kisetsu`, then
   look at `~/.local/state/kisetsu/kisetsu.log`.
 - **The wallpaper does not change:** the Wallpaper tab shows whether the
-  timer runs and when the next change is due. Check whether Variety is
+  background process runs (and starts it if not) and when the next
+  change is due. Check whether Variety is
   running, and whether your desktop is in the table above.
 
 ## Contributing

@@ -46,13 +46,15 @@ type App struct {
 	files     *libfiles.Server
 	wallpaper WallpaperSetter
 	rotation  *rotation.Rotator
-	schedule  Scheduler
+	agent     AgentControl
+	// legacyTimer is the 0.1.0 systemd timer, removed when found.
+	legacyTimer LegacyTimer
 
 	savedSearches *searches.Store
 	fetched       *fetched.Service
 
-	// executable is this Kisetsu binary, to detect a timer that runs
-	// another one.
+	// executable is this Kisetsu binary, to detect an autostart entry
+	// that starts another one.
 	executable   string
 	rotationLock string
 
@@ -79,7 +81,8 @@ type Deps struct {
 	Files         *libfiles.Server
 	Wallpaper     WallpaperSetter
 	Rotation      *rotation.Rotator
-	Schedule      Scheduler
+	Agent         AgentControl
+	LegacyTimer   LegacyTimer // may be nil
 	SavedSearches *searches.Store
 	Fetched       *fetched.Service
 	Executable    string
@@ -89,18 +92,19 @@ type Deps struct {
 // NewApp creates a new App.
 func NewApp(d Deps) *App {
 	return &App{
-		ctx:       context.Background(),
-		log:       d.Log,
-		db:        d.DB,
-		dbPath:    d.DBPath,
-		search:    d.Search,
-		settings:  d.Settings,
-		downloads: d.Downloads,
-		library:   d.Library,
-		files:     d.Files,
-		wallpaper: d.Wallpaper,
-		rotation:  d.Rotation,
-		schedule:  d.Schedule,
+		ctx:         context.Background(),
+		log:         d.Log,
+		db:          d.DB,
+		dbPath:      d.DBPath,
+		search:      d.Search,
+		settings:    d.Settings,
+		downloads:   d.Downloads,
+		library:     d.Library,
+		files:       d.Files,
+		wallpaper:   d.Wallpaper,
+		rotation:    d.Rotation,
+		agent:       d.Agent,
+		legacyTimer: d.LegacyTimer,
 
 		savedSearches: d.SavedSearches,
 		fetched:       d.Fetched,
@@ -116,6 +120,7 @@ func NewApp(d Deps) *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.emit = func(name string, data any) { runtime.EventsEmit(ctx, name, data) }
+	a.retireTimer()
 }
 
 // recoverPanic turns a panic in a bound method into an internal error.

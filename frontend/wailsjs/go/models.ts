@@ -137,6 +137,24 @@ export namespace images {
 
 export namespace main {
 	
+	export class AgentState {
+	    running: boolean;
+	    autostart: boolean;
+	    outdated: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.running = source["running"];
+	        this.autostart = source["autostart"];
+	        this.outdated = source["outdated"];
+	        this.error = source["error"];
+	    }
+	}
 	export class CollectionInfo {
 	    id: number;
 	    name: string;
@@ -285,30 +303,11 @@ export namespace main {
 	        this.order = source["order"];
 	    }
 	}
-	export class TimerStatus {
-	    installed: boolean;
-	    active: boolean;
-	    nextRun: string;
-	    outdated: boolean;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TimerStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.installed = source["installed"];
-	        this.active = source["active"];
-	        this.nextRun = source["nextRun"];
-	        this.outdated = source["outdated"];
-	        this.error = source["error"];
-	    }
-	}
 	export class RotationState {
 	    settings: RotationSettings;
 	    intervals: string[];
-	    timer: TimerStatus;
+	    agent: AgentState;
+	    nextChange: string;
 	    lastImageId: number;
 	    lastChange: string;
 	    varietyRunning: boolean;
@@ -322,7 +321,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.settings = this.convertValues(source["settings"], RotationSettings);
 	        this.intervals = source["intervals"];
-	        this.timer = this.convertValues(source["timer"], TimerStatus);
+	        this.agent = this.convertValues(source["agent"], AgentState);
+	        this.nextChange = source["nextChange"];
 	        this.lastImageId = source["lastImageId"];
 	        this.lastChange = source["lastChange"];
 	        this.varietyRunning = source["varietyRunning"];
@@ -486,7 +486,6 @@ export namespace main {
 		    return a;
 		}
 	}
-	
 	export class WallpaperResult {
 	    method: string;
 	    message: string;

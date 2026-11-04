@@ -3,22 +3,21 @@ package main
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"time"
 
+	"github.com/sentivanac/kisetsu/internal/agent"
 	"github.com/sentivanac/kisetsu/internal/apperr"
+	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
-	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
-// Scheduler installs the rotation timer; *schedule.Manager in the app.
-type Scheduler interface {
-	Enable(ctx context.Context, interval time.Duration) error
-	Disable(ctx context.Context) error
-	Restart(ctx context.Context) error
+// LegacyTimer is the systemd timer of Kisetsu 0.1.0, which the agent
+// replaces; *schedule.Manager in the app.
+type LegacyTimer interface {
 	Status(ctx context.Context) (schedule.Status, error)
+	Disable(ctx context.Context) error
 }
 
 // RotationSettings mirrors rotation.Settings for the frontend.
@@ -31,25 +30,28 @@ type RotationSettings struct {
 	Order         string `json:"order"`
 }
 
-// TimerStatus describes the systemd timer for the frontend.
-type TimerStatus struct {
-	Installed bool   `json:"installed"`
-	Active    bool   `json:"active"`
-	NextRun   string `json:"nextRun"` // RFC 3339, "" when unknown
-	// Outdated means the timer runs another Kisetsu binary (moved or
-	// rebuilt elsewhere); RepairRotationTimer fixes it.
+// AgentState describes the background agent for the frontend.
+type AgentState struct {
+	Running bool `json:"running"`
+	// Autostart means the agent starts at login.
+	Autostart bool `json:"autostart"`
+	// Outdated means the autostart entry starts another Kisetsu binary
+	// (moved or rebuilt elsewhere); RepairAgent fixes it.
 	Outdated bool   `json:"outdated"`
 	Error    string `json:"error,omitempty"`
 }
 
 // RotationState is everything the Wallpaper tab shows.
 type RotationState struct {
-	Settings       RotationSettings `json:"settings"`
-	Intervals      []string         `json:"intervals"`
-	Timer          TimerStatus      `json:"timer"`
-	LastImageID    int64            `json:"lastImageId"`
-	LastChange     string           `json:"lastChange"` // RFC 3339, "" if none
-	VarietyRunning bool             `json:"varietyRunning"`
+	Settings  RotationSettings `json:"settings"`
+	Intervals []string         `json:"intervals"`
+	Agent     AgentState       `json:"agent"`
+	// NextChange is when rotation changes the wallpaper next (RFC 3339),
+	// "" when rotation is off.
+	NextChange     string `json:"nextChange"`
+	LastImageID    int64  `json:"lastImageId"`
+	LastChange     string `json:"lastChange"` // RFC 3339, "" if none
+	VarietyRunning bool   `json:"varietyRunning"`
 	// SourceImages is how many images the chosen source has now.
 	SourceImages int `json:"sourceImages"`
 }
@@ -79,29 +81,36 @@ func (a *App) GetRotation() (state RotationState, err error) {
 		state.Intervals = append(state.Intervals, string(i))
 	}
 
-	st, err := a.schedule.Status(a.ctx)
+	st, err := a.agent.Status()
 	if err != nil {
-		// The settings are still useful without timer details.
-		a.log.Warn("cannot read rotation timer status", "err", err)
-		state.Timer.Error = "The timer status could not be read."
+		// The settings are still useful without agent details.
+		a.log.Warn("cannot read agent status", "err", err)
+		state.Agent.Error = "The state of the background process could not be read."
 	}
-	state.Timer.Installed, state.Timer.Active = st.Installed, st.Active
-	state.Timer.Outdated = st.Outdated(a.executable)
-	if !st.NextRun.IsZero() {
-		state.Timer.NextRun = st.NextRun.Format(time.RFC3339)
-	}
+	state.Agent.Running = st.Running
+	state.Agent.Autostart = st.Autostart.Installed
+	state.Agent.Outdated = st.Autostart.Outdated(a.executable)
 
-	if last, ok, err := a.rotation.History.Last(a.ctx); err == nil && ok {
+	last, changed, err := a.rotation.History.Last(a.ctx)
+	if err == nil && changed {
 		state.LastImageID = last.ImageID
 		state.LastChange = last.At.Format(time.RFC3339)
+	}
+	if due, on := agent.Due(cfg, last.At, err == nil && changed); on {
+		// The agent checks every half minute; an overdue change comes next.
+		if now := time.Now(); due.Before(now) {
+			due = now
+		}
+		state.NextChange = due.Format(time.RFC3339)
 	}
 	state.VarietyRunning = a.wallpaper.VarietyRunning()
 	return state, nil
 }
 
-// SaveRotation stores the rotation settings and installs, updates or
-// removes the timer to match. When enabling fails, rotation stays off, so
-// the settings never claim a timer that does not exist.
+// SaveRotation stores the rotation settings and starts the agent (with
+// its autostart entry) or removes the entry; the agent exits by itself
+// once rotation is off. When the agent cannot be set up, rotation stays
+// off, so the settings never claim a rotation that does not run.
 func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) {
 	defer a.recoverPanic("SaveRotation", &err)
 
@@ -115,44 +124,83 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These rotation settings are not valid.", err)
 	}
+	// Saved first: a starting agent with rotation off would exit at once.
+	if err := rotation.SaveSettings(a.ctx, a.settings, cfg); err != nil {
+		return RotationState{}, apperr.New(apperr.Unavailable, "Rotation settings could not be saved.", err)
+	}
 
 	if cfg.Enabled {
-		interval, _ := cfg.Interval.Duration() // validated above
-		if err := a.schedule.Enable(a.ctx, interval); err != nil {
+		if err := a.agent.Enable(); err != nil {
 			cfg.Enabled = false
 			if saveErr := rotation.SaveSettings(a.ctx, a.settings, cfg); saveErr != nil {
 				a.log.Warn("rotation settings not saved", "err", saveErr)
 			}
-			return RotationState{}, timerError(err)
+			return RotationState{}, agentError(err)
 		}
-	} else if err := a.schedule.Disable(a.ctx); err != nil {
-		return RotationState{}, timerError(err)
+	} else if err := a.agent.Disable(); err != nil {
+		return RotationState{}, agentError(err)
 	}
+	a.retireTimer()
 
-	if err := rotation.SaveSettings(a.ctx, a.settings, cfg); err != nil {
-		return RotationState{}, apperr.New(apperr.Unavailable, "Rotation settings could not be saved.", err)
-	}
 	a.log.Info("rotation settings saved", "enabled", cfg.Enabled, "interval", cfg.Interval,
-		"collection", cfg.CollectionID, "order", cfg.Order)
+		"collection", cfg.CollectionID, "saved_search", cfg.SavedSearchID, "order", cfg.Order)
 	return a.GetRotation()
 }
 
-// RepairRotationTimer reinstalls the timer for the running Kisetsu binary,
-// for example after Kisetsu was moved.
-func (a *App) RepairRotationTimer() (state RotationState, err error) {
-	defer a.recoverPanic("RepairRotationTimer", &err)
+// RepairAgent rewrites the autostart entry for the running Kisetsu binary
+// (for example after Kisetsu was moved) and starts the agent.
+func (a *App) RepairAgent() (state RotationState, err error) {
+	defer a.recoverPanic("RepairAgent", &err)
 
 	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
 	if err != nil {
 		return RotationState{}, apperr.New(apperr.Unavailable, "Rotation settings could not be loaded.", err)
 	}
 	if cfg.Enabled {
-		interval, _ := cfg.Interval.Duration()
-		if err := a.schedule.Enable(a.ctx, interval); err != nil {
-			return RotationState{}, timerError(err)
+		if err := a.agent.Enable(); err != nil {
+			return RotationState{}, agentError(err)
 		}
 	}
 	return a.GetRotation()
+}
+
+// StartAgent starts the background agent, for example after it stopped.
+func (a *App) StartAgent() (state RotationState, err error) {
+	defer a.recoverPanic("StartAgent", &err)
+
+	if err := a.agent.Start(); err != nil {
+		return RotationState{}, agentError(err)
+	}
+	return a.GetRotation()
+}
+
+// retireTimer replaces the systemd timer of Kisetsu 0.1.0 with the agent:
+// when rotation is on, the agent is set up first, then the timer is
+// removed (only if Kisetsu created it). Problems are logged; the timer is
+// kept when the agent cannot run.
+func (a *App) retireTimer() {
+	if a.legacyTimer == nil {
+		return
+	}
+	st, err := a.legacyTimer.Status(a.ctx)
+	if err != nil || !st.Installed {
+		return
+	}
+	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
+	if err != nil {
+		return
+	}
+	if cfg.Enabled {
+		if err := a.agent.Enable(); err != nil {
+			a.log.Warn("old rotation timer kept: the agent could not be set up", "err", err)
+			return
+		}
+	}
+	if err := a.legacyTimer.Disable(a.ctx); err != nil {
+		a.log.Warn("old rotation timer not removed", "err", err)
+		return
+	}
+	a.log.Info("old rotation timer replaced by the agent")
 }
 
 // NextWallpaper changes the wallpaper now, as the timer would.
@@ -178,38 +226,19 @@ func (a *App) NextWallpaper() (state RotationState, err error) {
 		}
 		return RotationState{}, apperr.New(apperr.Unavailable, "The wallpaper could not be changed.", err)
 	}
-	a.restartRotationTimer()
+	// The agent counts the next change from this one.
 	return a.GetRotation()
 }
 
-// restartRotationTimer makes the next automatic change come one full
-// interval after a change the user made by hand. The wallpaper has already
-// changed, so a failure is only logged.
-func (a *App) restartRotationTimer() {
-	restartAfterManualChange(a.ctx, a.settings, a.schedule, a.log)
-}
-
-func timerError(err error) error {
+func agentError(err error) error {
 	switch {
-	case errors.Is(err, schedule.ErrForeignUnit):
+	case errors.Is(err, autostart.ErrForeign):
 		return apperr.New(apperr.InvalidInput,
-			"A systemd unit named kisetsu-rotate already exists and was not created by Kisetsu, so it was left alone. "+
-				"Rename or remove it in ~/.config/systemd/user to use rotation.", err)
-	case errors.Is(err, schedule.ErrTemporaryExecutable):
+			"A file named "+autostart.FileName+" already exists in ~/.config/autostart and was not created by Kisetsu, "+
+				"so it was left alone. Rename or remove it to use rotation.", err)
+	case errors.Is(err, autostart.ErrTemporaryExecutable):
 		return apperr.New(apperr.InvalidInput,
 			"Kisetsu is running from a temporary build. Build it (make build) and start that copy to enable rotation.", err)
 	}
-	return apperr.New(apperr.Unavailable, "The rotation timer could not be set up. Details were written to the log file.", err)
-}
-
-// restartAfterManualChange restarts the rotation timer when rotation is on.
-// The window and `kisetsu rotate` both use it.
-func restartAfterManualChange(ctx context.Context, store *settings.Store, timer Scheduler, log *slog.Logger) {
-	cfg, err := rotation.LoadSettings(ctx, store)
-	if err != nil || !cfg.Enabled {
-		return
-	}
-	if err := timer.Restart(ctx); err != nil {
-		log.Warn("rotation timer not restarted after a manual change", "err", err)
-	}
+	return apperr.New(apperr.Unavailable, "The background process could not be set up. Details were written to the log file.", err)
 }

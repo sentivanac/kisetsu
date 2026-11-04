@@ -70,6 +70,7 @@ cmd.go             command-line commands (rotate, fetch, version, help)
 app.go             thin bridge exposing Go methods to the frontend
 internal/          business logic, independent of the UI
   agent/           background agent: changes the wallpaper when rotation is due
+  autostart/       XDG autostart entry that starts the agent at login
   apperr/          errors with user-safe messages and stable codes
   appinfo/         build and platform information
   config/          XDG directory resolution
@@ -98,7 +99,7 @@ app_downloads.go   downloads and their progress events
 app_library.go     library listing, statistics and deletion
 app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
-app_rotation.go    rotation settings, timer and "Next wallpaper"
+app_rotation.go    rotation settings, background agent and "Next wallpaper"
 app_saved_searches.go  saved searches
 app_fetched.go     fetched images, Keep, screen size
 gpu.go             WebView GPU policy (KISETSU_WEBVIEW_GPU)

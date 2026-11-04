@@ -60,7 +60,6 @@ func (a *App) SetWallpaper(imageID int64) (result WallpaperResult, err error) {
 	if err := a.rotation.RecordManual(a.ctx, imageID); err != nil {
 		a.log.Warn("wallpaper not recorded in history", "entry", imageID, "err", err)
 	}
-	a.restartRotationTimer()
 	result = WallpaperResult{Method: string(method)}
 	switch method {
 	case wallpaper.Variety:

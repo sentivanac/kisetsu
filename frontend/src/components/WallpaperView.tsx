@@ -4,8 +4,9 @@ import {
     ListCollections,
     ListSavedSearches,
     NextWallpaper,
-    RepairRotationTimer,
+    RepairAgent,
     SaveRotation,
+    StartAgent,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
@@ -20,7 +21,7 @@ interface Props {
 }
 
 // WallpaperView sets up automatic wallpaper rotation. Every change is
-// applied at once: the timer is installed, updated or removed.
+// applied at once; the background agent picks it up.
 export function WallpaperView({active}: Props) {
     const [state, setState] = useState<main.RotationState | null>(null);
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
@@ -197,28 +198,42 @@ export function WallpaperView({active}: Props) {
             </fieldset>
 
             <div className="rotation-status" aria-live="polite">
-                {s.enabled && state.timer.active && state.timer.nextRun && (
+                {s.enabled && state.agent.running && state.nextChange && (
                     <p>
-                        Next change at {clockTime(state.timer.nextRun)} ({relativeTime(state.timer.nextRun)}).
+                        Next change at {clockTime(state.nextChange)} ({relativeTime(state.nextChange)}).
                     </p>
                 )}
-                {s.enabled && !state.timer.active && !state.timer.error && (
-                    <p className="error">Rotation is on, but its timer is not running. Turn rotation off and on again.</p>
+                {s.enabled && !state.agent.running && !state.agent.error && (
+                    <div className="warning" role="alert">
+                        <p>Rotation is on, but the background process that changes the wallpaper is not running.</p>
+                        <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => apply(StartAgent, 'save')}
+                            disabled={busy !== null}
+                        >
+                            Start it
+                        </button>
+                    </div>
                 )}
-                {state.timer.error && <p className="error">{state.timer.error}</p>}
+                {state.agent.error && <p className="error">{state.agent.error}</p>}
                 {!s.enabled && <p className="muted">Rotation is off.</p>}
                 <p className="muted small">
-                    Rotation runs as a systemd user timer, also while this window is closed, and stops when you log out.
+                    Rotation runs in a small background process, also while this window is closed. It starts when you
+                    log in.
                 </p>
             </div>
 
-            {state.timer.outdated && (
+            {state.agent.outdated && (
                 <div className="warning" role="alert">
-                    <p>The rotation timer starts a different copy of Kisetsu than this one (it was moved or rebuilt).</p>
+                    <p>
+                        The background process starts a different copy of Kisetsu than this one (it was moved or
+                        rebuilt).
+                    </p>
                     <button
                         type="button"
                         className="btn secondary"
-                        onClick={() => apply(RepairRotationTimer, 'save')}
+                        onClick={() => apply(RepairAgent, 'save')}
                         disabled={busy !== null}
                     >
                         Use this copy

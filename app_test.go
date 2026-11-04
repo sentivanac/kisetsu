@@ -118,7 +118,7 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 			Library: lib, Settings: settings.NewStore(db), History: rotation.NewHistory(db),
 			Files: files, Setter: &fakeWallpaper{}, Log: log,
 		},
-		Schedule:      &fakeSchedule{}, // never the real systemd
+		Agent:         &fakeAgent{}, // never a real process or autostart entry
 		SavedSearches: searches.NewStore(db),
 		Fetched:       &fetched.Service{Library: lib, Files: files, Log: log},
 		Executable:    "/opt/kisetsu/kisetsu",

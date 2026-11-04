@@ -42,6 +42,10 @@ change). Therefore:
 Reading two small rows every 30 seconds costs nothing measurable, so the
 `PRAGMA data_version` shortcut considered in the plan is not needed.
 
+**Stopping.** The agent exits by itself at the next tick once rotation
+is off (later: and the tray icon is off), so turning rotation off needs
+no signal between the processes.
+
 **Coordination.** The change runs under the existing rotation lock
 (`rotate.lock`), shared with the window and `kisetsu rotate`. Under the
 lock the agent checks again whether the change is still due, so a manual
@@ -57,8 +61,17 @@ again, and logs each attempt. It never exits because of a failed change.
 ## Steps
 
 1. The agent and `kisetsu agent` (this ADR).
-2. Autostart, "Show in tray" setting, agent state in the Wallpaper tab.
-3. Move from 0.1.0: remove the Kisetsu systemd timer, `internal/schedule`,
+2. Autostart (`internal/autostart`: an XDG entry with `TryExec`, so it is
+   skipped once Kisetsu is uninstalled; only an entry Kisetsu wrote is
+   changed), the agent state in the Wallpaper tab with a Start button,
+   and the move from 0.1.0: when the window opens, or rotation settings
+   are saved, it sets up the agent and then removes the Kisetsu systemd
+   timer; if the agent cannot be set up, the timer is kept. The window
+   saves the settings before starting the agent, because an agent with
+   rotation off exits at once. It finds out whether the agent runs by
+   taking `agent.lock` for an instant, so a starting agent tries its
+   lock a few times before it concludes that another one runs.
+3. Remove what only the timer needed: most of `internal/schedule`,
    `--scheduled` and `KISETSU_DESKTOP_FALLBACK`.
 4. Tray icon (ADR 0042).
 

@@ -33,7 +33,7 @@ func runAgent(args []string) int {
 	}
 	defer c.Close()
 
-	release, err := filelock.Lock(c.agentLockPath())
+	release, err := lockAgent(c.agentLockPath())
 	if errors.Is(err, filelock.ErrLocked) {
 		fmt.Println("The Kisetsu agent is already running.")
 		return 0
@@ -60,6 +60,11 @@ func runAgent(args []string) int {
 	defer dl.Close()
 
 	a := newAgent(c, c.rotator(c.fetcher(searcher, dl)))
+	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
+		c.log.Info("rotation is off; agent not started")
+		fmt.Println("Rotation is off, so the agent has nothing to do. Turn it on in the Wallpaper tab.")
+		return 0
+	}
 	c.log.Info("agent started")
 	fmt.Println("Kisetsu agent is running. Press Ctrl+C to stop it.")
 	a.Run(ctx)
@@ -86,8 +91,28 @@ func newAgent(c *core, r *rotation.Rotator) *agent.Agent {
 			_, err := r.Next(ctx)
 			return err
 		},
+		Wanted: func(ctx context.Context) (bool, error) {
+			cfg, err := rotation.LoadSettings(ctx, store)
+			return cfg.Enabled, err
+		},
 		Log: c.log,
 	}
+}
+
+// lockAttempts: the window checks whether the agent runs by taking its
+// lock for an instant, so a starting agent tries a few times before it
+// concludes that another agent runs.
+const lockAttempts = 10
+
+func lockAgent(path string) (release func(), err error) {
+	for range lockAttempts {
+		release, err = filelock.Lock(path)
+		if !errors.Is(err, filelock.ErrLocked) {
+			return release, err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil, err
 }
 
 // agentLockPath is held by the running agent for its whole life.

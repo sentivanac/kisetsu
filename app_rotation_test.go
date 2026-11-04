@@ -8,57 +8,69 @@ import (
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
+	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
-// fakeSchedule stands in for systemd.
-type fakeSchedule struct {
-	enabled   bool
-	interval  time.Duration
-	enableErr error
+// fakeAgent stands in for the agent and its autostart entry.
+type fakeAgent struct {
+	autostart bool
+	running   bool
 	exe       string
-	restarts  int
+	enableErr error
+	starts    int
 }
 
-func (f *fakeSchedule) Restart(ctx context.Context) error {
-	if f.enabled {
-		f.restarts++
-	}
-	return nil
-}
-
-func (f *fakeSchedule) Enable(ctx context.Context, interval time.Duration) error {
+func (f *fakeAgent) Enable() error {
 	if f.enableErr != nil {
 		return f.enableErr
 	}
-	f.enabled, f.interval, f.exe = true, interval, "/opt/kisetsu/kisetsu"
+	f.autostart, f.exe = true, "/opt/kisetsu/kisetsu"
+	return f.Start()
+}
+
+func (f *fakeAgent) Disable() error {
+	f.autostart = false
 	return nil
 }
 
-func (f *fakeSchedule) Disable(ctx context.Context) error {
-	f.enabled = false
-	return nil
-}
-
-func (f *fakeSchedule) Status(ctx context.Context) (schedule.Status, error) {
-	if !f.enabled {
-		return schedule.Status{}, nil
+func (f *fakeAgent) Start() error {
+	if !f.running {
+		f.starts++
 	}
-	return schedule.Status{Installed: true, Active: true, NextRun: time.Now().Add(f.interval), Executable: f.exe}, nil
+	f.running = true
+	return nil
 }
 
-func TestSaveRotationInstallsAndRemovesTheTimer(t *testing.T) {
+func (f *fakeAgent) Status() (AgentStatus, error) {
+	return AgentStatus{Running: f.running, Autostart: autostart.Status{Installed: f.autostart, Executable: f.exe}}, nil
+}
+
+// fakeTimer stands in for the systemd timer of Kisetsu 0.1.0.
+type fakeTimer struct{ installed bool }
+
+func (f *fakeTimer) Status(context.Context) (schedule.Status, error) {
+	return schedule.Status{Installed: f.installed}, nil
+}
+
+func (f *fakeTimer) Disable(context.Context) error {
+	f.installed = false
+	return nil
+}
+
+func TestSaveRotationStartsTheAgent(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
-	fake := app.schedule.(*fakeSchedule)
+	fake := app.agent.(*fakeAgent)
 
 	state, err := app.GetRotation()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Settings.Enabled || state.Settings.Interval != "1h" || len(state.Intervals) != 5 || state.Timer.Installed {
+	if state.Settings.Enabled || state.Settings.Interval != "1h" || len(state.Intervals) != 5 ||
+		state.Agent.Autostart || state.NextChange != "" {
 		t.Errorf("initial state = %+v", state)
 	}
 
@@ -66,10 +78,11 @@ func TestSaveRotationInstallsAndRemovesTheTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !fake.enabled || fake.interval != 15*time.Minute {
-		t.Errorf("timer = %+v", fake)
+	if !fake.autostart || !fake.running {
+		t.Errorf("agent = %+v", fake)
 	}
-	if !state.Settings.Enabled || !state.Timer.Active || state.Timer.NextRun == "" || state.Timer.Outdated {
+	if !state.Settings.Enabled || !state.Agent.Running || !state.Agent.Autostart || state.Agent.Outdated ||
+		state.NextChange == "" {
 		t.Errorf("state after enabling = %+v", state)
 	}
 
@@ -77,15 +90,32 @@ func TestSaveRotationInstallsAndRemovesTheTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fake.enabled || state.Settings.Enabled || state.Timer.Installed {
-		t.Errorf("after disabling: timer %+v, state %+v", fake, state)
+	if fake.autostart || state.Settings.Enabled || state.Agent.Autostart || state.NextChange != "" {
+		t.Errorf("after disabling: agent %+v, state %+v", fake, state)
 	}
 }
 
-func TestFailedTimerLeavesRotationOff(t *testing.T) {
+// The next change counts from the last one, manual changes included.
+func TestNextChangeCountsFromTheLastChange(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
-	fake := app.schedule.(*fakeSchedule)
-	fake.enableErr = schedule.ErrForeignUnit
+	downloadN(t, app, 2)
+	app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
+
+	state, err := app.NextWallpaper()
+	if err != nil {
+		t.Fatal(err)
+	}
+	last, _ := time.Parse(time.RFC3339, state.LastChange)
+	next, _ := time.Parse(time.RFC3339, state.NextChange)
+	if got := next.Sub(last); got < 59*time.Minute || got > 61*time.Minute {
+		t.Errorf("next change %v after the last, want an hour", got)
+	}
+}
+
+func TestFailedAgentLeavesRotationOff(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	fake := app.agent.(*fakeAgent)
+	fake.enableErr = autostart.ErrForeign
 
 	_, err := app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
 	if pub := apperr.ToPublic(err); pub.Code != apperr.InvalidInput || !strings.Contains(pub.Message, "not created by Kisetsu") {
@@ -93,10 +123,10 @@ func TestFailedTimerLeavesRotationOff(t *testing.T) {
 	}
 	cfg, _ := rotation.LoadSettings(app.ctx, app.settings)
 	if cfg.Enabled {
-		t.Error("rotation is saved as enabled although the timer failed")
+		t.Error("rotation is saved as enabled although the agent failed")
 	}
 
-	fake.enableErr = schedule.ErrTemporaryExecutable
+	fake.enableErr = autostart.ErrTemporaryExecutable
 	_, err = app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
 	if !strings.Contains(apperr.ToPublic(err).Message, "temporary build") {
 		t.Errorf("temporary build: %v", err)
@@ -110,24 +140,73 @@ func TestSaveRotationRejectsInvalidSettings(t *testing.T) {
 	if apperr.ToPublic(err).Code != apperr.InvalidInput {
 		t.Errorf("err = %v", err)
 	}
-	if app.schedule.(*fakeSchedule).enabled {
-		t.Error("timer installed for invalid settings")
+	if app.agent.(*fakeAgent).autostart {
+		t.Error("agent set up for invalid settings")
 	}
 }
 
-func TestOutdatedTimerIsReportedAndRepaired(t *testing.T) {
+func TestOutdatedAutostartIsReportedAndRepaired(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
-	fake := app.schedule.(*fakeSchedule)
+	fake := app.agent.(*fakeAgent)
 	app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
 	fake.exe = "/old/place/kisetsu" // Kisetsu was moved since
 
 	state, _ := app.GetRotation()
-	if !state.Timer.Outdated {
-		t.Fatal("outdated timer not reported")
+	if !state.Agent.Outdated {
+		t.Fatal("outdated autostart entry not reported")
 	}
-	state, err := app.RepairRotationTimer()
-	if err != nil || state.Timer.Outdated {
-		t.Errorf("after repair: %+v, %v", state.Timer, err)
+	state, err := app.RepairAgent()
+	if err != nil || state.Agent.Outdated {
+		t.Errorf("after repair: %+v, %v", state.Agent, err)
+	}
+}
+
+func TestStartAgent(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	fake := app.agent.(*fakeAgent)
+	app.SaveRotation(RotationSettings{Enabled: true, Interval: "1h", Order: "random"})
+	fake.running = false // it stopped
+
+	state, _ := app.GetRotation()
+	if state.Agent.Running {
+		t.Fatal("stopped agent reported as running")
+	}
+	if state, err := app.StartAgent(); err != nil || !state.Agent.Running {
+		t.Errorf("after start: %+v, %v", state.Agent, err)
+	}
+}
+
+// Kisetsu 0.1.0 rotated with a systemd timer; the agent replaces it.
+func TestOldTimerIsReplaced(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	fake := app.agent.(*fakeAgent)
+	timer := &fakeTimer{installed: true}
+	app.legacyTimer = timer
+	rotation.SaveSettings(app.ctx, app.settings, rotation.Settings{Enabled: true, Interval: rotation.Hourly, Order: rotation.Random})
+
+	app.retireTimer()
+	if timer.installed || !fake.autostart || !fake.running {
+		t.Errorf("timer installed %v, agent %+v", timer.installed, fake)
+	}
+}
+
+func TestOldTimerIsKeptWhenTheAgentCannotRun(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	app.agent.(*fakeAgent).enableErr = autostart.ErrTemporaryExecutable
+	timer := &fakeTimer{installed: true}
+	app.legacyTimer = timer
+	rotation.SaveSettings(app.ctx, app.settings, rotation.Settings{Enabled: true, Interval: rotation.Hourly, Order: rotation.Random})
+
+	app.retireTimer()
+	if !timer.installed {
+		t.Error("timer removed although the agent could not be set up")
+	}
+
+	// With rotation off there is nothing to keep it for.
+	rotation.SaveSettings(app.ctx, app.settings, rotation.Settings{Interval: rotation.Hourly, Order: rotation.Random})
+	app.retireTimer()
+	if timer.installed {
+		t.Error("unused timer kept")
 	}
 }
 
@@ -176,29 +255,6 @@ func TestVarietyWarning(t *testing.T) {
 	state, err := app.GetRotation()
 	if err != nil || !state.VarietyRunning {
 		t.Errorf("VarietyRunning = %v, %v", state.VarietyRunning, err)
-	}
-}
-
-func TestManualChangesRestartTheTimer(t *testing.T) {
-	app := newTestApp(t, &stubProvider{})
-	fake := app.schedule.(*fakeSchedule)
-	ids := downloadN(t, app, 2)
-
-	// Rotation off: nothing to restart.
-	app.NextWallpaper()
-	if fake.restarts != 0 {
-		t.Errorf("restarted with rotation off: %d", fake.restarts)
-	}
-
-	app.SaveRotation(RotationSettings{Enabled: true, Interval: "15m", Order: "random"})
-	if _, err := app.NextWallpaper(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.SetWallpaper(ids[0]); err != nil {
-		t.Fatal(err)
-	}
-	if fake.restarts != 2 {
-		t.Errorf("restarts = %d, want 2 (Next wallpaper and Set as wallpaper)", fake.restarts)
 	}
 }
 

@@ -39,6 +39,10 @@ type Agent struct {
 	Lock func() (unlock func(), err error)
 	// Rotate changes the wallpaper to the next image.
 	Rotate func(ctx context.Context) error
+	// Wanted reports whether the agent has anything to do (rotation is
+	// on). When it has not, Run returns: turning rotation off in the
+	// window stops the agent without any signal. Nil means always.
+	Wanted func(ctx context.Context) (bool, error)
 
 	Log  *slog.Logger
 	Now  func() time.Time // nil means time.Now
@@ -64,8 +68,9 @@ func Due(cfg rotation.Settings, last time.Time, changed bool) (time.Time, bool) 
 	return last.Add(interval), true
 }
 
-// Run checks at once and then every tick, until ctx is canceled. It
-// returns nil when canceled.
+// Run checks at once and then every tick, until ctx is canceled or the
+// agent is no longer wanted. If Wanted cannot be read, the agent keeps
+// running.
 func (a *Agent) Run(ctx context.Context) error {
 	tick := a.Tick
 	if tick <= 0 {
@@ -74,6 +79,12 @@ func (a *Agent) Run(ctx context.Context) error {
 	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
 	for {
+		if a.Wanted != nil {
+			if wanted, err := a.Wanted(ctx); err == nil && !wanted {
+				a.Log.Info("nothing to do; agent exits")
+				return nil
+			}
+		}
 		a.Check(ctx)
 		select {
 		case <-ctx.Done():

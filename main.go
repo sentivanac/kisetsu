@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
+	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/schedule"
 	"github.com/sentivanac/kisetsu/internal/searches"
@@ -69,9 +70,14 @@ func run() error {
 	// Runs before the database is closed: deferred calls run in reverse.
 	defer downloader.Close()
 
-	timer, err := schedule.New()
+	entry, err := autostart.New()
 	if err != nil {
 		return err
+	}
+	// The 0.1.0 timer is only looked for; without systemd there is none.
+	var legacy LegacyTimer
+	if timer, err := schedule.New(); err == nil {
+		legacy = timer
 	}
 
 	gpuPolicy, gpuErr := parseGPUPolicy(os.Getenv(gpuPolicyEnv))
@@ -91,10 +97,11 @@ func run() error {
 		Wallpaper: wallpaper.New(),
 		Rotation:  c.rotator(c.fetcher(searcher, downloader)),
 
-		Schedule:      timer,
+		Agent:         &agentControl{entry: entry, lockPath: c.agentLockPath(), log: log},
+		LegacyTimer:   legacy,
 		SavedSearches: searches.NewStore(c.db),
 		Fetched:       c.fetchedService(),
-		Executable:    timer.Executable,
+		Executable:    entry.Executable,
 		RotationLock:  c.rotationLockPath(),
 	})
 

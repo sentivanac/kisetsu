@@ -110,8 +110,8 @@ export function RenameSavedSearch(arg1, arg2) {
   return window['go']['main']['App']['RenameSavedSearch'](arg1, arg2);
 }
 
-export function RepairRotationTimer() {
-  return window['go']['main']['App']['RepairRotationTimer']();
+export function RepairAgent() {
+  return window['go']['main']['App']['RepairAgent']();
 }
 
 export function SaveDisplaySize(arg1, arg2) {
@@ -140,4 +140,8 @@ export function SetTagHidden(arg1, arg2) {
 
 export function SetWallpaper(arg1) {
   return window['go']['main']['App']['SetWallpaper'](arg1);
+}
+
+export function StartAgent() {
+  return window['go']['main']['App']['StartAgent']();
 }

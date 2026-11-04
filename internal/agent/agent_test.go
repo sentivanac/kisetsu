@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -178,5 +179,29 @@ func TestRunStopsWhenCanceled(t *testing.T) {
 	}
 	if f.rotated != 1 {
 		t.Errorf("rotated %d times, want 1 (checked at once, then not due)", f.rotated)
+	}
+}
+
+func TestRunExitsWhenNotWanted(t *testing.T) {
+	f := &fake{cfg: hourly(), now: start}
+	a := newAgent(f)
+	a.Tick = time.Millisecond
+	wanted := true
+	var mu sync.Mutex
+	a.Wanted = func(context.Context) (bool, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		return wanted, nil
+	}
+	done := make(chan error)
+	go func() { done <- a.Run(context.Background()) }()
+	time.Sleep(10 * time.Millisecond)
+	mu.Lock()
+	wanted = false
+	mu.Unlock()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Run did not return after rotation was turned off")
 	}
 }

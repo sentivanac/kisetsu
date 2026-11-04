@@ -13,6 +13,15 @@ follow [Semantic Versioning](https://semver.org/).
 - The preview of a Wallhaven image lists its tags; clicking one hides
   images with that tag from all later searches, including Fetched.
 
+### Wallpaper
+- Rotation runs in a small background process, `kisetsu agent`, started
+  at login, instead of a systemd timer. The next change counts from the
+  last one, so a wallpaper you set by hand stays for a full interval,
+  and a computer waking from sleep catches up with one change. The
+  window replaces the timer of 0.1.0 the first time it opens.
+- The Wallpaper tab shows whether the background process runs, and
+  starts it if it does not.
+
 ## [0.1.0] - 2026-11-03
 
 The first release. Linux only (Ubuntu 22.04+, Linux Mint 21+, Debian 12+).

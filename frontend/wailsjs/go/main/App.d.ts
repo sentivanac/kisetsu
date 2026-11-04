@@ -61,7 +61,7 @@ export function RenameCollection(arg1:number,arg2:string):Promise<void>;
 
 export function RenameSavedSearch(arg1:number,arg2:string):Promise<void>;
 
-export function RepairRotationTimer():Promise<main.RotationState>;
+export function RepairAgent():Promise<main.RotationState>;
 
 export function SaveDisplaySize(arg1:number,arg2:number):Promise<void>;
 
@@ -76,3 +76,5 @@ export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query
 export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
 
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
+
+export function StartAgent():Promise<main.RotationState>;
