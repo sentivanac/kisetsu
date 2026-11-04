@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"time"
 
 	"fyne.io/systray"
@@ -16,6 +19,31 @@ import (
 //
 //go:embed build/linux/icons/64.png
 var trayIcon []byte
+
+// writeTrayIcon puts the icon into dir as <app ID>.png, where panels find
+// it through IconThemePath.
+func writeTrayIcon(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, appID+".png")
+	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, trayIcon) {
+		return nil
+	}
+	tmp, err := os.CreateTemp(dir, ".tray-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op after the rename
+	if _, err := tmp.Write(trayIcon); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}
 
 // traySync is how often the menu picks up changes made in the window.
 const traySync = 5 * time.Second
@@ -34,12 +62,23 @@ type trayActions struct {
 //
 // Without a tray host (GNOME without the AppIndicator extension), the
 // icon is simply not shown; systray registers again when a host appears.
-func runTray(ctx context.Context, log *slog.Logger, act trayActions, quit func()) {
-	systray.Run(func() {
-		systray.SetIcon(trayIcon)
-		systray.SetTitle("Kisetsu")
-		systray.SetTooltip("Kisetsu")
+func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActions, quit func()) {
+	// The icon goes out twice: by name, with a directory that holds it, for
+	// panels that only look icons up by name (Ayatana indicators, the
+	// default on Ubuntu MATE, show "image missing" otherwise), and as image
+	// data for the others. The installed package also puts it in the
+	// system icon theme. Set before Run, so the first query finds it.
+	if err := writeTrayIcon(iconDir); err != nil {
+		log.Warn("tray icon file not written; panels that need it show a placeholder", "err", err)
+	} else {
+		systray.SetIconThemePath(iconDir)
+	}
+	systray.SetIconName(appID)
+	systray.SetIcon(trayIcon)
+	systray.SetTitle("Kisetsu")
+	systray.SetTooltip("Kisetsu")
 
+	systray.Run(func() {
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()

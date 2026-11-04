@@ -113,7 +113,7 @@ func runAgent(args []string) int {
 		a.Run(ctx)
 		cancel()
 	}()
-	runTray(ctx, c.log, trayActions{
+	runTray(ctx, c.log, filepath.Join(c.paths.Cache, "tray-icons"), trayActions{
 		next: func(ctx context.Context) error {
 			ctx, stop := context.WithTimeout(ctx, rotateTimeout)
 			defer stop()

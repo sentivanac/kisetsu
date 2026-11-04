@@ -3,7 +3,7 @@ module github.com/sentivanac/kisetsu
 go 1.26.0
 
 require (
-	fyne.io/systray v1.12.2
+	fyne.io/systray v1.12.3-0.20260913152509-528cad23fade
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/wailsapp/wails/v2 v2.17.0
 	golang.org/x/image v0.47.0
