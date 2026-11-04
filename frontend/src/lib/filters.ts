@@ -37,3 +37,28 @@ export function resolutionOptions(current: Resolution): Resolution[] {
     if (known) return options;
     return [...options, current].sort((a, b) => a.width * a.height - b.width * b.height);
 }
+
+// Content categories, as Wallhaven classifies images. An empty choice
+// means all categories (no restriction), like in the Go code.
+export const allCategories = ['general', 'anime', 'people'] as const;
+export type Category = (typeof allCategories)[number];
+
+export const categoryLabels: Record<Category, string> = {
+    general: 'General',
+    anime: 'Anime',
+    people: 'People',
+};
+
+export function categoryChecked(chosen: string[], category: Category): boolean {
+    return chosen.length === 0 || chosen.includes(category);
+}
+
+// toggleCategory turns one category on or off. At least one stays on, and
+// all on is stored as [] (no restriction).
+export function toggleCategory(chosen: string[], category: Category): string[] {
+    const on = allCategories.filter((c) => categoryChecked(chosen, c));
+    const next = on.includes(category) ? on.filter((c) => c !== category) : [...on, category];
+    if (next.length === 0) return chosen;
+    if (next.length === allCategories.length) return [];
+    return allCategories.filter((c) => next.includes(c));
+}

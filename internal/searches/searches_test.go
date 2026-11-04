@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ func newStore(t *testing.T) *Store {
 var mountains = Query{
 	Text: "japanese mountains -snow", ProviderIDs: []string{"wallhaven", "wikimedia-commons"},
 	MinWidth: 1920, MinHeight: 1080, Orientation: images.Landscape,
+	Categories: []images.Category{images.General},
 }
 
 func TestCreateGetList(t *testing.T) {
@@ -52,7 +54,8 @@ func TestCreateGetList(t *testing.T) {
 
 func TestQueryProviderNormalizes(t *testing.T) {
 	q := mountains.Provider(3)
-	if q.Text != "japanese mountains" || len(q.Exclude) != 1 || q.Exclude[0] != "snow" || q.Page != 3 {
+	if q.Text != "japanese mountains" || len(q.Exclude) != 1 || q.Exclude[0] != "snow" || q.Page != 3 ||
+		!slices.Equal(q.Categories, []images.Category{images.General}) {
 		t.Errorf("Provider(3) = %+v", q)
 	}
 }
@@ -73,6 +76,7 @@ func TestCreateRejectsInvalid(t *testing.T) {
 		"no sources":      {"A", Query{Text: "x"}, ErrInvalidQuery},
 		"repeated source": {"B", Query{ProviderIDs: []string{"w", "w"}}, ErrInvalidQuery},
 		"bad orientation": {"C", Query{ProviderIDs: []string{"w"}, Orientation: "diagonal"}, ErrInvalidQuery},
+		"bad category":    {"E", Query{ProviderIDs: []string{"w"}, Categories: []images.Category{"manga"}}, ErrInvalidQuery},
 		"text too long":   {"D", Query{ProviderIDs: []string{"w"}, Text: strings.Repeat("a", 300)}, ErrInvalidQuery},
 	}
 	for name, tt := range tests {

@@ -513,6 +513,7 @@ export namespace providers {
 	    minWidth: number;
 	    minHeight: number;
 	    orientation: string;
+	    categories: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Query(source);
@@ -526,6 +527,7 @@ export namespace providers {
 	        this.minWidth = source["minWidth"];
 	        this.minHeight = source["minHeight"];
 	        this.orientation = source["orientation"];
+	        this.categories = source["categories"];
 	    }
 	}
 
@@ -538,6 +540,7 @@ export namespace search {
 	    name: string;
 	    contentWarning?: string;
 	    enabledByDefault: boolean;
+	    categories: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProviderInfo(source);
@@ -549,6 +552,7 @@ export namespace search {
 	        this.name = source["name"];
 	        this.contentWarning = source["contentWarning"];
 	        this.enabledByDefault = source["enabledByDefault"];
+	        this.categories = source["categories"];
 	    }
 	}
 	export class SourcePage {
@@ -576,6 +580,7 @@ export namespace searches {
 	    minWidth: number;
 	    minHeight: number;
 	    orientation: string;
+	    categories: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Query(source);
@@ -588,6 +593,7 @@ export namespace searches {
 	        this.minWidth = source["minWidth"];
 	        this.minHeight = source["minHeight"];
 	        this.orientation = source["orientation"];
+	        this.categories = source["categories"];
 	    }
 	}
 
@@ -600,6 +606,7 @@ export namespace settings {
 	    minWidth: number;
 	    minHeight: number;
 	    orientation: string;
+	    categories: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SearchFilters(source);
@@ -611,6 +618,7 @@ export namespace settings {
 	        this.minWidth = source["minWidth"];
 	        this.minHeight = source["minHeight"];
 	        this.orientation = source["orientation"];
+	        this.categories = source["categories"];
 	    }
 	}
 

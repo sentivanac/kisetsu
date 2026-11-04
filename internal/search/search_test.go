@@ -91,6 +91,22 @@ func TestProvidersWithContentWarningAreOptIn(t *testing.T) {
 	}
 }
 
+// categoryProvider is a fakeProvider that applies categories.
+type categoryProvider struct{ fakeProvider }
+
+func (c *categoryProvider) HasCategories() bool { return true }
+
+func TestProvidersReportCategories(t *testing.T) {
+	s, err := New(discardLogger(), &fakeProvider{id: "plain", name: "Plain"},
+		&categoryProvider{fakeProvider{id: "cat", name: "Cat"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Providers(); got[0].Categories || !got[1].Categories {
+		t.Errorf("Categories = %v, %v; want false, true", got[0].Categories, got[1].Categories)
+	}
+}
+
 func TestSearchRoutesToProvider(t *testing.T) {
 	want := providers.Page{Images: []images.Image{{ProviderID: "x"}}, Page: 1, HasMore: true}
 	a := &fakeProvider{id: "a", name: "A"}

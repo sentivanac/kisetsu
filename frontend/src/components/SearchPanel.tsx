@@ -17,12 +17,16 @@ import {images, main, providers, search, searches, settings} from '../../wailsjs
 import {ScreenGetAll} from '../../wailsjs/runtime/runtime';
 import {BackendError, describeError, isCanceled, toBackendError} from '../lib/backend';
 import {
+    allCategories,
     anyResolution,
+    categoryChecked,
+    categoryLabels,
     parseResolutionKey,
     Resolution,
     resolutionKey,
     resolutionLabel,
     resolutionOptions,
+    toggleCategory,
 } from '../lib/filters';
 import {isActive, percent} from '../lib/downloads';
 import {appendUnique, imageKey} from '../lib/images';
@@ -55,6 +59,8 @@ export function SearchPanel({active}: Props) {
     const [text, setText] = useState('');
     const [resolution, setResolution] = useState<Resolution>(anyResolution);
     const [orientation, setOrientation] = useState('');
+    // Content categories; empty means all.
+    const [categories, setCategories] = useState<string[]>([]);
     // Filters are saved only after the remembered ones were loaded, so the
     // defaults shown during startup never overwrite them.
     const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -89,6 +95,7 @@ export function SearchPanel({active}: Props) {
                 setSelectedSources(initialSources(list, saved.providerIds));
                 setResolution({width: saved.minWidth, height: saved.minHeight});
                 setOrientation(saved.orientation);
+                setCategories(saved.categories ?? []);
                 setFiltersLoaded(true);
             })
             .catch((err: unknown) => setError(toBackendError(err)));
@@ -102,9 +109,10 @@ export function SearchPanel({active}: Props) {
                 minWidth: resolution.width,
                 minHeight: resolution.height,
                 orientation,
+                categories,
             }),
         ).catch((err: unknown) => setError(toBackendError(err)));
-    }, [filtersLoaded, selectedSources, resolution, orientation]);
+    }, [filtersLoaded, selectedSources, resolution, orientation, categories]);
 
     function applyScreenSize() {
         ScreenGetAll()
@@ -144,18 +152,19 @@ export function SearchPanel({active}: Props) {
 
     function runSearch(event: FormEvent) {
         event.preventDefault();
-        startSearch(text, selectedSources, resolution, orientation);
+        startSearch(text, selectedSources, resolution, orientation, categories);
     }
 
     // startSearch runs a search with explicit values, so a saved search can
     // run before the form state has been updated.
-    function startSearch(searchText: string, sources: string[], res: Resolution, orient: string) {
+    function startSearch(searchText: string, sources: string[], res: Resolution, orient: string, cats: string[]) {
         const query = new providers.Query({
             text: searchText,
             page: 1,
             minWidth: res.width,
             minHeight: res.height,
             orientation: orient,
+            categories: cats,
         });
         setResults([]);
         setStatuses([]);
@@ -189,9 +198,11 @@ export function SearchPanel({active}: Props) {
         setText(s.query.text);
         setSelectedSources(sources);
         setResolution(res);
+        const cats = s.query.categories ?? [];
         setOrientation(s.query.orientation);
+        setCategories(cats);
         setActiveSaved(s.id);
-        startSearch(s.query.text, sources, res, s.query.orientation);
+        startSearch(s.query.text, sources, res, s.query.orientation, cats);
     }
 
     async function saveCurrent(name: string) {
@@ -203,6 +214,7 @@ export function SearchPanel({active}: Props) {
                 minWidth: resolution.width,
                 minHeight: resolution.height,
                 orientation,
+                categories,
             }),
         );
         refreshSaved();
@@ -264,6 +276,8 @@ export function SearchPanel({active}: Props) {
         CancelSearch().catch((err: unknown) => setError(toBackendError(err)));
     }
 
+    // The category filter applies only to sources that classify images.
+    const showCategories = available.some((p) => p.categories && selectedSources.includes(p.id));
     const sourceName = (id: string) => available.find((p) => p.id === id)?.name ?? id;
     const selectedImage = selected === null ? null : results[selected];
     const morePages = nextPages(statuses);
@@ -355,6 +369,22 @@ export function SearchPanel({active}: Props) {
                         </label>
                     ))}
                 </fieldset>
+
+                {showCategories && (
+                    <fieldset className="sources categories">
+                        <legend>Wallhaven categories</legend>
+                        {allCategories.map((c) => (
+                            <label key={c} className="source">
+                                <input
+                                    type="checkbox"
+                                    checked={categoryChecked(categories, c)}
+                                    onChange={() => edited(setCategories)(toggleCategory(categories, c))}
+                                />
+                                <span>{categoryLabels[c]}</span>
+                            </label>
+                        ))}
+                    </fieldset>
+                )}
             </form>
 
             <div aria-live="polite">

@@ -36,6 +36,12 @@ type ContentWarner interface {
 	ContentWarning() string
 }
 
+// Categorizer is implemented by providers that apply Query.Categories.
+// The UI offers the category filter only when one of them is selected.
+type Categorizer interface {
+	HasCategories() bool
+}
+
 const (
 	// MaxQueryLength limits the search text, in characters.
 	MaxQueryLength = 256
@@ -57,10 +63,14 @@ type Query struct {
 	MinHeight int      `json:"minHeight"` // 0 means no limit
 	// Orientation filters results; empty means any.
 	Orientation images.Orientation `json:"orientation"`
+	// Categories limits results to these kinds of content; empty means
+	// all. Sources without categories ignore it.
+	Categories []images.Category `json:"categories"`
 }
 
 // Normalize moves "-term" words from Text into Exclude, collapses
 // whitespace and removes duplicate excluded terms (case-insensitively).
+// Categories are put in their standard order; choosing all means none.
 // Words with an inner hyphen, such as "sci-fi", stay in Text; a lone "-"
 // is dropped. Quoted phrases are not supported. Normalize is idempotent.
 func (q Query) Normalize() Query {
@@ -85,6 +95,10 @@ func (q Query) Normalize() Query {
 			continue
 		}
 		include = append(include, word)
+	}
+
+	if cats, err := images.NormalizeCategories(q.Categories); err == nil {
+		q.Categories = cats // unknown ones are kept for Validate to report
 	}
 
 	q.Text = strings.Join(include, " ")
@@ -117,6 +131,9 @@ func (q Query) Validate() error {
 	}
 	if q.Orientation != "" && !q.Orientation.Valid() {
 		errs = append(errs, fmt.Errorf("unknown orientation %q", q.Orientation))
+	}
+	if _, err := images.NormalizeCategories(q.Categories); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

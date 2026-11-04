@@ -16,6 +16,7 @@ func TestQueryValidate(t *testing.T) {
 		{Page: 1},
 		{Text: "misty mountains", Page: 3, MinWidth: 1920, MinHeight: 1080, Orientation: images.Landscape},
 		{Text: strings.Repeat("季", MaxQueryLength), Page: 1}, // counts characters, not bytes
+		{Page: 1, Categories: []images.Category{images.General, images.People}},
 	}
 	for _, q := range valid {
 		if err := q.Validate(); err != nil {
@@ -27,6 +28,7 @@ func TestQueryValidate(t *testing.T) {
 		"page zero":       {Page: 0},
 		"negative width":  {Page: 1, MinWidth: -1},
 		"bad orientation": {Page: 1, Orientation: "diagonal"},
+		"bad category":    {Page: 1, Categories: []images.Category{"manga"}},
 		"text too long":   {Page: 1, Text: strings.Repeat("a", MaxQueryLength+1)},
 	}
 	for name, q := range invalid {
@@ -68,6 +70,19 @@ func TestQueryNormalize(t *testing.T) {
 				t.Errorf("Normalize is not idempotent: %+v -> %+v", got, again)
 			}
 		})
+	}
+}
+
+func TestQueryNormalizeCategories(t *testing.T) {
+	q := Query{Categories: []images.Category{images.People, images.General, images.People}}.Normalize()
+	if !slices.Equal(q.Categories, []images.Category{images.General, images.People}) {
+		t.Errorf("Categories = %q", q.Categories)
+	}
+	if q := (Query{Categories: images.Categories}).Normalize(); q.Categories != nil {
+		t.Errorf("all categories = %q, want nil (no restriction)", q.Categories)
+	}
+	if q := (Query{Page: 1, Categories: []images.Category{"manga"}}).Normalize(); q.Validate() == nil {
+		t.Error("Normalize hid an unknown category from Validate")
 	}
 }
 

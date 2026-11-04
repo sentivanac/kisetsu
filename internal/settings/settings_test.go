@@ -92,7 +92,8 @@ func TestSearchFiltersDefaults(t *testing.T) {
 func TestSearchFiltersRoundTrip(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
-	want := SearchFilters{ProviderIDs: []string{"wallhaven", "wikimedia-commons"}, MinWidth: 3840, MinHeight: 2160, Orientation: images.Landscape}
+	want := SearchFilters{ProviderIDs: []string{"wallhaven", "wikimedia-commons"}, MinWidth: 3840, MinHeight: 2160, Orientation: images.Landscape,
+		Categories: []images.Category{images.General, images.People}}
 
 	if err := store.SaveSearchFilters(ctx, want); err != nil {
 		t.Fatal(err)
@@ -116,6 +117,7 @@ func TestSaveSearchFiltersRejectsInvalid(t *testing.T) {
 		{MinWidth: -1},
 		{MinHeight: maxMinSide + 1},
 		{Orientation: "diagonal"},
+		{Categories: []images.Category{"manga"}},
 	}
 	for _, f := range invalid {
 		if err := store.SaveSearchFilters(context.Background(), f); err == nil {

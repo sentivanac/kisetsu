@@ -28,6 +28,8 @@ type ProviderInfo struct {
 	// EnabledByDefault is false for providers with a content warning:
 	// the user must turn them on.
 	EnabledByDefault bool `json:"enabledByDefault"`
+	// Categories is true for providers that apply Query.Categories.
+	Categories bool `json:"categories"`
 }
 
 // Service runs searches. It is safe for concurrent use.
@@ -67,6 +69,9 @@ func (s *Service) Providers() []ProviderInfo {
 			info.ContentWarning = w.ContentWarning()
 		}
 		info.EnabledByDefault = info.ContentWarning == ""
+		if c, ok := p.(providers.Categorizer); ok {
+			info.Categories = c.HasCategories()
+		}
 		out[i] = info
 	}
 	return out

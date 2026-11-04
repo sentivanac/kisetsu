@@ -43,6 +43,7 @@ type Query struct {
 	MinWidth    int                `json:"minWidth"`
 	MinHeight   int                `json:"minHeight"`
 	Orientation images.Orientation `json:"orientation"` // empty means any
+	Categories  []images.Category  `json:"categories"`  // empty means all
 }
 
 // Validate checks that q can be run unattended: at least one source, no
@@ -75,6 +76,7 @@ func (q Query) Validate() error {
 func (q Query) Provider(page int) providers.Query {
 	return providers.Query{
 		Text: q.Text, Page: page, MinWidth: q.MinWidth, MinHeight: q.MinHeight, Orientation: q.Orientation,
+		Categories: q.Categories,
 	}.Normalize()
 }
 

@@ -7,6 +7,8 @@ export interface SourceInfo {
     name: string;
     contentWarning?: string;
     enabledByDefault: boolean;
+    // categories is true for sources that apply the category filter.
+    categories?: boolean;
 }
 
 // SourceError mirrors apperr.PublicError as sent inside a source status.

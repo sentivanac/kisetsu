@@ -26,6 +26,7 @@ type SearchFilters struct {
 	MinWidth    int                `json:"minWidth"`
 	MinHeight   int                `json:"minHeight"`
 	Orientation images.Orientation `json:"orientation"` // empty means any
+	Categories  []images.Category  `json:"categories"`  // empty means all
 }
 
 // storedSearchFilters also reads the format used before multi-source
@@ -43,6 +44,9 @@ func (f SearchFilters) Validate() error {
 	}
 	if f.Orientation != "" && !f.Orientation.Valid() {
 		errs = append(errs, fmt.Errorf("unknown orientation %q", f.Orientation))
+	}
+	if _, err := images.NormalizeCategories(f.Categories); err != nil {
+		errs = append(errs, err)
 	}
 	if len(f.ProviderIDs) > maxProviders {
 		errs = append(errs, fmt.Errorf("more than %d sources", maxProviders))

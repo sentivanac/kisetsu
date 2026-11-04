@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,10 @@ func New(client *http.Client, userAgent string) *Provider {
 
 func (p *Provider) ID() string   { return ID }
 func (p *Provider) Name() string { return "Wallhaven" }
+
+// HasCategories implements providers.Categorizer: Wallhaven classifies
+// every wallpaper as general, anime or people.
+func (p *Provider) HasCategories() bool { return true }
 
 // Search returns one page of safe-for-work results for q.
 func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Page, error) {
@@ -116,6 +121,21 @@ func (p *Provider) Search(ctx context.Context, q providers.Query) (providers.Pag
 	return page, nil
 }
 
+// categoryBits writes the chosen categories as Wallhaven's "categories"
+// parameter: one digit each for general, anime and people, "111" for all.
+func categoryBits(chosen []images.Category) string {
+	if len(chosen) == 0 {
+		return "111"
+	}
+	bits := []byte("000")
+	for i, c := range images.Categories {
+		if slices.Contains(chosen, c) {
+			bits[i] = '1'
+		}
+	}
+	return string(bits)
+}
+
 // searchURL translates a normalized q into Wallhaven search parameters.
 func (p *Provider) searchURL(q providers.Query) string {
 	v := url.Values{}
@@ -136,8 +156,8 @@ func (p *Provider) searchURL(q providers.Query) string {
 	} else {
 		v.Set("sorting", "toplist")
 	}
-	v.Set("categories", "111") // general, anime, people
-	v.Set("purity", "100")     // SFW only
+	v.Set("categories", categoryBits(q.Categories))
+	v.Set("purity", "100") // SFW only
 	v.Set("page", strconv.Itoa(q.Page))
 	if q.MinWidth > 0 || q.MinHeight > 0 {
 		v.Set("atleast", fmt.Sprintf("%dx%d", max(q.MinWidth, 1), max(q.MinHeight, 1)))

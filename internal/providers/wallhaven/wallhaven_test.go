@@ -77,6 +77,10 @@ func TestNew(t *testing.T) {
 		t.Errorf("baseURL = %q", p.baseURL)
 	}
 	var _ providers.Provider = p
+	var c providers.Categorizer = p
+	if !c.HasCategories() {
+		t.Error("HasCategories = false")
+	}
 }
 
 func TestSearchNormalizesResults(t *testing.T) {
@@ -215,6 +219,16 @@ func TestSearchRequest(t *testing.T) {
 				"sorting": {"toplist"}, "page": {"1"}, "categories": {"111"}, "purity": {"100"},
 				"atleast": {"1920x1080"}, "ratios": {"portrait"},
 			},
+		},
+		{
+			name:  "categories",
+			query: providers.Query{Page: 1, Categories: []images.Category{images.People, images.General}},
+			want:  url.Values{"sorting": {"toplist"}, "page": {"1"}, "categories": {"101"}, "purity": {"100"}},
+		},
+		{
+			name:  "only general",
+			query: providers.Query{Page: 1, Categories: []images.Category{images.General}},
+			want:  url.Values{"sorting": {"toplist"}, "page": {"1"}, "categories": {"100"}, "purity": {"100"}},
 		},
 		{
 			name:  "square is filtered locally",

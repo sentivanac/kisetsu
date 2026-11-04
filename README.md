@@ -18,8 +18,9 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 ## Features
 
 - **Search** Wallhaven and, if you turn it on, Wikimedia Commons at the
-  same time. Filter by minimum size (or "my screen size") and
-  orientation; exclude words with `-word`, e.g. `mountains -snow`.
+  same time. Filter by minimum size (or "my screen size"),
+  orientation and Wallhaven category (General, Anime, People); exclude
+  words with `-word`, e.g. `mountains -snow`.
 - **Save searches** and run them again with one click.
 - **Library:** download images to keep them. They work offline, can be
   sorted into collections, and duplicates are detected — also re-encoded
@@ -81,8 +82,11 @@ Kisetsu shows where every image comes from and under which license, but
 **it does not make images free to use**. Check the license on the source
 page before publishing or sharing an image.
 
-- **Wallhaven:** only images rated safe for work are requested. Licenses
-  are often not stated; Kisetsu then says "License unknown".
+- **Wallhaven:** only images rated safe for work are requested. Safe for
+  work still includes suggestive pictures, mostly in the Anime and People
+  categories; turn those categories off in the search form if you do not
+  want them. Licenses are often not stated; Kisetsu then says "License
+  unknown".
 - **Wikimedia Commons** (off by default): limited to its curated quality
   collections, with unsuitable results filtered out. Commons has no
   safe-for-work rating, so the filter cannot be perfect. Most images are
