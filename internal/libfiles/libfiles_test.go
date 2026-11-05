@@ -199,7 +199,7 @@ func TestFetchedFiles(t *testing.T) {
 		}
 	}
 
-	if p, err := s.OriginalPath("fetched/images/wallhaven/new.jpg"); err != nil || !strings.HasSuffix(p, "cache/fetched/images/wallhaven/new.jpg") {
+	if p, err := s.OriginalPath("fetched/images/wallhaven/new.jpg"); err != nil || !strings.HasSuffix(filepath.ToSlash(p), "cache/fetched/images/wallhaven/new.jpg") {
 		t.Errorf("OriginalPath(fetched) = %q, %v", p, err)
 	}
 	if _, err := s.OriginalPath("fetched/thumbs/wallhaven/new.jpg"); err == nil {

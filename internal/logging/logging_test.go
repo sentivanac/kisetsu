@@ -124,6 +124,34 @@ func TestOpenStartsNewFileWhenTooLarge(t *testing.T) {
 	}
 }
 
+// When the log cannot be renamed (on Windows, another Kisetsu process has
+// it open), Kisetsu still starts and keeps appending to it.
+func TestOpenKeepsLoggingWhenRotationFails(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FileName)
+	big := bytes.Repeat([]byte("x"), MaxSize+1)
+	if err := os.WriteFile(path, big, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A non-empty directory named like the old log makes the rename fail
+	// on every system.
+	if err := os.MkdirAll(filepath.Join(path+".1", "keep"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	log, closer, err := Open(dir, slog.LevelInfo, nil)
+	if err != nil {
+		t.Fatalf("Open failed although only the rotation failed: %v", err)
+	}
+	log.Info("still logging")
+	closer.Close()
+
+	current, _ := os.ReadFile(path)
+	if !bytes.HasPrefix(current, big) || !strings.Contains(string(current), "still logging") {
+		t.Errorf("log has %d bytes; want the old content followed by the new record", len(current))
+	}
+}
+
 func TestOpenKeepsFileUnderTheLimit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, FileName)

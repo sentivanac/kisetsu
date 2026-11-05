@@ -34,6 +34,32 @@ which type-checks the code and the tests for Windows on Linux. The tests
 themselves run on `windows-latest` in CI; that job does not fail the run
 until the port is complete.
 
+## Paths and files on Windows (step 2)
+
+Found by the first test run on `windows-latest`:
+
+- **Directories:** everything under `%LocalAppData%\Kisetsu\{config,data,
+  cache,state}` (`config.WindowsPaths`); a library of images does not
+  belong in the roaming profile. Tests point `LOCALAPPDATA` at a
+  temporary directory, as they do with the XDG variables.
+- **Open files:** Windows cannot move or remove a file that is still
+  open. A download's temporary file is closed before it is moved into
+  the library. When a hard link is not possible (FAT, some network
+  shares), the file is copied into a new one, which never replaces an
+  existing file either.
+- **Stored paths** always use `/`, on every system.
+- **File names:** device names Windows reserves (`CON`, `NUL`, `COM1`, ...)
+  get a `_`, on every system, so a library moves between systems
+  unchanged.
+- **Log:** when the log cannot be renamed because another Kisetsu process
+  has it open, Kisetsu keeps appending to it; a full log never stops it
+  from starting.
+- **Database:** `%`, `?` and `#` in its path are escaped in the SQLite
+  URI.
+- **Line endings:** `.gitattributes` keeps LF in Windows checkouts.
+- **Permissions:** Unix permission checks in tests are skipped on
+  Windows, which has none; the files are in the user's own profile.
+
 ## Consequences
 
 - One code base; each platform-specific file is small and named after

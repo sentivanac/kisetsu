@@ -1,0 +1,8 @@
+# Text files keep LF line endings on every system, including Windows
+# checkouts (tests compare file contents, and scripts must stay runnable).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary

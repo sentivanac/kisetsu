@@ -19,6 +19,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -426,6 +427,9 @@ type stored struct {
 func (m *Manager) storedFile(tmp *os.File, res imaging.Result, root string) (stored, error) {
 	if res.Fitted == nil {
 		size, err := tmp.Seek(0, io.SeekEnd)
+		// Closed here, because the file is moved next: Windows cannot
+		// move or remove a file that is still open.
+		err = errors.Join(err, tmp.Close())
 		return stored{path: tmp.Name(), size: size, width: res.Width, height: res.Height, mime: res.MIMEType}, err
 	}
 	path, err := writeTemp(root, res.Fitted)
@@ -501,8 +505,8 @@ func (m *Manager) store(ctx context.Context, img images.Image, file stored, res 
 	}
 	if fetch != nil {
 		entry.Origin, entry.SavedSearchID = library.Fetched, fetch.SavedSearchID
-		entry.FilePath = filepath.Join("fetched", filePath)
-		entry.ThumbnailPath = filepath.Join("fetched", thumbPath)
+		entry.FilePath = path.Join("fetched", filePath)
+		entry.ThumbnailPath = path.Join("fetched", thumbPath)
 	}
 	id, err := m.cfg.Store.Add(ctx, entry)
 	if err != nil {
@@ -513,8 +517,9 @@ func (m *Manager) store(ctx context.Context, img images.Image, file stored, res 
 }
 
 // place moves src to dir/name+ext inside root and returns the path
-// relative to root. An existing file is never replaced: the name gets a
-// numeric suffix instead.
+// relative to root, with "/" as separator on every system (it is stored in
+// the database). An existing file is never replaced: the name gets a
+// numeric suffix instead. src must be closed.
 func place(root, src, dir, name, ext string) (string, error) {
 	if err := os.MkdirAll(filepath.Join(root, dir), dirPerm); err != nil {
 		return "", err
@@ -531,19 +536,46 @@ func place(root, src, dir, name, ext string) (string, error) {
 		dst := filepath.Join(root, rel)
 		// Link fails if dst exists, unlike Rename, so nothing is replaced.
 		err := os.Link(src, dst)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			// File systems without hard links (FAT, some network shares):
+			// copy into a new file, which also never replaces one.
+			err = copyNew(src, dst)
+		}
 		if errors.Is(err, os.ErrExist) {
 			continue
 		}
 		if err != nil {
 			return "", err
 		}
-		return rel, os.Remove(src)
+		return filepath.ToSlash(rel), os.Remove(src)
 	}
 	return "", fmt.Errorf("no free file name for %s%s in %s", name, ext, dir)
 }
 
+// copyNew copies src to dst, which must not exist yet.
+func copyNew(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePerm)
+	if err != nil {
+		return err
+	}
+	_, cerr := io.Copy(out, in)
+	if err := errors.Join(cerr, out.Close()); err != nil {
+		os.Remove(dst)
+		return err
+	}
+	return nil
+}
+
 // safeName turns a provider value into a file name: letters, digits, "-"
-// and "_" only, so it can never contain a path separator or "..".
+// and "_" only, so it can never contain a path separator or "..". Names
+// Windows reserves for devices (CON, NUL, COM1, ...), which it refuses
+// even with an extension, get a "_" on every system, so a library moves
+// between systems unchanged.
 func safeName(s string) string {
 	var b strings.Builder
 	for _, r := range s {
@@ -556,7 +588,21 @@ func safeName(s string) string {
 	if b.Len() == 0 || b.Len() > 100 {
 		return "image"
 	}
-	return b.String()
+	name := b.String()
+	if windowsReserved[strings.ToUpper(name)] {
+		name += "_"
+	}
+	return name
+}
+
+// windowsReserved are the device names Windows does not allow as file
+// names.
+var windowsReserved = map[string]bool{
+	"CON": true, "PRN": true, "AUX": true, "NUL": true,
+	"COM1": true, "COM2": true, "COM3": true, "COM4": true, "COM5": true,
+	"COM6": true, "COM7": true, "COM8": true, "COM9": true,
+	"LPT1": true, "LPT2": true, "LPT3": true, "LPT4": true, "LPT5": true,
+	"LPT6": true, "LPT7": true, "LPT8": true, "LPT9": true,
 }
 
 func extension(mime string) string {

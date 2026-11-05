@@ -14,12 +14,12 @@ import (
 	"github.com/sentivanac/kisetsu/internal/searches"
 )
 
-// useTempXDG points every XDG directory at a temporary one, so commands
+// useTempXDG points every data directory (XDG, %LocalAppData%) at a temporary one, so commands
 // started through runCommand never touch the user's data.
 func useTempXDG(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
-	for _, v := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"} {
+	for _, v := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "LOCALAPPDATA"} {
 		t.Setenv(v, filepath.Join(dir, v))
 	}
 }

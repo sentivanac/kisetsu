@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -212,7 +213,7 @@ func TestDownloadStoresFileThumbnailAndAttribution(t *testing.T) {
 		t.Errorf("stored file differs from download (err %v)", err)
 	}
 	info, err := os.Stat(filepath.Join(e.root, entry.FilePath))
-	if err != nil || info.Mode().Perm() != filePerm {
+	if err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != filePerm {
 		t.Errorf("file permissions = %v (err %v), want %o", info.Mode().Perm(), err, filePerm)
 	}
 	thumb, err := os.ReadFile(filepath.Join(e.root, entry.ThumbnailPath))
@@ -488,6 +489,10 @@ func TestSafeName(t *testing.T) {
 		"":            "image",
 		"雪":           "_",
 		"name.with.x": "name_with_x",
+		"con":         "con_",
+		"Nul":         "Nul_",
+		"com1":        "com1_",
+		"console":     "console",
 	}
 	for in, want := range tests {
 		if got := safeName(in); got != want {
@@ -592,5 +597,25 @@ func TestFetchNowWaitsForTheResult(t *testing.T) {
 	}
 	if again := e.mgr.FetchNow(context.Background(), img, FetchOptions{SavedSearchID: 1}); again.State != Duplicate {
 		t.Errorf("second FetchNow = %+v, want duplicate", again)
+	}
+}
+
+// copyNew is the fallback for file systems without hard links.
+func TestCopyNewNeverReplaces(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "src"), filepath.Join(dir, "dst")
+	os.WriteFile(src, []byte("image"), 0o600)
+	if err := copyNew(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(dst); string(data) != "image" {
+		t.Errorf("copy = %q", data)
+	}
+	os.WriteFile(src, []byte("other"), 0o600)
+	if err := copyNew(src, dst); !errors.Is(err, os.ErrExist) {
+		t.Errorf("err = %v, want ErrExist", err)
+	}
+	if data, _ := os.ReadFile(dst); string(data) != "image" {
+		t.Errorf("existing file replaced: %q", data)
 	}
 }

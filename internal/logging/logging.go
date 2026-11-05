@@ -50,12 +50,13 @@ func New(w io.Writer, level slog.Level) *slog.Logger {
 func Open(dir string, level slog.Level, mirror io.Writer) (*slog.Logger, io.Closer, error) {
 	path := filepath.Join(dir, FileName)
 	if info, err := os.Stat(path); err == nil && info.Size() > MaxSize {
-		// Replaces an older ".1". A process that still has the log open
-		// (the window, while the timer rotates) keeps writing into the
-		// renamed file until it is restarted; nothing is lost.
-		if err := os.Rename(path, path+".1"); err != nil {
-			return nil, nil, fmt.Errorf("start a new log file: %w", err)
-		}
+		// Replaces an older ".1". On Linux, a process that still has the
+		// log open keeps writing into the renamed file until it is
+		// restarted; nothing is lost. Windows refuses to rename a file
+		// another process has open (the window, the agent); then this
+		// process keeps appending to the same file, and a later start
+		// rotates it. A full log must never stop Kisetsu from starting.
+		_ = os.Rename(path, path+".1")
 	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {

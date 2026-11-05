@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"strings"
 
 	_ "modernc.org/sqlite" // registers the "sqlite" driver (pure Go, no cgo)
 )
@@ -85,5 +86,12 @@ func dsn(path string) string {
 	for _, p := range pragmas {
 		q.Add("_pragma", p)
 	}
-	return "file:" + path + "?" + q.Encode()
+	return "file:" + uriPath(path) + "?" + q.Encode()
+}
+
+// uriPath escapes the characters that have a meaning in an SQLite URI, so a
+// path containing them (for example in a user name) still opens the right
+// file.
+func uriPath(path string) string {
+	return strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23").Replace(path)
 }

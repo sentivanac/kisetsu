@@ -14,22 +14,13 @@ const appDirName = "kisetsu"
 // history, collections and, later, provider API keys.
 const dirPerm = 0o700
 
-// Paths are the per-user directories used by Kisetsu, following the
-// XDG Base Directory Specification.
+// Paths are the per-user directories used by Kisetsu: on Linux after the
+// XDG Base Directory Specification, on Windows under %LocalAppData%.
 type Paths struct {
 	Config string // settings, e.g. ~/.config/kisetsu
 	Data   string // database and downloaded images, e.g. ~/.local/share/kisetsu
 	Cache  string // re-creatable files such as thumbnails, e.g. ~/.cache/kisetsu
 	State  string // logs and other runtime state, e.g. ~/.local/state/kisetsu
-}
-
-// DefaultPaths resolves Paths from the current environment.
-func DefaultPaths() (Paths, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return Paths{}, fmt.Errorf("resolve home directory: %w", err)
-	}
-	return ResolvePaths(os.Getenv, home)
 }
 
 // ResolvePaths resolves Paths using getenv to read XDG variables and
@@ -64,4 +55,20 @@ func (p Paths) Ensure() error {
 		}
 	}
 	return nil
+}
+
+// windowsAppDir is Kisetsu's folder under %LocalAppData%.
+const windowsAppDir = "Kisetsu"
+
+// WindowsPaths returns the Windows directories under localAppData
+// (%LocalAppData%). Everything stays on this computer: a library of
+// images does not belong in the roaming profile.
+func WindowsPaths(localAppData string) Paths {
+	base := filepath.Join(localAppData, windowsAppDir)
+	return Paths{
+		Config: filepath.Join(base, "config"),
+		Data:   filepath.Join(base, "data"),
+		Cache:  filepath.Join(base, "cache"),
+		State:  filepath.Join(base, "state"),
+	}
 }

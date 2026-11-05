@@ -14,12 +14,12 @@ import (
 	"github.com/sentivanac/kisetsu/internal/rotation"
 )
 
-// testCore opens a core in temporary XDG directories, with a fake wallpaper
+// testCore opens a core in temporary directories (XDG, %LocalAppData%), with a fake wallpaper
 // setter, so tests never touch the real data or desktop.
 func testCore(t *testing.T, imageCount int) (*core, *rotation.Rotator, *fakeWallpaper) {
 	t.Helper()
 	dir := t.TempDir()
-	for _, v := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"} {
+	for _, v := range []string{"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "LOCALAPPDATA"} {
 		t.Setenv(v, filepath.Join(dir, v))
 	}
 	c, err := openCore(context.Background(), "test", nil)

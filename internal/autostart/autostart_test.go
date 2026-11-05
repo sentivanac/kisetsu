@@ -1,3 +1,7 @@
+//go:build !windows
+
+// The XDG autostart entry exists only on Linux; Windows uses the registry.
+
 package autostart
 
 import (

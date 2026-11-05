@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -15,8 +16,13 @@ func TestEmbeddedMigrationsAreValid(t *testing.T) {
 
 func TestOpenCreatesDatabaseWithPragmas(t *testing.T) {
 	ctx := context.Background()
-	// A space in the path makes sure the DSN is built correctly.
-	path := filepath.Join(t.TempDir(), "my data", FileName)
+	// Characters with a meaning in a URI make sure the DSN is built
+	// correctly ("?" cannot be in a Windows file name).
+	dirName := "my data #1 100%"
+	if runtime.GOOS != "windows" {
+		dirName += " ok?"
+	}
+	path := filepath.Join(t.TempDir(), dirName, FileName)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +37,8 @@ func TestOpenCreatesDatabaseWithPragmas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("database file not created: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
+	// Windows has no Unix permissions; the file is in the user's profile.
+	if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm != 0o600 {
 		t.Errorf("database file permissions = %o, want 600", perm)
 	}
 
