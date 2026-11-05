@@ -33,13 +33,15 @@ build: check-node
 deb: build
 	scripts/build-deb.sh $(BUILD_VERSION) $(APP_ID)
 
-## icons: render the PNG icons from the SVG source (needs inkscape; the
+## icons: render the PNG and Windows icons from the SVG source (needs
+## inkscape and ImageMagick; the
 ## results are committed, so this is only needed after editing the SVG)
 icons:
 	for s in 16 24 32 48 64 128 256 512; do \
 		inkscape build/linux/$(APP_ID).svg -o build/linux/icons/$$s.png -w $$s -h $$s; \
 	done
 	inkscape build/linux/$(APP_ID).svg -o build/appicon.png -w 1024 -h 1024
+	convert $(foreach s,16 24 32 48 64 128 256,build/linux/icons/$(s).png) build/windows/icon.ico
 
 ## version: print the version of the next release
 version:
