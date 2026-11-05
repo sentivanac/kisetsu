@@ -5,11 +5,13 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/autostart"
@@ -124,6 +126,12 @@ func run() error {
 			// window's icon and menu entry by it (ADR 0032).
 			ProgramName: appID,
 			Icon:        windowIcon,
+		},
+		Windows: &windows.Options{
+			// WebView2 keeps its cache under %LocalAppData%\Kisetsu, not
+			// in the roaming profile (Wails' default); the uninstaller
+			// removes it.
+			WebviewUserDataPath: filepath.Join(c.paths.Cache, "webview"),
 		},
 		OnStartup: app.startup,
 		// One window per user: starting Kisetsu again (from the menu or the

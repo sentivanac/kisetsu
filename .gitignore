@@ -1,6 +1,7 @@
 # Build output (`go build .` writes the binary to the repository root)
 /kisetsu
 build/bin/
+build/windows/installer/tmp/
 build/deb/
 frontend/dist/
 

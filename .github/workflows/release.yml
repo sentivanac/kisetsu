@@ -1,6 +1,6 @@
-# On a version tag (v0.1.0), builds the .deb from exactly that commit and
-# attaches it to a draft GitHub release. Publishing the draft stays a
-# manual step (see docs/releasing.md).
+# On a version tag (v0.1.0), builds the .deb and the Windows installer from
+# exactly that commit and attaches them to a draft GitHub release.
+# Publishing the draft stays a manual step (see docs/releasing.md).
 name: Release
 
 on:
@@ -11,7 +11,7 @@ permissions:
   contents: write # create the draft release
 
 jobs:
-  deb:
+  release:
     # Built on the oldest supported Ubuntu, so the package's library
     # versions are satisfied there and on everything newer.
     runs-on: ubuntu-22.04
@@ -33,7 +33,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev lintian
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev lintian nsis
 
       - uses: actions/setup-go@v5
         with:
@@ -62,11 +62,15 @@ jobs:
       - name: Lint the package
         run: lintian --fail-on warning build/deb/*.deb
 
+      - name: Build the Windows installer
+        # Cross-compiled; no Windows runner is needed (ADR 0046).
+        run: make windows BUILD_VERSION="$VERSION"
+
       - name: Create a draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/deb/*.deb \
+          gh release create "$GITHUB_REF_NAME" build/deb/*.deb build/bin/kisetsu-*-windows-amd64-setup.exe \
             --draft \
             --title "Kisetsu $VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md"

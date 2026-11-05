@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,5 +27,35 @@ func TestWindowNameMatchesDesktopFile(t *testing.T) {
 	}
 	if !strings.Contains(string(makefile), "\nAPP_ID := "+appID+"\n") {
 		t.Errorf("APP_ID in the Makefile is not %s", appID)
+	}
+}
+
+// The Windows file version (wails.json) must follow VERSION in the
+// Makefile; the release steps change both.
+func TestWindowsVersionMatchesMakefile(t *testing.T) {
+	makefile, err := os.ReadFile("Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var version string
+	for line := range strings.SplitSeq(string(makefile), "\n") {
+		if v, ok := strings.CutPrefix(line, "VERSION := "); ok {
+			version = strings.TrimSpace(v)
+		}
+	}
+	data, err := os.ReadFile("wails.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		Info struct {
+			ProductVersion string `json:"productVersion"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if version == "" || cfg.Info.ProductVersion != version {
+		t.Errorf("wails.json productVersion = %q, Makefile VERSION = %q", cfg.Info.ProductVersion, version)
 	}
 }

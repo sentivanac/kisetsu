@@ -18,7 +18,7 @@ LDFLAGS := -X github.com/sentivanac/kisetsu/internal/appinfo.Version=$(BUILD_VER
 # Application ID, used for the .desktop file and the icon name.
 APP_ID := io.github.sentivanac.Kisetsu
 
-.PHONY: dev build test test-live test-frontend vet check check-windows check-node icons deb version build-version frontend-dist
+.PHONY: dev build test test-live test-frontend vet check check-windows check-node icons deb windows version build-version frontend-dist
 
 ## dev: run the app with hot reload
 dev: check-node
@@ -32,6 +32,22 @@ build: check-node
 ## deb: build a .deb package into build/deb/ (does not install it)
 deb: build
 	scripts/build-deb.sh $(BUILD_VERSION) $(APP_ID)
+
+## windows: build kisetsu.exe and its installer into build/bin/ (needs
+## nsis). The file version is VERSION (Windows wants numbers only); the
+## installer's name carries BUILD_VERSION.
+windows: check-node
+	wails build -platform windows/amd64 -ldflags "$(LDFLAGS)"
+	scripts/third-party-licenses.sh build/bin/kisetsu.exe > build/bin/THIRD_PARTY_LICENSES.txt
+	@# Microsoft's WebView2 bootstrapper, as shipped in the Wails module;
+	@# the installer runs it only when WebView2 is missing.
+	mkdir -p build/windows/installer/tmp
+	cp "$$(go list -m -f '{{.Dir}}' github.com/wailsapp/wails/v2)/internal/webview2runtime/MicrosoftEdgeWebview2Setup.exe" \
+		build/windows/installer/tmp/
+	chmod 644 build/windows/installer/tmp/MicrosoftEdgeWebview2Setup.exe
+	makensis -V2 -DARG_WAILS_AMD64_BINARY=../../bin/kisetsu.exe \
+		-DINFO_PRODUCTVERSION=$(VERSION) -DKISETSU_VERSION=$(BUILD_VERSION) \
+		build/windows/installer/project.nsi
 
 ## icons: render the PNG and Windows icons from the SVG source (needs
 ## inkscape and ImageMagick; the
