@@ -37,6 +37,7 @@ var windowIcon []byte
 func main() {
 	// A command (for example `kisetsu rotate`) runs without a window.
 	if len(os.Args) > 1 {
+		attachConsole()
 		os.Exit(runCommand(os.Args[1], os.Args[2:]))
 	}
 	if err := run(); err != nil {

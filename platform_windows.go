@@ -47,7 +47,34 @@ func watchSession(ctx context.Context, cancel context.CancelFunc, log *slog.Logg
 // trayHostPresent is always true: the Windows taskbar shows tray icons.
 func trayHostPresent() bool { return true }
 
-// setTrayIcon sets the icon before the tray starts.
-func setTrayIcon(log *slog.Logger, iconDir string) {
+// setTrayIconBeforeRun does nothing on Windows: the tray accepts an icon
+// only once it runs.
+func setTrayIconBeforeRun(log *slog.Logger, iconDir string) {}
+
+// setTrayIconOnReady sets the icon as soon as the tray runs.
+func setTrayIconOnReady() {
 	systray.SetIcon(trayIconICO)
+}
+
+// attachParentProcess is ATTACH_PARENT_PROCESS for AttachConsole.
+const attachParentProcess = ^uint32(0)
+
+var attachConsoleProc = windows.NewLazySystemDLL("kernel32.dll").NewProc("AttachConsole")
+
+// attachConsole makes command output visible: kisetsu.exe is a Windows
+// GUI program, which gets no console of its own, so `kisetsu.exe version`
+// in a terminal would print nothing. It attaches to the terminal it was
+// started from. Output already redirected (to a file or a pipe) is left
+// as it is. The terminal shows its prompt before the output, because it
+// does not wait for GUI programs.
+func attachConsole() {
+	if h, err := windows.GetStdHandle(windows.STD_OUTPUT_HANDLE); err == nil && h != 0 && h != windows.InvalidHandle {
+		return
+	}
+	if r, _, _ := attachConsoleProc.Call(uintptr(attachParentProcess)); r == 0 {
+		return // started without a terminal (for example at sign-in)
+	}
+	if f, err := os.OpenFile("CONOUT$", os.O_WRONLY, 0); err == nil {
+		os.Stdout, os.Stderr = f, f
+	}
 }

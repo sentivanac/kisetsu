@@ -57,13 +57,13 @@ func trayHostPresent() bool {
 	return err == nil && has
 }
 
-// setTrayIcon sends the icon three ways: by name, with a directory that
+// setTrayIconBeforeRun sends the icon three ways: by name, with a directory that
 // holds it, for panels that only look icons up by name (Ayatana
 // indicators, the default on Ubuntu MATE, show "image missing"
 // otherwise), and as image data for the others. The installed package
 // also puts it in the system icon theme. Called before the tray starts,
 // so the first query finds it.
-func setTrayIcon(log *slog.Logger, iconDir string) {
+func setTrayIconBeforeRun(log *slog.Logger, iconDir string) {
 	if err := writeTrayIcon(iconDir); err != nil {
 		log.Warn("tray icon file not written; panels that need it show a placeholder", "err", err)
 	} else {
@@ -72,3 +72,11 @@ func setTrayIcon(log *slog.Logger, iconDir string) {
 	systray.SetIconName(appID)
 	systray.SetIcon(trayIcon)
 }
+
+// attachConsole does nothing: Unix programs write to the terminal they
+// were started from.
+func attachConsole() {}
+
+// setTrayIconOnReady does nothing on Linux: the icon was set before the
+// tray started.
+func setTrayIconOnReady() {}

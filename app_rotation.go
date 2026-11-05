@@ -273,7 +273,7 @@ func agentError(err error) error {
 	switch {
 	case errors.Is(err, autostart.ErrForeign):
 		return apperr.New(apperr.InvalidInput,
-			"A file named "+autostart.FileName+" already exists in ~/.config/autostart and was not created by Kisetsu, "+
+			"An autostart entry "+autostart.Location+" already exists and was not created by Kisetsu, "+
 				"so it was left alone. Rename or remove it to use rotation.", err)
 	case errors.Is(err, autostart.ErrTemporaryExecutable):
 		return apperr.New(apperr.InvalidInput,

@@ -63,11 +63,12 @@ type trayActions struct {
 // Without a tray host (GNOME without the AppIndicator extension), the
 // icon is simply not shown; systray registers again when a host appears.
 func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActions, quit func()) {
-	setTrayIcon(log, iconDir)
-	systray.SetTitle("Kisetsu")
-	systray.SetTooltip("Kisetsu")
+	setTrayIconBeforeRun(log, iconDir)
 
 	systray.Run(func() {
+		setTrayIconOnReady()
+		systray.SetTitle("Kisetsu")
+		systray.SetTooltip("Kisetsu")
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()
