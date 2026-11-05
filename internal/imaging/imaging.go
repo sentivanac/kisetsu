@@ -176,6 +176,11 @@ func thumbnail(img image.Image, size int) *image.RGBA {
 	return resize(img, w, h)
 }
 
+// Resize scales img to w×h, as resize does.
+func Resize(img image.Image, w, h int) *image.RGBA {
+	return resize(img, w, h)
+}
+
 // resize scales img to w×h. Transparent areas become black, the background
 // of the app, because JPEG has no alpha channel.
 func resize(img image.Image, w, h int) *image.RGBA {
