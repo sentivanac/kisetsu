@@ -1,7 +1,7 @@
 # Releasing Kisetsu
 
-How a version goes from this repository to a downloadable `.deb`. The
-package is built by GitHub from the tagged commit
+How a version goes from this repository to a downloadable `.deb` and
+Windows installer. Both are built by GitHub from the tagged commit
 ([ADR 0036](adr/0036-ci-and-release-workflows.md)); publishing it is
 always a manual decision.
 
@@ -9,7 +9,9 @@ The examples use version 0.1.0.
 
 ## 1. Prepare
 
-1. `VERSION` in the `Makefile` is the version to release:
+1. `VERSION` in the `Makefile` is the version to release, and
+   `productVersion` in `wails.json` is the same (`make check` fails
+   otherwise):
 
    ```sh
    make version
@@ -30,6 +32,7 @@ The examples use version 0.1.0.
    make check
    make deb
    lintian --fail-on warning build/deb/kisetsu_*_amd64.deb
+   make windows
    ```
 
    This package is a development build (for example
@@ -94,13 +97,17 @@ git push origin main v0.1.0
 ## 5. Check and publish
 
 1. Open **Releases**: there is a draft "Kisetsu 0.1.0" with the notes
-   from `CHANGELOG.md` and `kisetsu_0.1.0_amd64.deb`.
+   from `CHANGELOG.md`, `kisetsu_0.1.0_amd64.deb` and
+   `kisetsu-0.1.0-windows-amd64-setup.exe`.
 2. Download the `.deb` and install it on a test machine:
 
    ```sh
    sudo apt install ./kisetsu_0.1.0_amd64.deb
    kisetsu version
    ```
+
+   Install the Windows installer in the Windows VM, from its clean
+   snapshot, and check the version in Settings → Apps.
 
 3. If all is well, edit the draft and **Publish release**.
 4. When the repository should be public: **Settings → General → Danger
@@ -115,7 +122,8 @@ fixed in a new version (0.1.1).
 
 Start the next version:
 
-1. `VERSION := 0.1.1` (or `0.2.0`) in the `Makefile`.
+1. `VERSION := 0.1.1` (or `0.2.0`) in the `Makefile`, and the same
+   `productVersion` in `wails.json`.
 2. A new section at the top of `CHANGELOG.md`:
 
    ```markdown

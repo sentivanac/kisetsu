@@ -12,8 +12,7 @@ sets or rotates your desktop wallpaper. It is free and open source (MIT).
 <sub>Photographs from Wikimedia Commons by their authors, under CC BY-SA
 and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
-> **Status:** version 0.2.0. Linux only; Windows support is planned for
-> 0.3.0.
+> **Status:** version 0.3.0, for Linux and Windows.
 
 ## Features
 
@@ -37,19 +36,32 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
 ## Install
 
-Kisetsu is packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer
-and Debian 12 or newer** (64-bit).
+Both files are on the
+[latest release](https://github.com/sentivanac/kisetsu/releases/latest).
 
-Download `kisetsu_0.2.0_amd64.deb` from the
-[latest release](https://github.com/sentivanac/kisetsu/releases/latest)
-and install it with (an older version is replaced):
+### Linux
+
+Packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer and Debian
+12 or newer** (64-bit). Download `kisetsu_0.3.0_amd64.deb` and install it
+with (an older version is replaced):
 
 ```sh
-sudo apt install ./kisetsu_0.2.0_amd64.deb
+sudo apt install ./kisetsu_0.3.0_amd64.deb
 ```
 
 `apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). Then
 start **Kisetsu** from the applications menu, or run `kisetsu`.
+
+### Windows
+
+For **Windows 10 and 11** (64-bit). Download
+`kisetsu-0.3.0-windows-amd64-setup.exe` and run it. It installs for your
+user only, without administrator rights, and replaces an older version.
+
+The installer is not signed yet, so Windows may warn before starting it
+("Windows protected your PC"): choose **More info**, then **Run anyway**.
+Windows 11 with *Smart App Control* turned on blocks unsigned programs
+altogether.
 
 To build it yourself, see [docs/development.md](docs/development.md).
 
@@ -57,6 +69,7 @@ To build it yourself, see [docs/development.md](docs/development.md).
 
 | Desktop | Set wallpaper | Rotation |
 |---|---|---|
+| Windows 10 and 11 | ✓ | ✓ |
 | GNOME (X11 and Wayland) | ✓ | ✓ |
 | MATE | ✓ | ✓ |
 | Cinnamon (Linux Mint) | ✓ | ✓ |
@@ -76,14 +89,16 @@ automatic change, or quit Variety, if Kisetsu should rotate.
 
 **Rotation** runs in a small background process, `kisetsu agent`, so it
 continues while the window is closed. Turning rotation on starts it and
-adds it to the programs started at login; turning rotation off removes
-it from there, and the process ends by itself. Desktops that do not
-start programs from `~/.config/autostart` (i3, sway and other window
-managers) need `kisetsu agent` in their own startup file.
+adds it to the programs started at login (on Windows: Task Manager's
+Startup tab); turning rotation off removes it from there, and the process
+ends by itself. Linux desktops that do not start programs from
+`~/.config/autostart` (i3, sway and other window managers) need
+`kisetsu agent` in their own startup file.
 
 **Tray icon** (optional, in the Wallpaper tab): its menu changes the
 wallpaper, turns rotation on or off, opens the window, or quits until the
-next login. Plain GNOME shows tray icons only with the extension
+next login. On Windows it is in the notification area (it may be behind
+the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.
 
@@ -98,8 +113,8 @@ page before publishing or sharing an image.
   categories; turn those categories off in the search form if you do not
   want them. The preview of a Wallhaven image lists its tags: click one
   (for example "barefoot") to hide images with it from all later
-  searches; the search form lists hidden tags and shows them again. Licenses are often not stated; Kisetsu then says "License
-  unknown".
+  searches; the search form lists hidden tags and shows them again.
+  Licenses are often not stated; Kisetsu then says "License unknown".
 - **Wikimedia Commons** (off by default): limited to its curated quality
   collections, with unsuitable results filtered out. Commons has no
   safe-for-work rating, so the filter cannot be perfect. Most images are
@@ -122,17 +137,25 @@ Kisetsu has no account, no telemetry and no server of its own.
 
 ## Where Kisetsu keeps its files
 
-| What | Where |
-|---|---|
-| Library images, thumbnails, database | `~/.local/share/kisetsu` |
-| Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` |
-| Log file (a new one is started above 5 MB; the previous is kept as `.1`) | `~/.local/state/kisetsu/kisetsu.log` |
-| Start at login (only while rotation is on) | `~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop` |
+| What | Linux | Windows |
+|---|---|---|
+| Library images, thumbnails, database | `~/.local/share/kisetsu` | `%LocalAppData%\Kisetsu\data` |
+| Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` | `%LocalAppData%\Kisetsu\cache` |
+| Log file (a new one is started above 5 MB; the previous is kept as `.1`) | `~/.local/state/kisetsu/kisetsu.log` | `%LocalAppData%\Kisetsu\state\kisetsu.log` |
+| Start at login (only while rotation or the tray icon is on) | `~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop` | value `io.github.sentivanac.Kisetsu.Agent` in `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` |
+| The program (Windows) | | `%LocalAppData%\Programs\Kisetsu` |
 
 Kisetsu never deletes images from your library on its own; only the
 cache of fresh images is cleaned up automatically.
 
 ## Uninstall
+
+**Windows:** Settings → Apps → Kisetsu → **Uninstall**. It stops the
+background process and removes it from the programs started at sign-in.
+Your library stays in `%LocalAppData%\Kisetsu`; delete that folder to
+remove it as well.
+
+**Linux:**
 
 1. In Kisetsu, open **Wallpaper** and turn rotation off. The background
    process stops and is no longer started at login.
@@ -166,17 +189,21 @@ kisetsu version
 kisetsu help
 ```
 
+On Windows the program is `kisetsu.exe`. Because it is a window program,
+the terminal shows its prompt before the output; press Enter to get the
+prompt back.
+
 ## Troubleshooting
 
-- **The window stays blank or flickers:** start it without WebView
-  hardware acceleration: `KISETSU_WEBVIEW_GPU=never kisetsu`
+- **The window stays blank or flickers (Linux):** start it without
+  WebView hardware acceleration: `KISETSU_WEBVIEW_GPU=never kisetsu`
   (`ondemand` is the default, `always` is also accepted).
 - **More detail in the log:** `KISETSU_LOG_LEVEL=debug kisetsu`, then
-  look at `~/.local/state/kisetsu/kisetsu.log`.
+  look at the log file (see the table above).
 - **The wallpaper does not change:** the Wallpaper tab shows whether the
   background process runs (and starts it if not) and when the next
-  change is due. Check whether Variety is
-  running, and whether your desktop is in the table above.
+  change is due. Check whether Variety is running, and whether your
+  desktop is in the table above.
 
 ## Contributing
 
@@ -188,7 +215,8 @@ in [CHANGELOG.md](CHANGELOG.md).
 
 Kisetsu is released under the [MIT License](LICENSE). The licenses of
 the libraries it is built with are installed with it, in
-`/usr/share/doc/kisetsu/THIRD_PARTY_LICENSES.gz`. Images found with
+`/usr/share/doc/kisetsu/THIRD_PARTY_LICENSES.gz` on Linux and
+`THIRD_PARTY_LICENSES.txt` in the program folder on Windows. Images found with
 Kisetsu belong to their authors and keep their own licenses; the
 screenshot above is under CC BY-SA 4.0 (see its
 [credits](docs/screenshot-credits.md)).

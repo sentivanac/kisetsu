@@ -5,7 +5,8 @@ How to build, test and package Kisetsu. For using it, see the
 
 ## Requirements
 
-Developed and tested on Ubuntu 22.04.
+Developed on Ubuntu 22.04; the Windows build is cross-compiled from
+Linux.
 
 | Tool | Version | Notes |
 |---|---|---|
@@ -13,6 +14,7 @@ Developed and tested on Ubuntu 22.04.
 | Node.js | 24 LTS | pinned in `.nvmrc` |
 | Wails CLI | v2.17+ | `go install github.com/wailsapp/wails/v2/cmd/wails@latest` |
 | GTK 3 / WebKitGTK 4.1 | | `sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev` |
+| NSIS | 3 | only for `make windows`: `sudo apt install nsis` |
 
 Kisetsu builds against **WebKitGTK 4.1** using the Go build tag `webkit2_41`.
 The tag is set in `wails.json` and in the `Makefile`. `wails doctor` reports
@@ -23,7 +25,7 @@ The tag is set in `wails.json` and in the `Makefile`. `wails doctor` reports
 ```sh
 nvm use          # switch to the Node version from .nvmrc
 make dev         # run with hot reload
-make check       # go vet, Go tests, TypeScript type check, frontend tests
+make check       # go vet (also for Windows), Go tests, TypeScript type check, frontend tests
 make test        # Go tests only
 make test-frontend  # frontend tests only (Vitest)
 make test-live   # check providers against their real APIs (uses the network)
@@ -31,6 +33,11 @@ make build       # production binary in build/bin/kisetsu
 ```
 
 When calling Go tools directly, pass the tag: `go test -tags webkit2_41 ./...`.
+
+Code that differs between Linux and Windows lives in files named
+`*_unix.go` and `*_windows.go` ([ADR 0043](adr/0043-platform-split.md)).
+`make check` type-checks the Windows code too; the tests run on Windows
+in CI (`windows-latest`).
 
 ## Ideas
 
@@ -46,12 +53,23 @@ See [releasing.md](releasing.md).
 make deb         # release binary + build/deb/kisetsu_<version>_amd64.deb
 ```
 
-The version is set once, as `VERSION` in the `Makefile`. `make deb`
-installs nothing; it needs `dpkg-dev` (for `dpkg-shlibdeps`). See
-[ADR 0033](adr/0033-deb-package.md).
+The version is set once, as `VERSION` in the `Makefile` (and, for the
+Windows file version, `productVersion` in `wails.json`; a test keeps them
+equal). `make deb` installs nothing; it needs `dpkg-dev` (for
+`dpkg-shlibdeps`). See [ADR 0033](adr/0033-deb-package.md).
+
+```sh
+make windows     # build/bin/kisetsu.exe + kisetsu-<version>-windows-amd64-setup.exe
+```
+
+Cross-compiled; needs NSIS. See
+[ADR 0046](adr/0046-windows-installer.md). To try it, use a Windows
+virtual machine with a snapshot of a clean system, and go back to it
+before each installer test.
 
 After editing the icon source `build/linux/io.github.sentivanac.Kisetsu.svg`,
-`make icons` renders the PNG sizes (needs Inkscape).
+`make icons` renders the PNG sizes and the Windows icon (needs Inkscape
+and ImageMagick).
 
 ## Safe testing of the wallpaper code
 

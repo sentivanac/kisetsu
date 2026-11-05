@@ -6,6 +6,22 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [0.3.0] - Unreleased
 
+Kisetsu now runs on **Windows 10 and 11** as well.
+
+### Windows
+- Installer for the current user, without administrator rights; it
+  replaces an older version and keeps your library when Kisetsu is
+  removed. Not signed yet: Windows may warn before starting it.
+- Search, library, "Set as wallpaper", rotation in the background
+  (started at sign-in), the tray icon and the command line work as on
+  Linux.
+- Files live in `%LocalAppData%\Kisetsu`.
+
+### Fixes
+- A database path containing `%`, `#` or `?` now opens correctly.
+- A full log no longer stops Kisetsu from starting when another Kisetsu
+  process has it open.
+
 ## [0.2.0] - 2026-11-04
 
 ### Search
