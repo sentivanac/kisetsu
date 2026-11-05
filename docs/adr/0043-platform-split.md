@@ -31,8 +31,8 @@ new interfaces:
 
 `make check` now includes `check-windows`: `GOOS=windows go vet ./...`,
 which type-checks the code and the tests for Windows on Linux. The tests
-themselves run on `windows-latest` in CI; that job does not fail the run
-until the port is complete.
+themselves run on `windows-latest` in CI and must pass, like the Linux
+ones.
 
 ## Paths and files on Windows (step 2)
 

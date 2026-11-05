@@ -195,8 +195,9 @@ func TestDownloadStoresFileThumbnailAndAttribution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if entry.FilePath != filepath.Join("images", "wallhaven", "abc123.jpg") ||
-		entry.ThumbnailPath != filepath.Join("thumbs", "wallhaven", "abc123.jpg") {
+	// Stored paths use "/" on every system.
+	if entry.FilePath != "images/wallhaven/abc123.jpg" ||
+		entry.ThumbnailPath != "thumbs/wallhaven/abc123.jpg" {
 		t.Errorf("paths = %q, %q", entry.FilePath, entry.ThumbnailPath)
 	}
 	if entry.Image.Width != 640 || entry.Image.Height != 400 || entry.Image.FileSize != int64(len(data)) {
@@ -432,7 +433,7 @@ func TestExistingFilesAreNeverReplaced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if entry.FilePath != filepath.Join("images", "wallhaven", "abc-2.jpg") {
+	if entry.FilePath != "images/wallhaven/abc-2.jpg" {
 		t.Errorf("FilePath = %q, want the -2 name", entry.FilePath)
 	}
 	if content, _ := os.ReadFile(orphan); string(content) != "keep me" {
@@ -523,7 +524,7 @@ func TestFetchedDownloadIsStoredSmallerInTheCache(t *testing.T) {
 	if entry.Origin != library.Fetched || entry.SavedSearchID != 1 {
 		t.Errorf("origin %q, search %d", entry.Origin, entry.SavedSearchID)
 	}
-	if entry.FilePath != filepath.Join("fetched", "images", "wallhaven", "fetched1.jpg") {
+	if entry.FilePath != "fetched/images/wallhaven/fetched1.jpg" {
 		t.Errorf("FilePath = %q", entry.FilePath)
 	}
 	// 640×400 (16:10) covering 320×180 is 320×200.
