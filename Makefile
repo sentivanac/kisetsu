@@ -3,7 +3,7 @@
 TAGS := webkit2_41
 
 # The version of the next release; the only place it is written.
-VERSION := 0.3.0
+VERSION := 0.4.0
 
 # What this build calls itself: $(VERSION) only when built from the tag
 # v$(VERSION) without changes, otherwise a development version such as
