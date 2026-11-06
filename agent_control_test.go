@@ -78,3 +78,43 @@ func TestAgentControlStartsAndDetectsTheAgent(t *testing.T) {
 		t.Error("autostart entry still installed")
 	}
 }
+
+// An agent that holds its lock but has not written its PID yet (it does
+// so right after taking the lock) must still be stopped.
+func TestAgentControlStopsAnAgentStillWritingItsPID(t *testing.T) {
+	flock, err := exec.LookPath("flock")
+	if err != nil {
+		t.Skip("flock(1) not installed")
+	}
+	dir := t.TempDir()
+	lock := filepath.Join(dir, "agent.lock")
+	pidFile := filepath.Join(dir, "pid")
+	script := filepath.Join(dir, "kisetsu")
+	os.WriteFile(script, []byte("#!/bin/sh\necho $$ > "+pidFile+
+		"\nexec "+flock+" -n "+lock+` sh -c 'sleep 0.3; echo $$ > "$0"; exec sleep 30' `+lock+"\n"), 0o755)
+
+	c := &agentControl{
+		entry:    &autostart.Entry{Dir: filepath.Join(dir, "autostart"), Executable: script, TempDir: "/nonexistent"},
+		lockPath: lock,
+		log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if data, err := os.ReadFile(pidFile); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(data))); err == nil {
+				syscall.Kill(-pid, syscall.SIGTERM)
+			}
+		}
+	})
+	if !c.running() {
+		t.Fatal("not running after Start")
+	}
+	if err := c.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if c.running() {
+		t.Error("still running after Stop")
+	}
+}

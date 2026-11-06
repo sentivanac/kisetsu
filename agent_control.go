@@ -92,15 +92,18 @@ func (c *agentControl) Stop() error {
 	if !c.running() {
 		return nil
 	}
-	// The agent writes its PID into the lock file; while the lock is held,
-	// the PID belongs to the agent that holds it.
-	data, err := os.ReadFile(c.lockPath)
-	if err != nil {
-		return fmt.Errorf("read agent PID: %w", err)
+	// The agent writes its PID into the lock file right after taking the
+	// lock, so a just-started agent may not have written it yet.
+	pid, err := c.agentPID()
+	for deadline := time.Now().Add(startWait); err != nil && time.Now().Before(deadline); {
+		time.Sleep(50 * time.Millisecond)
+		if !c.running() {
+			return nil // it ended by itself
+		}
+		pid, err = c.agentPID()
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || pid <= 1 {
-		return fmt.Errorf("invalid agent PID %q", strings.TrimSpace(string(data)))
+	if err != nil {
+		return err
 	}
 	if err := terminate(pid); err != nil {
 		return fmt.Errorf("stop agent: %w", err)
@@ -112,6 +115,20 @@ func (c *agentControl) Stop() error {
 		}
 	}
 	return fmt.Errorf("agent %d did not stop within %s", pid, stopWait)
+}
+
+// agentPID reads the PID the agent wrote into its lock file. While the
+// lock is held, the PID belongs to the agent that holds it.
+func (c *agentControl) agentPID() (int, error) {
+	data, err := os.ReadFile(c.lockPath)
+	if err != nil {
+		return 0, fmt.Errorf("read agent PID: %w", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 1 {
+		return 0, fmt.Errorf("invalid agent PID %q", strings.TrimSpace(string(data)))
+	}
+	return pid, nil
 }
 
 // running reports whether an agent holds its lock.
