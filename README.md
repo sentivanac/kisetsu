@@ -49,8 +49,11 @@ with (an older version is replaced):
 sudo apt install ./kisetsu_0.3.0_amd64.deb
 ```
 
-`apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). Then
-start **Kisetsu** from the applications menu, or run `kisetsu`.
+`apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). If it
+says a package cannot be installed, its package lists are out of date
+(common on a freshly installed system): run `sudo apt update` and try
+again. Then start **Kisetsu** from the applications menu, or run
+`kisetsu`.
 
 ### Windows
 
@@ -101,6 +104,23 @@ next login. On Windows it is in the notification area (it may be behind
 the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.
+
+**On the wallpaper** (Wallpaper tab, both off by default): the image's
+author, license and source, and a clock with the date if you like, each
+in a corner of your choice. Kisetsu draws them on a copy of the image cut
+to your screen size; the image in the library is not changed. Good to
+know:
+
+- The clock is redrawn every minute by the background process, so it
+  runs while the clock is on, as for rotation.
+- While the clock is on, Kisetsu keeps showing the wallpaper it set
+  last: a wallpaper chosen in the desktop's own settings is replaced at
+  the next minute. Turn the clock off to use one of your own.
+- KDE Plasma and Cinnamon fade briefly to each new minute.
+- The text is placed for your largest screen; on a screen of a
+  different shape it may sit closer to the edge.
+- Nothing is drawn while Variety sets the wallpaper; Variety has its own
+  clock.
 
 ## Images and licenses
 

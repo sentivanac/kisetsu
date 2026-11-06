@@ -11,8 +11,19 @@ follow [Semantic Versioning](https://semver.org/).
   wallpaper (Wallpaper tab → On the wallpaper; off by default). Kisetsu
   draws them on a copy cropped to the screen; the image in the library
   is not changed.
-- A clock on the wallpaper, with the date if you like, redrawn every
-  minute by the background process (off by default).
+- A clock on the wallpaper, with the date if you like, in three sizes and
+  12- or 24-hour time, redrawn every minute by the background process
+  (off by default). While it is on, Kisetsu keeps showing the wallpaper
+  it set last.
+- Tested on Windows 10, GNOME, KDE Plasma, Xfce and Cinnamon.
+
+### Fixes
+- Turning off "Show in tray" right after the background process started
+  could fail with "invalid agent PID".
+
+### Documentation
+- Install: run `sudo apt update` first if `apt` says a package cannot be
+  installed.
 
 ## [0.3.0] - 2026-11-05
 

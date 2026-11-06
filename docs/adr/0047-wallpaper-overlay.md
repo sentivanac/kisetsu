@@ -122,6 +122,29 @@ On an Intel i7-10510U (a 2019 laptop CPU), for a 4K screen:
 
 A 1920×1080 screen has a quarter of the pixels.
 
+## Verification
+
+Unit tests for the crop, corners, margins, stacking, shortening and
+glyph coverage; for the service (settings, Variety, a failed compose,
+new names and their removal, the kept base, `ClockDue`); and for the
+agent's clock (no wallpaper yet, a new minute, a held lock).
+
+On real desktops, with the `.deb` or the Windows installer, the author
+and the clock on, then off again:
+
+| Desktop | Clock follows the minute | Between minutes |
+| --- | --- | --- |
+| Windows 10 22H2 | after about 3 s | no flicker |
+| GNOME, Ubuntu 26.04.1 live | after about 2 s | no fade in the VM |
+| KDE Plasma, Kubuntu 26.04.1 live | yes | a short fade |
+| Xfce, Xubuntu 26.04.1 live | after about 2 s | no fade |
+| Cinnamon, Linux Mint 22.3 live | after about 1 s | a short fade |
+
+Everywhere the text stayed clear of panels, docks and the taskbar, and
+turning both off brought back the original image. GNOME found the two
+problems fixed above: text under the dock, and old pictures shown under
+reused names.
+
 ## Alternatives considered
 
 - **A desktop window or widget.** Not possible on GNOME with Wayland, and
