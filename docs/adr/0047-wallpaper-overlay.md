@@ -29,9 +29,11 @@ the settings or the desktop.
   wallpaper changes; `Draw` copies it and draws the text. Fetched images
   are already reduced to cover the screen, so usually `Base` only crops.
 - **Corners and margins.** Text goes in one of four corners; blocks in
-  the same corner are stacked. The vertical margin (7 % of the screen
-  height) keeps the text clear of panels and the Windows taskbar, which
-  are drawn over the wallpaper. A line wider than 60 % of the screen is
+  the same corner are stacked. A margin of 7 % of the screen height
+  from every edge (76 px on a 1080 px screen) keeps the text clear of
+  panels, docks and the Windows taskbar, which are drawn over the
+  wallpaper; the first, smaller side margin put the start of the text
+  under Ubuntu's dock on the left (66 px). A line wider than 60 % of the screen is
   shortened with "…".
 - **Legibility.** White text with a soft dark shadow, legible on light
   and dark images without a band across the picture.
@@ -59,12 +61,14 @@ desktop: "Set as wallpaper" in the window, rotation, the agent and
   disk): text is never a reason for the wallpaper not to change. The
   problem is logged.
 
-Composed images go to `<cache>/kisetsu/overlay/`, alternating between
-`wallpaper-a.jpg` and `wallpaper-b.jpg`, because GNOME and MATE do not
-reload a picture whose path did not change. The window and the agent may
-both compose, so the file to write is chosen by age, not remembered; it
-is written to a temporary file and renamed, so a desktop never reads half
-of it.
+Composed images go to `<cache>/kisetsu/overlay/`, each under a new
+name, `wallpaper-<nanoseconds>.jpg`, as Variety does: desktops keep
+pictures by path. The first version alternated between two names; GNOME
+then showed pictures it had kept under those names, with old times on
+the clock (seen in an Ubuntu 26.04.1 live session). The two newest copies
+are kept, since a desktop may still read the previous one; older ones are
+removed. Each is written to a temporary file and renamed, so a desktop
+never reads half of it.
 
 Changing the text settings in the window shows the wallpaper Kisetsu set
 last again at once, with or without the text. This is skipped while

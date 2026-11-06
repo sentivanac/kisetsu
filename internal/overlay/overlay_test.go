@@ -161,11 +161,12 @@ func TestDrawPutsTextInItsCorner(t *testing.T) {
 		if !r.In(tc.quarter) {
 			t.Errorf("%s: text at %v, outside %v", tc.corner, r, tc.quarter)
 		}
-		// Clear of panels: at least the vertical margin from the edge.
+		// Clear of panels and docks: at least the margin from every edge
+		// (2 px for the shadow).
 		var fh float64 = h
-		margin := int(fh * verticalMargin)
-		if r.Min.Y < margin-2 || r.Max.Y > h-margin+2 {
-			t.Errorf("%s: text at %v, inside the vertical margin", tc.corner, r)
+		m := int(fh * margin)
+		if r.Min.Y < m-2 || r.Max.Y > h-m+2 || r.Min.X < m-2 || r.Max.X > w-m+2 {
+			t.Errorf("%s: text at %v, inside the margin of %d px", tc.corner, r, m)
 		}
 	}
 }

@@ -154,7 +154,7 @@ func TestShowsAComposedImageWithTheCredit(t *testing.T) {
 	}
 }
 
-func TestAlternatesBetweenTwoFiles(t *testing.T) {
+func TestEveryComposedImageGetsANewName(t *testing.T) {
 	e := newEnv(t)
 	e.turnOn(t)
 	for range 4 {
@@ -163,12 +163,34 @@ func TestAlternatesBetweenTwoFiles(t *testing.T) {
 		}
 	}
 	p := e.setter.paths
-	if p[0] == p[1] || p[1] == p[2] || p[0] != p[2] || p[1] != p[3] {
-		t.Errorf("paths %q do not alternate", p)
+	if len(slices.Compact(slices.Clone(p))) != len(p) {
+		t.Errorf("a name was used twice: %q", p)
+	}
+	if !slices.IsSorted(p) {
+		t.Errorf("names %q do not sort by time", p)
+	}
+
+	// Only the newest two are kept; other files are left alone, also
+	// ones with a similar name (such as those of an earlier version,
+	// which would sort after the new ones).
+	for _, other := range []string{"notes.txt", "wallpaper-a.jpg", "wallpaper-12.jpg"} {
+		if err := os.WriteFile(filepath.Join(e.s.Dir, other), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.s.Show(context.Background(), commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
 	}
 	entries, _ := os.ReadDir(e.s.Dir)
-	if len(entries) != 2 {
-		t.Errorf("%d files in %s, want 2 (no temporary files left)", len(entries), e.s.Dir)
+	var names []string
+	for _, f := range entries {
+		names = append(names, f.Name())
+	}
+	last := e.setter.paths[len(e.setter.paths)-2:]
+	want := []string{"notes.txt", "wallpaper-12.jpg", "wallpaper-a.jpg", filepath.Base(last[0]), filepath.Base(last[1])}
+	slices.Sort(want)
+	if !slices.Equal(names, want) {
+		t.Errorf("files %q, want %q (no temporary files, two newest copies)", names, want)
 	}
 }
 
@@ -393,5 +415,20 @@ func TestClockAndCreditDrawnTogether(t *testing.T) {
 	}
 	if got := e.setter.paths[0]; filepath.Dir(got) != e.s.Dir {
 		t.Errorf("set %q, want a composed image", got)
+	}
+}
+
+func TestIsComposed(t *testing.T) {
+	for name, want := range map[string]bool{
+		"wallpaper-1793805123456789012.jpg": true,
+		"wallpaper-a.jpg":                   false,
+		"wallpaper-12.jpg":                  false,
+		"wallpaper-179380512345678901x.jpg": false,
+		"wallpaper-1793805123456789012.png": false,
+		".wallpaper-123.jpg":                false,
+	} {
+		if got := isComposed(name); got != want {
+			t.Errorf("isComposed(%q) = %v, want %v", name, got, want)
+		}
 	}
 }

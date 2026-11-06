@@ -9,12 +9,15 @@ package onscreen
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
+	"io/fs"
 	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -34,9 +37,15 @@ type Setter interface {
 	ViaVariety() bool
 }
 
-// composedNames are the two files the composed image alternates between:
-// GNOME and MATE do not reload a picture whose path did not change.
-var composedNames = [2]string{"wallpaper-a.jpg", "wallpaper-b.jpg"}
+// Every composed image gets a new name, "wallpaper-<nanoseconds>.jpg":
+// desktops keep pictures by path, and GNOME showed an earlier picture
+// (with an old time) when the same names were written again. The newest
+// keepComposed are kept, since a desktop may still read the previous one.
+const (
+	composedPrefix = "wallpaper-"
+	composedSuffix = ".jpg"
+	keepComposed   = 2
+)
 
 const (
 	// creditShare is the credit's font size as a share of the screen
@@ -260,19 +269,13 @@ func decode(path string) (image.Image, error) {
 	return img, nil
 }
 
-// write stores img in the older of the two composed files and returns its
-// path. The window and the agent may both compose, so the choice is made
-// from the files, not remembered; the file is replaced in one step, so a
-// desktop never reads half of it.
+// write stores img under a new name and returns its path, removing older
+// composed images. The file appears in one step, so a desktop never reads
+// half of it.
 func (s *Service) write(img image.Image) (string, error) {
 	if err := os.MkdirAll(s.Dir, 0o700); err != nil {
 		return "", err
 	}
-	target := filepath.Join(s.Dir, composedNames[0])
-	if a, b := modTime(target), modTime(filepath.Join(s.Dir, composedNames[1])); b < a {
-		target = filepath.Join(s.Dir, composedNames[1])
-	}
-
 	tmp, err := os.CreateTemp(s.Dir, ".wallpaper-*.jpg")
 	if err != nil {
 		return "", err
@@ -285,10 +288,62 @@ func (s *Service) write(img image.Image) (string, error) {
 	if err := tmp.Close(); err != nil {
 		return "", err
 	}
+	// The name sorts by time; the window and the agent both write here, so
+	// a taken name is skipped.
+	n := time.Now().UnixNano()
+	target := ""
+	for ; ; n++ {
+		target = filepath.Join(s.Dir, fmt.Sprintf("%s%019d%s", composedPrefix, n, composedSuffix))
+		if _, err := os.Lstat(target); errors.Is(err, fs.ErrNotExist) {
+			break
+		}
+	}
 	if err := os.Rename(tmp.Name(), target); err != nil {
 		return "", err
 	}
+	s.prune()
 	return target, nil
+}
+
+// isComposed reports whether name is a composed image written by write:
+// the prefix, 19 digits and the suffix. Only these sort by time.
+func isComposed(name string) bool {
+	digits, ok := strings.CutPrefix(name, composedPrefix)
+	if !ok {
+		return false
+	}
+	digits, ok = strings.CutSuffix(digits, composedSuffix)
+	if !ok || len(digits) != 19 {
+		return false
+	}
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// prune removes all but the newest keepComposed composed images. Other
+// files in the directory are left alone. Problems are only logged.
+func (s *Service) prune() {
+	entries, err := os.ReadDir(s.Dir)
+	if err != nil {
+		s.Log.Warn("old wallpaper copies not removed", "err", err)
+		return
+	}
+	var names []string
+	for _, e := range entries {
+		if e.Type().IsRegular() && isComposed(e.Name()) {
+			names = append(names, e.Name())
+		}
+	}
+	slices.Sort(names)
+	for _, n := range names[:max(0, len(names)-keepComposed)] {
+		if err := os.Remove(filepath.Join(s.Dir, n)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			s.Log.Warn("old wallpaper copy not removed", "file", n, "err", err)
+		}
+	}
 }
 
 // modTime returns the file's modification time in nanoseconds, or 0 if it

@@ -63,11 +63,11 @@ type Block struct {
 }
 
 const (
-	// Margins as a share of the screen height. The vertical one is larger
-	// so the text stays clear of panels and the Windows taskbar, which are
-	// drawn over the wallpaper.
-	sideMargin     = 0.03
-	verticalMargin = 0.07
+	// margin from every edge, as a share of the screen height (76 px on a
+	// 1080 px screen): clear of panels, docks and the Windows taskbar,
+	// which are drawn over the wallpaper, such as Ubuntu's dock on the
+	// left (66 px).
+	margin = 0.07
 	// maxLineWidth is the widest a line may be, as a share of the screen
 	// width; longer lines are shortened with "…".
 	maxLineWidth = 0.6
@@ -165,8 +165,8 @@ func Draw(base *image.RGBA, blocks []Block) (*image.RGBA, error) {
 		stacks[bl.Corner] = append(stacks[bl.Corner], ls)
 	}
 
-	sx := int(float64(h) * sideMargin)
-	sy := int(float64(h) * verticalMargin)
+	sx := int(float64(h) * margin)
+	sy := sx
 	for corner, stack := range stacks {
 		// Total height, to place bottom stacks.
 		total := 0
