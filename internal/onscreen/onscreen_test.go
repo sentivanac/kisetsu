@@ -9,7 +9,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/images"
@@ -98,7 +100,15 @@ func commonsEntry() library.Entry {
 
 func (e *env) turnOn(t *testing.T) {
 	t.Helper()
-	if err := SaveSettings(context.Background(), e.store, Settings{Credit: true, CreditCorner: overlay.BottomRight}); err != nil {
+	e.save(t, func(s *Settings) { s.Credit, s.CreditCorner = true, overlay.BottomRight })
+}
+
+// save stores the defaults changed by change.
+func (e *env) save(t *testing.T, change func(*Settings)) {
+	t.Helper()
+	s := DefaultSettings
+	change(&s)
+	if err := SaveSettings(context.Background(), e.store, s); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -222,10 +232,19 @@ func TestSettings(t *testing.T) {
 	if err != nil || got != DefaultSettings || got.Any() {
 		t.Fatalf("defaults: %+v, %v", got, err)
 	}
-	if err := SaveSettings(ctx, e.store, Settings{Credit: true, CreditCorner: "middle"}); err == nil {
-		t.Error("an unknown corner was saved")
+	for _, bad := range []func(*Settings){
+		func(s *Settings) { s.CreditCorner = "middle" },
+		func(s *Settings) { s.ClockCorner = "" },
+		func(s *Settings) { s.ClockSize = "huge" },
+	} {
+		s := DefaultSettings
+		bad(&s)
+		if err := SaveSettings(ctx, e.store, s); err == nil {
+			t.Errorf("%+v was saved", s)
+		}
 	}
-	want := Settings{Credit: true, CreditCorner: overlay.TopLeft}
+	want := DefaultSettings
+	want.Credit, want.CreditCorner, want.Clock, want.Clock12h = true, overlay.TopLeft, true, true
 	if err := SaveSettings(ctx, e.store, want); err != nil {
 		t.Fatal(err)
 	}
@@ -238,5 +257,141 @@ func TestSettings(t *testing.T) {
 	}
 	if got, err := LoadSettings(ctx, e.store); err != nil || got != DefaultSettings {
 		t.Errorf("unusable stored value: %+v, %v", got, err)
+	}
+}
+
+func TestSettingsFromBeforeTheClock(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	// As saved by the first version with the credit only.
+	if err := e.store.Save(ctx, settingsKey, map[string]any{"credit": true, "creditCorner": "top-left"}); err != nil {
+		t.Fatal(err)
+	}
+	want := DefaultSettings
+	want.Credit, want.CreditCorner = true, overlay.TopLeft
+	if got, err := LoadSettings(ctx, e.store); err != nil || got != want {
+		t.Errorf("loaded %+v, %v; want %+v", got, err, want)
+	}
+}
+
+func TestClockLines(t *testing.T) {
+	at := time.Date(2026, 11, 5, 14, 7, 30, 0, time.Local)
+	for _, tc := range []struct {
+		change func(*Settings)
+		want   []string
+	}{
+		{func(s *Settings) {}, []string{"14:07", "Thursday, 5 November"}},
+		{func(s *Settings) { s.Clock12h = true }, []string{"2:07 PM", "Thursday, 5 November"}},
+		{func(s *Settings) { s.ClockDate = false }, []string{"14:07"}},
+	} {
+		s := DefaultSettings
+		tc.change(&s)
+		if got := clockLines(at, s); !slices.Equal(got, tc.want) {
+			t.Errorf("%+v: %q, want %q", s, got, tc.want)
+		}
+	}
+}
+
+func TestClockDue(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	now := time.Date(2026, 11, 5, 14, 7, 30, 0, time.Local)
+	e.s.Now = func() time.Time { return now }
+
+	if e.s.ClockDue(ctx) {
+		t.Error("due while the clock is off")
+	}
+	e.save(t, func(s *Settings) { s.Clock = true })
+	if !e.s.ClockDue(ctx) {
+		t.Error("not due before the first drawing")
+	}
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.ClockDue(ctx) {
+		t.Error("due again within the same minute")
+	}
+	now = now.Add(20 * time.Second) // 14:07:50
+	if e.s.ClockDue(ctx) {
+		t.Error("due within the same minute")
+	}
+	now = now.Add(15 * time.Second) // 14:08:05
+	if !e.s.ClockDue(ctx) {
+		t.Error("not due in a new minute")
+	}
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	e.save(t, func(s *Settings) { s.Clock, s.Clock12h = true, true })
+	if !e.s.ClockDue(ctx) {
+		t.Error("not due after the format changed")
+	}
+	now = now.Add(time.Minute)
+	e.s.SkipClock(ctx)
+	if e.s.ClockDue(ctx) {
+		t.Error("due after SkipClock in the same minute")
+	}
+	e.setter.variety = true
+	now = now.Add(time.Minute)
+	if e.s.ClockDue(ctx) {
+		t.Error("due while Variety shows the images")
+	}
+}
+
+func TestClockKeepsTheBase(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.save(t, func(s *Settings) { s.Clock = true })
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.base != nil {
+		t.Fatal("base kept without KeepBase (the window)")
+	}
+	e.s.KeepBase = true
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	first := e.s.base
+	if first == nil {
+		t.Fatal("base not kept while the clock is on")
+	}
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.base != first {
+		t.Error("base computed again for the same image")
+	}
+
+	// Another image gets its own base.
+	other := filepath.Join(t.TempDir(), "other.jpg")
+	writeJPEG(t, other, 300, 300)
+	if _, err := e.s.Show(ctx, commonsEntry(), other); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.base == first || e.s.baseKey.path != other {
+		t.Error("base of the previous image used for another one")
+	}
+
+	// Without the clock nothing is kept.
+	e.save(t, func(s *Settings) { s.Credit = true })
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.base != nil {
+		t.Error("base kept while the clock is off")
+	}
+}
+
+func TestClockAndCreditDrawnTogether(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.s.Now = func() time.Time { return time.Date(2026, 11, 5, 14, 7, 0, 0, time.Local) }
+	e.save(t, func(s *Settings) { s.Clock, s.Credit, s.ClockCorner = true, true, s.CreditCorner })
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.setter.paths[0]; filepath.Dir(got) != e.s.Dir {
+		t.Errorf("set %q, want a composed image", got)
 	}
 }

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
+import {clockSizes, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
 
 describe('intervalLabel', () => {
     it('names the offered intervals', () => {
@@ -50,5 +50,11 @@ describe('rotation source keys', () => {
 describe('corners', () => {
     it('offers the four corners the backend accepts', () => {
         expect(corners.map((c) => c.value)).toEqual(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+    });
+});
+
+describe('clockSizes', () => {
+    it('offers the sizes the backend accepts', () => {
+        expect(clockSizes.map((c) => c.value)).toEqual(['small', 'medium', 'large']);
     });
 });

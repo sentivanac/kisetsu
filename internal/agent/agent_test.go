@@ -238,3 +238,31 @@ func TestPrefs(t *testing.T) {
 		t.Error("ShowInTray not saved")
 	}
 }
+
+func TestRunRefreshesBetweenChecks(t *testing.T) {
+	f := &fake{cfg: hourly(), now: start}
+	a := newAgent(f)
+	a.Tick = time.Hour // only the first check runs
+	a.RefreshTick = time.Millisecond
+	var mu sync.Mutex
+	refreshed := 0
+	a.Refresh = func(context.Context) {
+		mu.Lock()
+		defer mu.Unlock()
+		refreshed++
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error)
+	go func() { done <- a.Run(ctx) }()
+	time.Sleep(30 * time.Millisecond)
+	cancel()
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	if refreshed < 3 {
+		t.Errorf("refreshed %d times in 30 ms, want several", refreshed)
+	}
+	if f.rotated != 1 {
+		t.Errorf("rotated %d times, want 1", f.rotated)
+	}
+}

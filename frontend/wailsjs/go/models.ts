@@ -306,6 +306,11 @@ export namespace main {
 	export class WallpaperText {
 	    credit: boolean;
 	    creditCorner: string;
+	    clock: boolean;
+	    clockCorner: string;
+	    clock12h: boolean;
+	    clockDate: boolean;
+	    clockSize: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new WallpaperText(source);
@@ -315,6 +320,11 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.credit = source["credit"];
 	        this.creditCorner = source["creditCorner"];
+	        this.clock = source["clock"];
+	        this.clockCorner = source["clockCorner"];
+	        this.clock12h = source["clock12h"];
+	        this.clockDate = source["clockDate"];
+	        this.clockSize = source["clockSize"];
 	    }
 	}
 	export class RotationState {

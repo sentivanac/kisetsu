@@ -1,6 +1,7 @@
 // Package onscreen puts a library image on the desktop: as it is, or with
 // text drawn on it (ADR 0047) when the user turned that on. The window,
-// rotation and the agent all show images through it.
+// rotation and the agent all show images through it; the agent also
+// shows the current image again when the clock's text changes.
 //
 // Text is never a reason for the wallpaper not to change: when the image
 // cannot be composed, the original is set and the problem is logged.
@@ -15,6 +16,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/imaging"
@@ -35,9 +38,15 @@ type Setter interface {
 // GNOME and MATE do not reload a picture whose path did not change.
 var composedNames = [2]string{"wallpaper-a.jpg", "wallpaper-b.jpg"}
 
-// creditShare is the credit's font size as a share of the screen height
-// (20 px on a 1080 px screen).
-const creditShare = 0.019
+const (
+	// creditShare is the credit's font size as a share of the screen
+	// height (20 px on a 1080 px screen).
+	creditShare = 0.019
+	// dateShare is the date's font size as a share of the time's.
+	dateShare = 0.32
+	// minFontSize keeps small screens legible.
+	minFontSize = 12
+)
 
 // Service shows library images.
 type Service struct {
@@ -48,6 +57,26 @@ type Service struct {
 	// ProviderName returns a source's display name ("Wikimedia Commons").
 	ProviderName func(id string) string
 	Log          *slog.Logger
+	Now          func() time.Time // nil means time.Now
+	// KeepBase keeps the base of the current image while the clock is on,
+	// so a new minute only draws the text (ADR 0047). The agent sets it;
+	// the window, which does not redraw the clock, does not.
+	KeepBase bool
+
+	mu      sync.Mutex
+	base    *image.RGBA
+	baseKey baseKey
+	// shownClock is the clock text last drawn, or tried; ClockDue
+	// compares it with the current one.
+	shownClock string
+}
+
+// baseKey identifies a base: the same file, unchanged, for the same
+// screen.
+type baseKey struct {
+	path          string
+	modTime       int64
+	width, height int
 }
 
 // Show sets the image of e, whose file is at path, as the wallpaper.
@@ -60,6 +89,8 @@ func (s *Service) Show(ctx context.Context, e library.Entry, path string) (wallp
 	if !cfg.Any() || s.Setter.ViaVariety() {
 		return s.Setter.Set(ctx, path)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	composed, err := s.compose(ctx, e, path, cfg)
 	if err != nil {
 		s.Log.Warn("text not drawn on the wallpaper; showing the image without it", "entry", e.ID, "err", err)
@@ -68,27 +99,93 @@ func (s *Service) Show(ctx context.Context, e library.Entry, path string) (wallp
 	return s.Setter.Set(ctx, composed)
 }
 
-// compose draws the text on the image and returns the composed file.
+// ClockDue reports whether the clock is on and its text differs from the
+// one last drawn: a new minute, a new day, or a changed format. It is
+// cheap, so the agent asks every few seconds; asking rather than timing
+// keeps the clock right after a suspend or a change of the system clock.
+func (s *Service) ClockDue(ctx context.Context) bool {
+	cfg, err := LoadSettings(ctx, s.Settings)
+	if err != nil || !cfg.Clock || s.Setter.ViaVariety() {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return clockText(s.now(), cfg) != s.shownClock
+}
+
+// SkipClock records the current clock text as shown without drawing it,
+// when there is no wallpaper to draw it on, so ClockDue waits for the
+// next minute.
+func (s *Service) SkipClock(ctx context.Context) {
+	cfg, err := LoadSettings(ctx, s.Settings)
+	if err != nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.shownClock = clockText(s.now(), cfg)
+}
+
+func (s *Service) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
+}
+
+// clockLines returns the time and, if wanted, the date, such as "14:07"
+// and "Thursday, 5 November". The names are English, like the rest of
+// Kisetsu.
+func clockLines(t time.Time, cfg Settings) []string {
+	layout := "15:04"
+	if cfg.Clock12h {
+		layout = "3:04 PM"
+	}
+	lines := []string{t.Format(layout)}
+	if cfg.ClockDate {
+		lines = append(lines, t.Format("Monday, 2 January"))
+	}
+	return lines
+}
+
+func clockText(t time.Time, cfg Settings) string {
+	return strings.Join(clockLines(t, cfg), "\n")
+}
+
+// compose draws the text on the image and returns the composed file. The
+// caller holds s.mu.
 func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg Settings) (string, error) {
 	screen, err := s.Settings.Display(ctx)
 	if err != nil {
 		return "", err
 	}
-	img, err := decode(path)
-	if err != nil {
-		return "", err
-	}
-	base, err := overlay.Base(img, screen.Width, screen.Height)
-	if err != nil {
-		return "", err
-	}
 	var blocks []overlay.Block
+	if cfg.Clock {
+		now := s.now()
+		// Recorded before drawing, so a failure is not retried every few
+		// seconds, only at the next minute.
+		s.shownClock = clockText(now, cfg)
+		share, _ := cfg.ClockSize.share()
+		size := max(minFontSize, int(math.Round(float64(screen.Height)*share)))
+		lines := clockLines(now, cfg)
+		blocks = append(blocks, overlay.Block{Lines: lines[:1], Corner: cfg.ClockCorner, Size: size})
+		if len(lines) > 1 {
+			blocks = append(blocks, overlay.Block{
+				Lines: lines[1:], Corner: cfg.ClockCorner,
+				Size: max(minFontSize, int(math.Round(float64(size)*dateShare))),
+			})
+		}
+	}
 	if cfg.Credit {
 		blocks = append(blocks, overlay.Block{
 			Lines:  []string{s.credit(e.Image)},
 			Corner: cfg.CreditCorner,
-			Size:   max(12, int(math.Round(float64(screen.Height)*creditShare))),
+			Size:   max(minFontSize, int(math.Round(float64(screen.Height)*creditShare))),
 		})
+	}
+	base, err := s.baseOf(path, screen.Width, screen.Height, cfg.Clock && s.KeepBase)
+	if err != nil {
+		return "", err
 	}
 	out, err := overlay.Draw(base, blocks)
 	if err != nil {
@@ -114,6 +211,29 @@ func (s *Service) credit(img images.Image) string {
 	}
 	parts = append(parts, source)
 	return strings.Join(parts, " · ")
+}
+
+// baseOf returns the base of the image at path for the screen. With keep,
+// it is kept for the next minute; without, any kept base is dropped (it
+// takes 33 MB for a 4K screen).
+func (s *Service) baseOf(path string, w, h int, keep bool) (*image.RGBA, error) {
+	key := baseKey{path: path, modTime: modTime(path), width: w, height: h}
+	if keep && s.base != nil && s.baseKey == key {
+		return s.base, nil
+	}
+	s.base = nil
+	img, err := decode(path)
+	if err != nil {
+		return nil, err
+	}
+	base, err := overlay.Base(img, w, h)
+	if err != nil {
+		return nil, err
+	}
+	if keep {
+		s.base, s.baseKey = base, key
+	}
+	return base, nil
 }
 
 // decode reads an image file, refusing images too large to decode safely.

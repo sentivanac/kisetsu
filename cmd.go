@@ -92,7 +92,7 @@ func runRotate(args []string) int {
 	}
 	defer dl.Close()
 
-	return rotate(ctx, c, c.rotator(c.fetcher(searcher, dl)), *scheduled, os.Stdout)
+	return rotate(ctx, c, c.rotator(c.fetcher(searcher, dl), c.rotationScreen()), *scheduled, os.Stdout)
 }
 
 // rotate changes the wallpaper once and returns the exit status. It is

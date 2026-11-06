@@ -192,15 +192,27 @@ func (a *App) SetShowInTray(show bool) (state RotationState, err error) {
 	return a.GetRotation()
 }
 
-// agentWanted reports whether the agent has anything to do: rotation or
-// the tray icon is on. Unreadable settings count as wanted.
+// agentWanted reports whether the agent has anything to do: rotation, the
+// clock or the tray icon is on. Unreadable settings count as wanted.
 func (a *App) agentWanted() bool {
-	cfg, err := rotation.LoadSettings(a.ctx, a.settings)
-	if err != nil {
-		return true
+	wanted, err := agentWanted(a.ctx, a.settings)
+	return err != nil || wanted
+}
+
+// updateAgent sets up the agent (autostart entry, running) when it has
+// something to do, and removes its autostart entry when not; it then exits
+// by itself.
+func (a *App) updateAgent() error {
+	if a.agentWanted() {
+		if err := a.agent.Enable(); err != nil {
+			return agentError(err)
+		}
+		return nil
 	}
-	prefs, err := agent.LoadPrefs(a.ctx, a.settings)
-	return err != nil || cfg.Enabled || prefs.ShowInTray
+	if err := a.agent.Disable(); err != nil {
+		return agentError(err)
+	}
+	return nil
 }
 
 // RepairAgent rewrites the autostart entry for the running Kisetsu binary

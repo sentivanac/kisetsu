@@ -136,18 +136,25 @@ func (c *core) Close() {
 	c.closers = nil
 }
 
-// rotator builds the rotation service. It sets wallpapers directly with
-// gsettings, never through Variety: the user chose that Kisetsu rotates.
-// fetcher, if not nil, tops up saved searches that run low.
-func (c *core) rotator(fetcher *fetched.Fetcher) *rotation.Rotator {
+// rotationScreen shows images for rotation and the agent: directly with
+// the desktop's setting, never through Variety, because the user chose
+// that Kisetsu rotates.
+func (c *core) rotationScreen() *onscreen.Service {
 	setter := wallpaper.New()
 	setter.Direct = true
+	return c.screen(setter)
+}
+
+// rotator builds the rotation service, showing images on screen (see
+// rotationScreen). fetcher, if not nil, tops up saved searches that run
+// low.
+func (c *core) rotator(fetcher *fetched.Fetcher, screen *onscreen.Service) *rotation.Rotator {
 	r := &rotation.Rotator{
 		Library:  c.lib,
 		Settings: settings.NewStore(c.db),
 		History:  rotation.NewHistory(c.db),
 		Files:    c.files,
-		Screen:   c.screen(setter),
+		Screen:   screen,
 		Log:      c.log,
 	}
 	if fetcher != nil {
@@ -157,6 +164,24 @@ func (c *core) rotator(fetcher *fetched.Fetcher) *rotation.Rotator {
 		}
 	}
 	return r
+}
+
+// currentWallpaper returns the library image Kisetsu set last and its
+// file, and false when it never set one.
+func currentWallpaper(ctx context.Context, history *rotation.History, lib *library.Store, files rotation.Files) (library.Entry, string, bool, error) {
+	last, changed, err := history.Last(ctx)
+	if err != nil || !changed {
+		return library.Entry{}, "", false, err
+	}
+	e, err := lib.Get(ctx, last.ImageID)
+	if err != nil {
+		return library.Entry{}, "", false, err
+	}
+	path, err := files.OriginalPath(e.FilePath)
+	if err != nil {
+		return library.Entry{}, "", false, err
+	}
+	return e, path, true, nil
 }
 
 // screen builds the service that shows library images through setter,

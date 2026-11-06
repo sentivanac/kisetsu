@@ -80,18 +80,33 @@ func (a *App) SetWallpaper(imageID int64) (result WallpaperResult, err error) {
 type WallpaperText struct {
 	Credit       bool   `json:"credit"`
 	CreditCorner string `json:"creditCorner"`
+	Clock        bool   `json:"clock"`
+	ClockCorner  string `json:"clockCorner"`
+	Clock12h     bool   `json:"clock12h"`
+	ClockDate    bool   `json:"clockDate"`
+	ClockSize    string `json:"clockSize"`
 }
 
 func wallpaperText(s onscreen.Settings) WallpaperText {
-	return WallpaperText{Credit: s.Credit, CreditCorner: string(s.CreditCorner)}
+	return WallpaperText{
+		Credit: s.Credit, CreditCorner: string(s.CreditCorner),
+		Clock: s.Clock, ClockCorner: string(s.ClockCorner), Clock12h: s.Clock12h,
+		ClockDate: s.ClockDate, ClockSize: string(s.ClockSize),
+	}
 }
 
 // SaveWallpaperText stores what text is drawn on the wallpaper and shows
 // the current wallpaper again with it (or without it, when turned off).
+// The clock needs the agent, which redraws it every minute: it is started
+// with the clock, and the clock stays off when it cannot run.
 func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error) {
 	defer a.recoverPanic("SaveWallpaperText", &err)
 
-	cfg := onscreen.Settings{Credit: t.Credit, CreditCorner: overlay.Corner(t.CreditCorner)}
+	cfg := onscreen.Settings{
+		Credit: t.Credit, CreditCorner: overlay.Corner(t.CreditCorner),
+		Clock: t.Clock, ClockCorner: overlay.Corner(t.ClockCorner), Clock12h: t.Clock12h,
+		ClockDate: t.ClockDate, ClockSize: onscreen.ClockSize(t.ClockSize),
+	}
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These settings are not valid.", err)
 	}
@@ -102,7 +117,20 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	if err := onscreen.SaveSettings(a.ctx, a.settings, cfg); err != nil {
 		return RotationState{}, apperr.New(apperr.Unavailable, "The setting could not be saved.", err)
 	}
-	a.log.Info("wallpaper text settings saved", "credit", cfg.Credit, "corner", cfg.CreditCorner)
+	if cfg.Clock != old.Clock {
+		if err := a.updateAgent(); err != nil {
+			if cfg.Clock {
+				cfg.Clock = false
+				if saveErr := onscreen.SaveSettings(a.ctx, a.settings, cfg); saveErr != nil {
+					a.log.Warn("wallpaper text settings not saved", "err", saveErr)
+				}
+			}
+			return RotationState{}, err
+		}
+	}
+	a.log.Info("wallpaper text settings saved", "credit", cfg.Credit, "credit_corner", cfg.CreditCorner,
+		"clock", cfg.Clock, "clock_corner", cfg.ClockCorner, "clock_12h", cfg.Clock12h,
+		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize)
 	if cfg != old && (cfg.Any() || old.Any()) {
 		a.showCurrentAgain()
 	}
@@ -125,21 +153,14 @@ func (a *App) showCurrentAgain() {
 	}
 	defer unlock()
 
-	last, changed, err := a.rotation.History.Last(a.ctx)
-	if err != nil || !changed {
-		return
-	}
-	e, err := a.library.Get(a.ctx, last.ImageID)
+	e, path, ok, err := currentWallpaper(a.ctx, a.rotation.History, a.library, a.files)
 	if err != nil {
-		a.log.Warn("wallpaper not shown again", "entry", last.ImageID, "err", err)
-		return
+		a.log.Warn("wallpaper not shown again", "err", err)
 	}
-	path, err := a.files.OriginalPath(e.FilePath)
-	if err != nil {
-		a.log.Warn("wallpaper not shown again", "entry", last.ImageID, "err", err)
+	if !ok {
 		return
 	}
 	if _, err := a.screen.Show(a.ctx, e, path); err != nil {
-		a.log.Warn("wallpaper not shown again", "entry", last.ImageID, "err", err)
+		a.log.Warn("wallpaper not shown again", "entry", e.ID, "err", err)
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
+	"github.com/sentivanac/kisetsu/internal/autostart"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
 
@@ -94,6 +96,13 @@ func TestSetWallpaperErrors(t *testing.T) {
 	}
 }
 
+// creditText is the default text settings with the credit set.
+func creditText(on bool, corner string) WallpaperText {
+	t := wallpaperText(onscreen.DefaultSettings)
+	t.Credit, t.CreditCorner = on, corner
+	return t
+}
+
 // composed reports whether path is an image with text drawn by Kisetsu.
 func composed(app *App, path string) bool {
 	return filepath.Dir(path) == app.screen.Dir
@@ -106,7 +115,7 @@ func TestWallpaperTextIsOffByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Text != (WallpaperText{Credit: false, CreditCorner: "bottom-left"}) {
+	if state.Text != (creditText(false, "bottom-left")) {
 		t.Errorf("text = %+v", state.Text)
 	}
 	if _, err := app.SetWallpaper(ids[0]); err != nil {
@@ -120,7 +129,7 @@ func TestWallpaperTextIsOffByDefault(t *testing.T) {
 func TestSetWallpaperDrawsTheCredit(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
 	ids := downloadN(t, app, 1)
-	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "top-right"}); err != nil {
+	if _, err := app.SaveWallpaperText(creditText(true, "top-right")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := app.SetWallpaper(ids[0]); err != nil {
@@ -144,18 +153,18 @@ func TestSaveWallpaperTextShowsTheCurrentWallpaperAgain(t *testing.T) {
 	}
 	original := fake.path
 
-	state, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "top-right"})
+	state, err := app.SaveWallpaperText(creditText(true, "top-right"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Text != (WallpaperText{Credit: true, CreditCorner: "top-right"}) {
+	if state.Text != (creditText(true, "top-right")) {
 		t.Errorf("text = %+v", state.Text)
 	}
 	if !composed(app, fake.path) {
 		t.Errorf("after turning on: set %q, want a composed image", fake.path)
 	}
 
-	if _, err := app.SaveWallpaperText(WallpaperText{Credit: false, CreditCorner: "top-right"}); err != nil {
+	if _, err := app.SaveWallpaperText(creditText(false, "top-right")); err != nil {
 		t.Fatal(err)
 	}
 	if fake.path != original {
@@ -164,7 +173,7 @@ func TestSaveWallpaperTextShowsTheCurrentWallpaperAgain(t *testing.T) {
 
 	// Saving the same settings again changes nothing.
 	fake.path = ""
-	if _, err := app.SaveWallpaperText(WallpaperText{Credit: false, CreditCorner: "top-right"}); err != nil {
+	if _, err := app.SaveWallpaperText(creditText(false, "top-right")); err != nil {
 		t.Fatal(err)
 	}
 	if fake.path != "" {
@@ -174,7 +183,7 @@ func TestSaveWallpaperTextShowsTheCurrentWallpaperAgain(t *testing.T) {
 
 func TestSaveWallpaperTextWithoutAWallpaperYet(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
-	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "bottom-right"}); err != nil {
+	if _, err := app.SaveWallpaperText(creditText(true, "bottom-right")); err != nil {
 		t.Fatal(err)
 	}
 	if fake := app.wallpaper.(*fakeWallpaper); fake.path != "" {
@@ -194,7 +203,7 @@ func TestSaveWallpaperTextLeavesVarietyAlone(t *testing.T) {
 		t.Errorf("composed image %q handed to Variety", fake.path)
 	}
 	fake.path = ""
-	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "bottom-right"}); err != nil {
+	if _, err := app.SaveWallpaperText(creditText(true, "bottom-right")); err != nil {
 		t.Fatal(err)
 	}
 	if fake.path != "" {
@@ -204,7 +213,7 @@ func TestSaveWallpaperTextLeavesVarietyAlone(t *testing.T) {
 
 func TestSaveWallpaperTextRejectsAnUnknownCorner(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
-	_, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "middle"})
+	_, err := app.SaveWallpaperText(creditText(true, "middle"))
 	if apperr.ToPublic(err).Code != apperr.InvalidInput {
 		t.Errorf("err = %v", err)
 	}
@@ -219,5 +228,52 @@ func TestProviderName(t *testing.T) {
 	}
 	if got := providerName("gone"); got != "gone" {
 		t.Errorf("unknown source: %q", got)
+	}
+}
+
+func TestClockStartsTheAgent(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	ag := app.agent.(*fakeAgent)
+	clock := wallpaperText(onscreen.DefaultSettings)
+	clock.Clock = true
+
+	state, err := app.SaveWallpaperText(clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.Text.Clock || !ag.autostart || !ag.running {
+		t.Errorf("clock on: text %+v, agent %+v", state.Text, ag)
+	}
+
+	clock.Clock = false
+	if _, err := app.SaveWallpaperText(clock); err != nil {
+		t.Fatal(err)
+	}
+	if ag.autostart {
+		t.Errorf("clock off with nothing else to do: agent %+v", ag)
+	}
+}
+
+func TestClockStaysOffWhenTheAgentCannotRun(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	app.agent.(*fakeAgent).enableErr = autostart.ErrTemporaryExecutable
+	clock := wallpaperText(onscreen.DefaultSettings)
+	clock.Clock = true
+
+	_, err := app.SaveWallpaperText(clock)
+	if !strings.Contains(apperr.ToPublic(err).Message, "temporary build") {
+		t.Errorf("err = %v", err)
+	}
+	if cfg, _ := onscreen.LoadSettings(app.ctx, app.settings); cfg.Clock {
+		t.Error("clock saved as on although the agent cannot run")
+	}
+}
+
+func TestSaveWallpaperTextRejectsAnUnknownClockSize(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	bad := wallpaperText(onscreen.DefaultSettings)
+	bad.ClockSize = "huge"
+	if _, err := app.SaveWallpaperText(bad); apperr.ToPublic(err).Code != apperr.InvalidInput {
+		t.Errorf("err = %v", err)
 	}
 }

@@ -78,3 +78,10 @@ export const corners: {value: string; label: string}[] = [
     {value: 'bottom-left', label: 'Bottom left'},
     {value: 'bottom-right', label: 'Bottom right'},
 ];
+
+// Clock sizes, in the order offered.
+export const clockSizes: {value: string; label: string}[] = [
+    {value: 'small', label: 'Small'},
+    {value: 'medium', label: 'Medium'},
+    {value: 'large', label: 'Large'},
+];

@@ -1,5 +1,6 @@
 // Package agent runs Kisetsu's background work while the user is logged
-// in: it changes the wallpaper when rotation is due (ADR 0041).
+// in: it changes the wallpaper when rotation is due (ADR 0041) and keeps
+// the clock on the wallpaper current (ADR 0047).
 //
 // The agent keeps no schedule of its own. Every tick it reads the rotation
 // settings and the time of the last wallpaper change from the database,
@@ -20,6 +21,9 @@ import (
 const (
 	// DefaultTick is how often the agent checks whether a change is due.
 	DefaultTick = 30 * time.Second
+	// DefaultRefreshTick is how often Refresh runs: often enough that the
+	// clock changes within a few seconds of the minute.
+	DefaultRefreshTick = 2 * time.Second
 	// retryDelay is the pause after a failed change (no images, an
 	// unsupported desktop), so a lasting problem is not retried every tick.
 	// It is never longer than the rotation interval.
@@ -43,10 +47,15 @@ type Agent struct {
 	// on). When it has not, Run returns: turning rotation off in the
 	// window stops the agent without any signal. Nil means always.
 	Wanted func(ctx context.Context) (bool, error)
+	// Refresh, if set, runs every RefreshTick: it redraws the clock when
+	// its text changed. It must be cheap when there is nothing to do, and
+	// logs its own problems.
+	Refresh func(ctx context.Context)
 
-	Log  *slog.Logger
-	Now  func() time.Time // nil means time.Now
-	Tick time.Duration    // 0 means DefaultTick
+	Log         *slog.Logger
+	Now         func() time.Time // nil means time.Now
+	Tick        time.Duration    // 0 means DefaultTick
+	RefreshTick time.Duration    // 0 means DefaultRefreshTick
 
 	// retryAt is when to try again after a failure.
 	retryAt time.Time
@@ -78,6 +87,17 @@ func (a *Agent) Run(ctx context.Context) error {
 	}
 	ticker := time.NewTicker(tick)
 	defer ticker.Stop()
+	// Without Refresh, this channel never delivers.
+	var refresh <-chan time.Time
+	if a.Refresh != nil {
+		rt := a.RefreshTick
+		if rt <= 0 {
+			rt = DefaultRefreshTick
+		}
+		t := time.NewTicker(rt)
+		defer t.Stop()
+		refresh = t.C
+	}
 	for {
 		if a.Wanted != nil {
 			if wanted, err := a.Wanted(ctx); err == nil && !wanted {
@@ -86,10 +106,16 @@ func (a *Agent) Run(ctx context.Context) error {
 			}
 		}
 		a.Check(ctx)
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
+	wait:
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-ticker.C:
+				break wait
+			case <-refresh:
+				a.Refresh(ctx)
+			}
 		}
 	}
 }

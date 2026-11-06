@@ -13,7 +13,7 @@ import {
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {collectionCount} from '../lib/collections';
-import {clockTime, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
+import {clockSizes, clockTime, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
 
 const refreshInterval = 30_000;
 
@@ -211,12 +211,14 @@ export function WallpaperView({active}: Props) {
                         Next change at {clockTime(state.nextChange)} ({relativeTime(state.nextChange)}).
                     </p>
                 )}
-                {(s.enabled || state.showInTray) && !state.agent.running && !state.agent.error && (
+                {(s.enabled || state.text.clock || state.showInTray) && !state.agent.running && !state.agent.error && (
                     <div className="warning" role="alert">
                         <p>
                             {s.enabled
                                 ? 'Rotation is on, but the background process that changes the wallpaper is not running.'
-                                : 'The background process that shows the tray icon is not running.'}
+                                : state.text.clock
+                                  ? 'The clock is on, but the background process that redraws it is not running.'
+                                  : 'The background process that shows the tray icon is not running.'}
                         </p>
                         <button
                             type="button"
@@ -260,6 +262,70 @@ export function WallpaperView({active}: Props) {
                         ))}
                     </select>
                 </label>
+
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.text.clock}
+                        onChange={(e) => saveText({clock: e.target.checked})}
+                    />
+                    <span>Show a clock</span>
+                </label>
+                <div className="clock-options">
+                    <label>
+                        Corner
+                        <select
+                            value={state.text.clockCorner}
+                            onChange={(e) => saveText({clockCorner: e.target.value})}
+                            disabled={!state.text.clock}
+                        >
+                            {corners.map((c) => (
+                                <option key={c.value} value={c.value}>
+                                    {c.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label>
+                        Time
+                        <select
+                            value={state.text.clock12h ? '12h' : '24h'}
+                            onChange={(e) => saveText({clock12h: e.target.value === '12h'})}
+                            disabled={!state.text.clock}
+                        >
+                            <option value="24h">24-hour (15:04)</option>
+                            <option value="12h">12-hour (3:04 PM)</option>
+                        </select>
+                    </label>
+                    <label>
+                        Size
+                        <select
+                            value={state.text.clockSize}
+                            onChange={(e) => saveText({clockSize: e.target.value})}
+                            disabled={!state.text.clock}
+                        >
+                            {clockSizes.map((c) => (
+                                <option key={c.value} value={c.value}>
+                                    {c.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.text.clockDate}
+                        onChange={(e) => saveText({clockDate: e.target.checked})}
+                        disabled={!state.text.clock}
+                    />
+                    <span>Show the date under the time</span>
+                </label>
+
+                <p className="muted small">
+                    The background process redraws the clock every minute. While it is on, Kisetsu keeps showing the
+                    wallpaper it set last.
+                </p>
                 <p className="muted small">
                     Kisetsu draws the text on a copy of the image, cropped to your screen; the image in your library is
                     not changed.

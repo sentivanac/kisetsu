@@ -101,7 +101,7 @@ func run() error {
 		Files:     c.files,
 		Wallpaper: setter,
 		Screen:    c.screen(setter),
-		Rotation:  c.rotator(c.fetcher(searcher, downloader)),
+		Rotation:  c.rotator(c.fetcher(searcher, downloader), c.rotationScreen()),
 
 		Agent:         &agentControl{entry: entry, lockPath: c.agentLockPath(), log: log},
 		LegacyTimer:   legacy,

@@ -14,6 +14,7 @@ import (
 
 	"github.com/sentivanac/kisetsu/internal/agent"
 	"github.com/sentivanac/kisetsu/internal/filelock"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/settings"
 )
@@ -66,10 +67,12 @@ func runAgent(args []string) int {
 	}
 	defer dl.Close()
 
-	a := newAgent(c, c.rotator(c.fetcher(searcher, dl)))
+	screen := c.rotationScreen()
+	screen.KeepBase = true // it redraws the clock every minute
+	a := newAgent(c, c.rotator(c.fetcher(searcher, dl), screen), screen)
 	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
-		c.log.Info("rotation and the tray icon are off; agent not started")
-		fmt.Println("Rotation and the tray icon are off, so the agent has nothing to do. " +
+		c.log.Info("rotation, the clock and the tray icon are off; agent not started")
+		fmt.Println("Rotation, the clock and the tray icon are off, so the agent has nothing to do. " +
 			"Turn one of them on in the Wallpaper tab.")
 		return 0
 	}
@@ -143,10 +146,12 @@ func openWindow() error {
 	return nil
 }
 
-// newAgent connects the agent to the database and the rotator.
-func newAgent(c *core, r *rotation.Rotator) *agent.Agent {
+// newAgent connects the agent to the database, the rotator and the
+// screen that draws the clock.
+func newAgent(c *core, r *rotation.Rotator, screen *onscreen.Service) *agent.Agent {
 	store := settings.NewStore(c.db)
 	history := rotation.NewHistory(c.db)
+	lock := func() (func(), error) { return rotation.Lock(c.rotationLockPath()) }
 	return &agent.Agent{
 		Settings: func(ctx context.Context) (rotation.Settings, error) {
 			return rotation.LoadSettings(ctx, store)
@@ -155,7 +160,7 @@ func newAgent(c *core, r *rotation.Rotator) *agent.Agent {
 			last, ok, err := history.Last(ctx)
 			return last.At, ok, err
 		},
-		Lock: func() (func(), error) { return rotation.Lock(c.rotationLockPath()) },
+		Lock: lock,
 		Rotate: func(ctx context.Context) error {
 			ctx, cancel := context.WithTimeout(ctx, rotateTimeout)
 			defer cancel()
@@ -163,14 +168,56 @@ func newAgent(c *core, r *rotation.Rotator) *agent.Agent {
 			return err
 		},
 		Wanted: func(ctx context.Context) (bool, error) {
-			cfg, err := rotation.LoadSettings(ctx, store)
-			if err != nil {
-				return true, err
-			}
-			prefs, err := agent.LoadPrefs(ctx, store)
-			return cfg.Enabled || prefs.ShowInTray, err
+			return agentWanted(ctx, store)
+		},
+		Refresh: func(ctx context.Context) {
+			refreshClock(ctx, c, screen, history, lock)
 		},
 		Log: c.log,
+	}
+}
+
+// agentWanted reports whether the agent has anything to do: rotation, the
+// clock or the tray icon is on.
+func agentWanted(ctx context.Context, store *settings.Store) (bool, error) {
+	cfg, err := rotation.LoadSettings(ctx, store)
+	if err != nil {
+		return true, err
+	}
+	text, err := onscreen.LoadSettings(ctx, store)
+	if err != nil {
+		return true, err
+	}
+	prefs, err := agent.LoadPrefs(ctx, store)
+	return cfg.Enabled || text.Clock || prefs.ShowInTray, err
+}
+
+// refreshClock shows the current wallpaper again when the clock's text
+// changed. A wallpaper change in progress is left alone: it draws the
+// clock as well.
+func refreshClock(ctx context.Context, c *core, screen *onscreen.Service, history *rotation.History, lock func() (func(), error)) {
+	if !screen.ClockDue(ctx) {
+		return
+	}
+	unlock, err := lock()
+	if err != nil {
+		if !errors.Is(err, rotation.ErrLocked) {
+			c.log.Warn("clock not redrawn", "err", err)
+		}
+		return
+	}
+	defer unlock()
+	e, path, ok, err := currentWallpaper(ctx, history, c.lib, c.files)
+	if err != nil || !ok {
+		// Tried again at the next minute, not every few seconds.
+		screen.SkipClock(ctx)
+		if err != nil {
+			c.log.Warn("clock not redrawn", "err", err)
+		}
+		return // without an error: Kisetsu never set a wallpaper
+	}
+	if _, err := screen.Show(ctx, e, path); err != nil {
+		c.log.Warn("clock not redrawn", "entry", e.ID, "err", err)
 	}
 }
 

@@ -142,7 +142,7 @@ Kisetsu has no account, no telemetry and no server of its own.
 | Library images, thumbnails, database | `~/.local/share/kisetsu` | `%LocalAppData%\Kisetsu\data` |
 | Fresh images from saved searches (max 200 MB) | `~/.cache/kisetsu` | `%LocalAppData%\Kisetsu\cache` |
 | Log file (a new one is started above 5 MB; the previous is kept as `.1`) | `~/.local/state/kisetsu/kisetsu.log` | `%LocalAppData%\Kisetsu\state\kisetsu.log` |
-| Start at login (only while rotation or the tray icon is on) | `~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop` | value `io.github.sentivanac.Kisetsu.Agent` in `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` |
+| Start at login (only while rotation, the clock or the tray icon is on) | `~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop` | value `io.github.sentivanac.Kisetsu.Agent` in `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` |
 | The program (Windows) | | `%LocalAppData%\Programs\Kisetsu` |
 
 Kisetsu never deletes images from your library on its own; only the

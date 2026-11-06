@@ -77,6 +77,34 @@ and the license when known, and the source, which always is. A name the
 font cannot draw is left out rather than shown as empty boxes. The font
 size is 1.9 % of the screen height (20 px on a 1080 px screen).
 
+### Clock
+
+The time ("14:07", or "2:07 PM") and, optionally, the date under it
+("Friday, 6 November"; English, like the rest of Kisetsu), in one of
+three sizes (5, 7.5 or 11 % of the screen height; the date a third of
+that). Off by default.
+
+The agent redraws it: every 2 seconds it asks the screen service whether
+the clock's text differs from the one last drawn, and if so shows the
+current wallpaper again under the rotation lock. Asking instead of
+timing keeps the clock right after a suspend, a change of the system
+clock or of the time zone, and catches a changed format. The check
+reads one setting and formats the time; drawing happens once a minute.
+
+- The agent runs while the clock is on (as for rotation and the tray
+  icon); turning the clock on in the window starts it, and the clock
+  stays off when the agent cannot run.
+- The agent keeps the base of the current image in memory, so a new
+  minute only draws the text and encodes the JPEG. The window does not
+  keep it.
+- A wallpaper change in progress holds the rotation lock; the clock waits
+  for it, and the change draws the clock too.
+- Without a wallpaper set by Kisetsu, there is nothing to draw on; the
+  agent tries again at the next minute.
+- While the clock is on, Kisetsu keeps showing the wallpaper it set
+  last: a wallpaper chosen in the desktop's settings is replaced at the
+  next minute. The Wallpaper tab says so.
+
 ## Measured
 
 On an Intel i7-10510U (a 2019 laptop CPU), for a 4K screen:

@@ -11,6 +11,8 @@ follow [Semantic Versioning](https://semver.org/).
   wallpaper (Wallpaper tab → On the wallpaper; off by default). Kisetsu
   draws them on a copy cropped to the screen; the image in the library
   is not changed.
+- A clock on the wallpaper, with the date if you like, redrawn every
+  minute by the background process (off by default).
 
 ## [0.3.0] - 2026-11-05
 

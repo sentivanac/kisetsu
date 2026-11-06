@@ -11,7 +11,6 @@ import (
 
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/library"
-	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 )
 
@@ -48,9 +47,10 @@ func testCore(t *testing.T, imageCount int) (*core, *rotation.Rotator, *fakeWall
 		}
 	}
 
-	r := c.rotator(nil)
+	screen := c.rotationScreen()
 	fake := &fakeWallpaper{}
-	r.Screen.(*onscreen.Service).Setter = fake
+	screen.Setter = fake
+	r := c.rotator(nil, screen)
 	return c, r, fake
 }
 
