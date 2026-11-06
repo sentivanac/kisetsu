@@ -18,6 +18,9 @@ CLAUDE.md
 .env
 .env.*
 
+# Desktop images for testing in virtual machines
+*.iso
+
 # Editors and OS
 .idea/
 *.swp
