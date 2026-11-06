@@ -8,6 +8,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/agent"
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/autostart"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
 )
@@ -58,6 +59,8 @@ type RotationState struct {
 	VarietyRunning bool   `json:"varietyRunning"`
 	// SourceImages is how many images the chosen source has now.
 	SourceImages int `json:"sourceImages"`
+	// Text is what is drawn on the wallpaper.
+	Text WallpaperText `json:"text"`
 }
 
 // GetRotation returns the rotation settings and status.
@@ -112,6 +115,11 @@ func (a *App) GetRotation() (state RotationState, err error) {
 		state.NextChange = due.Format(time.RFC3339)
 	}
 	state.VarietyRunning = a.wallpaper.VarietyRunning()
+	text, err := onscreen.LoadSettings(a.ctx, a.settings)
+	if err != nil {
+		a.log.Warn("wallpaper text settings unreadable", "err", err)
+	}
+	state.Text = wallpaperText(text)
 	return state, nil
 }
 

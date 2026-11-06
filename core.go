@@ -19,6 +19,8 @@ import (
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
+	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/rotation"
@@ -145,7 +147,7 @@ func (c *core) rotator(fetcher *fetched.Fetcher) *rotation.Rotator {
 		Settings: settings.NewStore(c.db),
 		History:  rotation.NewHistory(c.db),
 		Files:    c.files,
-		Setter:   setter,
+		Screen:   c.screen(setter),
 		Log:      c.log,
 	}
 	if fetcher != nil {
@@ -155,6 +157,36 @@ func (c *core) rotator(fetcher *fetched.Fetcher) *rotation.Rotator {
 		}
 	}
 	return r
+}
+
+// screen builds the service that shows library images through setter,
+// drawing text on them when the user turned that on (ADR 0047).
+func (c *core) screen(setter onscreen.Setter) *onscreen.Service {
+	return &onscreen.Service{
+		Settings:     settings.NewStore(c.db),
+		Setter:       setter,
+		Dir:          filepath.Join(c.paths.Cache, "overlay"),
+		ProviderName: providerName,
+		Log:          c.log,
+	}
+}
+
+// imageSources returns the image sources, in the order they appear in the UI.
+func imageSources(client *http.Client) []providers.Provider {
+	return []providers.Provider{
+		wallhaven.New(client, appinfo.UserAgent()),
+		commons.New(client, appinfo.UserAgent()),
+	}
+}
+
+// providerName returns a source's display name, or its ID if unknown.
+func providerName(id string) string {
+	for _, p := range imageSources(nil) {
+		if p.ID() == id {
+			return p.Name()
+		}
+	}
+	return id
 }
 
 // rotationLockPath is shared by the timer, the window and manual commands.
@@ -167,14 +199,9 @@ func (c *core) fetchedService() *fetched.Service {
 	return &fetched.Service{Library: c.lib, Files: c.files, Log: c.log}
 }
 
-// searchService registers the providers. Registration order is the order
-// sources appear in the UI.
-// Every search leaves out the tags the user hid.
+// searchService registers the providers. Every search leaves out the tags the user hid.
 func (c *core) searchService(client *http.Client) (*search.Service, error) {
-	s, err := search.New(c.log,
-		wallhaven.New(client, appinfo.UserAgent()),
-		commons.New(client, appinfo.UserAgent()),
-	)
+	s, err := search.New(c.log, imageSources(client)...)
 	if err != nil {
 		return nil, err
 	}

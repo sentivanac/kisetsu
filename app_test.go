@@ -22,6 +22,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
@@ -110,13 +111,20 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 	}
 	t.Cleanup(func() { files.Close() })
 
+	overlayDir := filepath.Join(t.TempDir(), "overlay")
+	screen := func(setter onscreen.Setter) *onscreen.Service {
+		return &onscreen.Service{Settings: settings.NewStore(db), Setter: setter, Dir: overlayDir,
+			ProviderName: providerName, Log: log}
+	}
+	window := &fakeWallpaper{} // never the real desktop
 	app = NewApp(Deps{
 		Log: log, DB: db, DBPath: path, Search: svc,
 		Settings: settings.NewStore(db), Downloads: mgr, Library: lib, Files: files,
-		Wallpaper: &fakeWallpaper{}, // never the real desktop
+		Wallpaper: window,
+		Screen:    screen(window),
 		Rotation: &rotation.Rotator{
 			Library: lib, Settings: settings.NewStore(db), History: rotation.NewHistory(db),
-			Files: files, Setter: &fakeWallpaper{}, Log: log,
+			Files: files, Screen: screen(&fakeWallpaper{}), Log: log,
 		},
 		Agent:         &fakeAgent{}, // never a real process or autostart entry
 		SavedSearches: searches.NewStore(db),

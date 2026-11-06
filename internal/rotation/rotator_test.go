@@ -28,10 +28,10 @@ func (f fakeFiles) OriginalPath(rel string) (string, error) {
 	return "/library/" + rel, nil
 }
 
-// fakeSetter records paths instead of changing the desktop.
-type fakeSetter struct{ paths []string }
+// fakeScreen records paths instead of changing the desktop.
+type fakeScreen struct{ paths []string }
 
-func (f *fakeSetter) Set(ctx context.Context, path string) (wallpaper.Method, error) {
+func (f *fakeScreen) Show(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error) {
 	f.paths = append(f.paths, path)
 	return wallpaper.MATE, nil
 }
@@ -40,7 +40,7 @@ type env struct {
 	r      *Rotator
 	lib    *library.Store
 	set    *settings.Store
-	setter *fakeSetter
+	setter *fakeScreen
 	files  fakeFiles
 }
 
@@ -52,7 +52,7 @@ func newEnv(t *testing.T, images int) (*env, []int64) {
 	}
 	t.Cleanup(func() { db.Close() })
 
-	e := &env{lib: library.NewStore(db), set: settings.NewStore(db), setter: &fakeSetter{},
+	e := &env{lib: library.NewStore(db), set: settings.NewStore(db), setter: &fakeScreen{},
 		files: fakeFiles{missing: map[string]bool{}}}
 	var ids []int64
 	for n := range images {
@@ -63,7 +63,7 @@ func newEnv(t *testing.T, images int) (*env, []int64) {
 		ids = append(ids, id)
 	}
 	e.r = &Rotator{Library: e.lib, Settings: e.set, History: NewHistory(db), Files: e.files,
-		Setter: e.setter, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Rand: seeded()}
+		Screen: e.setter, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Rand: seeded()}
 	return e, ids
 }
 

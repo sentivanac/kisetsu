@@ -34,9 +34,10 @@ const (
 // provides it; rotation only knows this function.
 type TopUp func(ctx context.Context, savedSearchID int64, want int, protect []int64) (int, error)
 
-// Setter sets the wallpaper; *wallpaper.Setter with Direct set.
-type Setter interface {
-	Set(ctx context.Context, path string) (wallpaper.Method, error)
+// Screen shows a library image as the wallpaper; *onscreen.Service, whose
+// setter has Direct set.
+type Screen interface {
+	Show(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error)
 }
 
 // Files resolves library paths; *libfiles.Server.
@@ -50,7 +51,7 @@ type Rotator struct {
 	Settings *settings.Store
 	History  *History
 	Files    Files
-	Setter   Setter
+	Screen   Screen
 	Log      *slog.Logger
 	Rand     *rand.Rand // nil means a random seed
 	// TopUp, if set, fetches new images when a saved search runs low.
@@ -92,13 +93,13 @@ func (r *Rotator) Next(ctx context.Context) (Result, error) {
 		if !ok {
 			return Result{}, ErrNoImages
 		}
-		path, err := r.path(ctx, id)
+		e, path, err := r.path(ctx, id)
 		if err != nil {
 			r.Log.Warn("skipping image for rotation", "entry", id, "err", err)
 			candidates = slices.DeleteFunc(candidates, func(c int64) bool { return c == id })
 			continue
 		}
-		method, err := r.Setter.Set(ctx, path)
+		method, err := r.Screen.Show(ctx, e, path)
 		if err != nil {
 			return Result{}, err
 		}
@@ -171,10 +172,11 @@ func (r *Rotator) libraryCandidates(ctx context.Context, collectionID int64) ([]
 	return r.Library.IDs(ctx, collectionID)
 }
 
-func (r *Rotator) path(ctx context.Context, id int64) (string, error) {
+func (r *Rotator) path(ctx context.Context, id int64) (library.Entry, string, error) {
 	e, err := r.Library.Get(ctx, id)
 	if err != nil {
-		return "", err
+		return library.Entry{}, "", err
 	}
-	return r.Files.OriginalPath(e.FilePath)
+	path, err := r.Files.OriginalPath(e.FilePath)
+	return e, path, err
 }

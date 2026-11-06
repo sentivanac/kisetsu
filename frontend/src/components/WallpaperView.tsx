@@ -6,13 +6,14 @@ import {
     NextWallpaper,
     RepairAgent,
     SaveRotation,
+    SaveWallpaperText,
     SetShowInTray,
     StartAgent,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {collectionCount} from '../lib/collections';
-import {clockTime, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
+import {clockTime, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
 
 const refreshInterval = 30_000;
 
@@ -69,6 +70,12 @@ export function WallpaperView({active}: Props) {
         if (!state) return;
         const next = new main.RotationSettings({...state.settings, ...change});
         apply(() => SaveRotation(next), 'save');
+    }
+
+    function saveText(change: Partial<main.WallpaperText>) {
+        if (!state) return;
+        const next = new main.WallpaperText({...state.text, ...change});
+        apply(() => SaveWallpaperText(next), 'save');
     }
 
     if (!state) {
@@ -228,6 +235,38 @@ export function WallpaperView({active}: Props) {
                     log in.
                 </p>
             </div>
+
+            <fieldset className="wallpaper-text" disabled={busy === 'save'}>
+                <legend>On the wallpaper</legend>
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.text.credit}
+                        onChange={(e) => saveText({credit: e.target.checked})}
+                    />
+                    <span>Show the author, license and source</span>
+                </label>
+                <label>
+                    Corner
+                    <select
+                        value={state.text.creditCorner}
+                        onChange={(e) => saveText({creditCorner: e.target.value})}
+                        disabled={!state.text.credit}
+                    >
+                        {corners.map((c) => (
+                            <option key={c.value} value={c.value}>
+                                {c.label}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <p className="muted small">
+                    Kisetsu draws the text on a copy of the image, cropped to your screen; the image in your library is
+                    not changed.
+                    {state.varietyRunning &&
+                        ' While Variety is running, images you choose with “Set as wallpaper” go to Variety, without text.'}
+                </p>
+            </fieldset>
 
             <fieldset className="tray" disabled={busy === 'save'}>
                 <legend>Tray icon</legend>

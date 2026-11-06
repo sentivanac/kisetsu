@@ -303,6 +303,20 @@ export namespace main {
 	        this.order = source["order"];
 	    }
 	}
+	export class WallpaperText {
+	    credit: boolean;
+	    creditCorner: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WallpaperText(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.credit = source["credit"];
+	        this.creditCorner = source["creditCorner"];
+	    }
+	}
 	export class RotationState {
 	    settings: RotationSettings;
 	    intervals: string[];
@@ -314,6 +328,7 @@ export namespace main {
 	    lastChange: string;
 	    varietyRunning: boolean;
 	    sourceImages: number;
+	    text: WallpaperText;
 	
 	    static createFrom(source: any = {}) {
 	        return new RotationState(source);
@@ -331,6 +346,7 @@ export namespace main {
 	        this.lastChange = source["lastChange"];
 	        this.varietyRunning = source["varietyRunning"];
 	        this.sourceImages = source["sourceImages"];
+	        this.text = this.convertValues(source["text"], WallpaperText);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -88,6 +88,8 @@ func run() error {
 		log.Warn("using default WebView GPU policy", "err", gpuErr)
 	}
 
+	// The window hands images to Variety when it runs; rotation does not.
+	setter := wallpaper.New()
 	app = NewApp(Deps{
 		Log:       log,
 		DB:        c.db,
@@ -97,7 +99,8 @@ func run() error {
 		Downloads: downloader,
 		Library:   c.lib,
 		Files:     c.files,
-		Wallpaper: wallpaper.New(),
+		Wallpaper: setter,
+		Screen:    c.screen(setter),
 		Rotation:  c.rotator(c.fetcher(searcher, downloader)),
 
 		Agent:         &agentControl{entry: entry, lockPath: c.agentLockPath(), log: log},

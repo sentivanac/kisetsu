@@ -373,6 +373,20 @@ func TestDirectSkipsVariety(t *testing.T) {
 	if !s.VarietyRunning() {
 		t.Error("VarietyRunning = false")
 	}
+	if s.ViaVariety() {
+		t.Error("ViaVariety = true with Direct")
+	}
+}
+
+func TestViaVariety(t *testing.T) {
+	s, _ := newSetter(t, "MATE", "variety")
+	if !s.ViaVariety() {
+		t.Error("ViaVariety = false while Variety runs")
+	}
+	s, _ = newSetter(t, "MATE", "bash")
+	if s.ViaVariety() {
+		t.Error("ViaVariety = true without Variety")
+	}
 }
 
 // sessionDirs creates xsessions/ and wayland-sessions/ like the user's

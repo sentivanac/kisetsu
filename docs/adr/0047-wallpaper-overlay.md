@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted (2026-11-05). Planned for 0.4.0: the image's author and license
-and a clock, each off by default.
+Accepted (2026-11-05), for 0.4.0: the image's author and license, and a
+clock, each off by default.
 
 ## Context
 
@@ -44,6 +44,38 @@ the settings or the desktop.
   can show it.
 
 The original file and the wallpaper history are never changed.
+
+### Where it is used
+
+Package `internal/onscreen` is the one way a library image reaches the
+desktop: "Set as wallpaper" in the window, rotation, the agent and
+`kisetsu rotate` all call `Show`. It reads the settings (stored under
+`overlay`, everything off by default) and:
+
+- sets the original when no text is turned on, or when the image would
+  go to Variety (Variety applies its own effects and clock);
+- otherwise composes the image for the stored screen size and sets that;
+- sets the original when composing fails (an unreadable file, a full
+  disk): text is never a reason for the wallpaper not to change. The
+  problem is logged.
+
+Composed images go to `<cache>/kisetsu/overlay/`, alternating between
+`wallpaper-a.jpg` and `wallpaper-b.jpg`, because GNOME and MATE do not
+reload a picture whose path did not change. The window and the agent may
+both compose, so the file to write is chosen by age, not remembered; it
+is written to a temporary file and renamed, so a desktop never reads half
+of it.
+
+Changing the text settings in the window shows the wallpaper Kisetsu set
+last again at once, with or without the text. This is skipped while
+Variety sets the wallpaper, and when Kisetsu never set one.
+
+### Author and license
+
+One line, "Ana Ćirić · CC BY-SA 4.0 · Wikimedia Commons": the author
+and the license when known, and the source, which always is. A name the
+font cannot draw is left out rather than shown as empty boxes. The font
+size is 1.9 % of the screen height (20 px on a 1080 px screen).
 
 ## Measured
 

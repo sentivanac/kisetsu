@@ -70,3 +70,11 @@ export function parseSourceKey(key: string): SourceChoice {
     }
     return {collectionId: 0, savedSearchId: 0};
 }
+
+// Corners for text on the wallpaper, in the order offered.
+export const corners: {value: string; label: string}[] = [
+    {value: 'top-left', label: 'Top left'},
+    {value: 'top-right', label: 'Top right'},
+    {value: 'bottom-left', label: 'Bottom left'},
+    {value: 'bottom-right', label: 'Bottom right'},
+];

@@ -84,6 +84,12 @@ func (s *Setter) VarietyRunning() bool {
 	return s.varietyRunning()
 }
 
+// ViaVariety reports whether Set would hand the image to Variety, which
+// then shows it with its own effects; Kisetsu draws no text on it.
+func (s *Setter) ViaVariety() bool {
+	return !s.Direct && s.varietyRunning()
+}
+
 // desktopNames returns the names of the desktop the user is logged into,
 // such as ["ubuntu", "GNOME"], in this order of trust:
 //

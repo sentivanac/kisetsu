@@ -22,6 +22,8 @@ type fakeWallpaper struct {
 
 func (f *fakeWallpaper) VarietyRunning() bool { return f.variety }
 
+func (f *fakeWallpaper) ViaVariety() bool { return f.variety }
+
 func (f *fakeWallpaper) Set(ctx context.Context, path string) (wallpaper.Method, error) {
 	f.path = path
 	if f.method == "" {
@@ -89,5 +91,133 @@ func TestSetWallpaperErrors(t *testing.T) {
 	}
 	if fake.path != "" {
 		t.Errorf("setter called with %q for a missing file", fake.path)
+	}
+}
+
+// composed reports whether path is an image with text drawn by Kisetsu.
+func composed(app *App, path string) bool {
+	return filepath.Dir(path) == app.screen.Dir
+}
+
+func TestWallpaperTextIsOffByDefault(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	ids := downloadN(t, app, 1)
+	state, err := app.GetRotation()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Text != (WallpaperText{Credit: false, CreditCorner: "bottom-left"}) {
+		t.Errorf("text = %+v", state.Text)
+	}
+	if _, err := app.SetWallpaper(ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	if fake := app.wallpaper.(*fakeWallpaper); composed(app, fake.path) {
+		t.Errorf("composed image %q set while text is off", fake.path)
+	}
+}
+
+func TestSetWallpaperDrawsTheCredit(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	ids := downloadN(t, app, 1)
+	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "top-right"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SetWallpaper(ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	if fake := app.wallpaper.(*fakeWallpaper); !composed(app, fake.path) {
+		t.Errorf("set %q, want a composed image", fake.path)
+	}
+	// History keeps the library image.
+	if st, err := app.rotation.History.State(app.ctx); err != nil || st.Current != ids[0] {
+		t.Errorf("history current = %d, %v", st.Current, err)
+	}
+}
+
+func TestSaveWallpaperTextShowsTheCurrentWallpaperAgain(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	ids := downloadN(t, app, 1)
+	fake := app.wallpaper.(*fakeWallpaper)
+	if _, err := app.SetWallpaper(ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	original := fake.path
+
+	state, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "top-right"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Text != (WallpaperText{Credit: true, CreditCorner: "top-right"}) {
+		t.Errorf("text = %+v", state.Text)
+	}
+	if !composed(app, fake.path) {
+		t.Errorf("after turning on: set %q, want a composed image", fake.path)
+	}
+
+	if _, err := app.SaveWallpaperText(WallpaperText{Credit: false, CreditCorner: "top-right"}); err != nil {
+		t.Fatal(err)
+	}
+	if fake.path != original {
+		t.Errorf("after turning off: set %q, want the original %q", fake.path, original)
+	}
+
+	// Saving the same settings again changes nothing.
+	fake.path = ""
+	if _, err := app.SaveWallpaperText(WallpaperText{Credit: false, CreditCorner: "top-right"}); err != nil {
+		t.Fatal(err)
+	}
+	if fake.path != "" {
+		t.Errorf("unchanged settings set %q", fake.path)
+	}
+}
+
+func TestSaveWallpaperTextWithoutAWallpaperYet(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "bottom-right"}); err != nil {
+		t.Fatal(err)
+	}
+	if fake := app.wallpaper.(*fakeWallpaper); fake.path != "" {
+		t.Errorf("set %q although Kisetsu never set a wallpaper", fake.path)
+	}
+}
+
+func TestSaveWallpaperTextLeavesVarietyAlone(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	ids := downloadN(t, app, 1)
+	fake := app.wallpaper.(*fakeWallpaper)
+	fake.variety = true
+	if _, err := app.SetWallpaper(ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	if composed(app, fake.path) {
+		t.Errorf("composed image %q handed to Variety", fake.path)
+	}
+	fake.path = ""
+	if _, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "bottom-right"}); err != nil {
+		t.Fatal(err)
+	}
+	if fake.path != "" {
+		t.Errorf("set %q while Variety runs", fake.path)
+	}
+}
+
+func TestSaveWallpaperTextRejectsAnUnknownCorner(t *testing.T) {
+	app := newTestApp(t, &stubProvider{})
+	_, err := app.SaveWallpaperText(WallpaperText{Credit: true, CreditCorner: "middle"})
+	if apperr.ToPublic(err).Code != apperr.InvalidInput {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestProviderName(t *testing.T) {
+	if got := providerName("wikimedia-commons"); got != "Wikimedia Commons" {
+		t.Errorf("wikimedia-commons: %q", got)
+	}
+	if got := providerName("wallhaven"); got != "Wallhaven" {
+		t.Errorf("wallhaven: %q", got)
+	}
+	if got := providerName("gone"); got != "gone" {
+		t.Errorf("unknown source: %q", got)
 	}
 }

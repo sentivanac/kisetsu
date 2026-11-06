@@ -9,6 +9,7 @@ import (
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/autostart"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -246,7 +247,7 @@ func TestNextWallpaper(t *testing.T) {
 func TestNextWallpaperOnUnsupportedDesktop(t *testing.T) {
 	app := newTestApp(t, &stubProvider{})
 	downloadN(t, app, 1)
-	app.rotation.Setter = &fakeWallpaper{err: fmt.Errorf("%w: %q", wallpaper.ErrUnsupportedDesktop, "cinnamon")}
+	app.rotation.Screen.(*onscreen.Service).Setter = &fakeWallpaper{err: fmt.Errorf("%w: %q", wallpaper.ErrUnsupportedDesktop, "cinnamon")}
 
 	_, err := app.NextWallpaper()
 	if pub := apperr.ToPublic(err); pub.Code != Unsupported || pub.Message != unsupportedDesktopMessage {

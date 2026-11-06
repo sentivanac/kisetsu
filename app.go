@@ -18,6 +18,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
+	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/searches"
@@ -46,8 +47,10 @@ type App struct {
 	library   *library.Store
 	files     *libfiles.Server
 	wallpaper WallpaperSetter
-	rotation  *rotation.Rotator
-	agent     AgentControl
+	// screen shows images through wallpaper, with text when turned on.
+	screen   *onscreen.Service
+	rotation *rotation.Rotator
+	agent    AgentControl
 	// legacyTimer is the 0.1.0 systemd timer, removed when found.
 	legacyTimer LegacyTimer
 	// trayHost reports whether the desktop shows tray icons; nil: no.
@@ -83,6 +86,7 @@ type Deps struct {
 	Library       *library.Store
 	Files         *libfiles.Server
 	Wallpaper     WallpaperSetter
+	Screen        *onscreen.Service // uses Wallpaper
 	Rotation      *rotation.Rotator
 	Agent         AgentControl
 	LegacyTimer   LegacyTimer // may be nil
@@ -106,6 +110,7 @@ func NewApp(d Deps) *App {
 		library:     d.Library,
 		files:       d.Files,
 		wallpaper:   d.Wallpaper,
+		screen:      d.Screen,
 		rotation:    d.Rotation,
 		agent:       d.Agent,
 		legacyTimer: d.LegacyTimer,

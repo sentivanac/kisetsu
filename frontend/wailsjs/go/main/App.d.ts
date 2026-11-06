@@ -71,6 +71,8 @@ export function SaveSearch(arg1:string,arg2:searches.Query):Promise<main.SavedSe
 
 export function SaveSearchFilters(arg1:settings.SearchFilters):Promise<void>;
 
+export function SaveWallpaperText(arg1:main.WallpaperText):Promise<main.RotationState>;
+
 export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query):Promise<main.SearchResult>;
 
 export function SetShowInTray(arg1:boolean):Promise<main.RotationState>;

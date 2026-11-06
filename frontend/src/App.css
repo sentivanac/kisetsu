@@ -608,6 +608,7 @@
 }
 
 .rotation,
+.wallpaper-text,
 .tray {
     display: flex;
     flex-direction: column;
@@ -619,12 +620,14 @@
 }
 
 .rotation legend,
+.wallpaper-text legend,
 .tray legend {
     padding: 0 0.25rem;
     color: var(--muted);
 }
 
-.rotation > label:not(.toggle) {
+.rotation > label:not(.toggle),
+.wallpaper-text > label:not(.toggle) {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -632,7 +635,8 @@
     color: var(--muted);
 }
 
-.rotation select {
+.rotation select,
+.wallpaper-text select {
     max-width: 24rem;
     padding: 0.45rem 0.6rem;
     border: 1px solid var(--border);
@@ -640,6 +644,10 @@
     background: var(--surface);
     color: var(--text);
     font: inherit;
+}
+
+.wallpaper-text select:disabled {
+    opacity: 0.5;
 }
 
 .toggle {
@@ -733,6 +741,7 @@
     margin-top: 0.2rem;
 }
 
+.wallpaper-text p,
 .tray p {
     margin: 0;
 }

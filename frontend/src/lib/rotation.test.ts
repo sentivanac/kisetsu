@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
+import {corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
 
 describe('intervalLabel', () => {
     it('names the offered intervals', () => {
@@ -44,5 +44,11 @@ describe('rotation source keys', () => {
     it('falls back to the whole library for unknown keys', () => {
         expect(parseSourceKey('search:x')).toEqual({collectionId: 0, savedSearchId: 0});
         expect(parseSourceKey('album:4')).toEqual({collectionId: 0, savedSearchId: 0});
+    });
+});
+
+describe('corners', () => {
+    it('offers the four corners the backend accepts', () => {
+        expect(corners.map((c) => c.value)).toEqual(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
     });
 });

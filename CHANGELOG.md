@@ -6,6 +6,12 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [0.4.0] - Unreleased
 
+### On the wallpaper
+- The image's author, license and source can be shown in a corner of the
+  wallpaper (Wallpaper tab → On the wallpaper; off by default). Kisetsu
+  draws them on a copy cropped to the screen; the image in the library
+  is not changed.
+
 ## [0.3.0] - 2026-11-05
 
 Kisetsu now runs on **Windows 10 and 11** as well.

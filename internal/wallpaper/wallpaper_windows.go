@@ -85,3 +85,6 @@ func (s *Setter) Set(ctx context.Context, path string) (Method, error) {
 
 // VarietyRunning is always false: Variety does not run on Windows.
 func (s *Setter) VarietyRunning() bool { return false }
+
+// ViaVariety is always false: Variety does not run on Windows.
+func (s *Setter) ViaVariety() bool { return false }
