@@ -97,6 +97,108 @@
     color: var(--muted);
 }
 
+.footer-about {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.footer-about:hover {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+/* About */
+
+.about {
+    width: min(92vw, 52rem);
+    max-height: 90vh;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.about[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.about::backdrop {
+    background: rgb(0 0 0 / 0.6);
+}
+
+.about-body {
+    min-height: 0;
+    padding: 1.5rem 2rem;
+    overflow: auto;
+}
+
+.about-columns {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 40rem) {
+    .about-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.about-app p {
+    margin: 0.5rem 0 0;
+}
+
+.about-icon {
+    width: 64px;
+    height: 64px;
+}
+
+.about h2 {
+    margin: 0.5rem 0 0;
+}
+
+.about h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+}
+
+.about ul {
+    margin: 0 0 1rem;
+    padding-left: 1.2rem;
+}
+
+.about li + li {
+    margin-top: 0.4rem;
+}
+
+.about-licenses {
+    max-height: 14rem;
+    margin: 1.25rem 0 0;
+    padding: 0.75rem;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 0.75rem;
+    /* The file has its own line breaks, at about 70 characters. */
+    white-space: pre;
+}
+
+.about-footer {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 2rem;
+    border-top: 1px solid var(--border);
+}
+
 .muted {
     color: var(--muted);
 }

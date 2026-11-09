@@ -137,6 +137,38 @@ export namespace images {
 
 export namespace main {
 	
+	export class About {
+	    name: string;
+	    version: string;
+	    author: string;
+	    authorUrl: string;
+	    projectUrl: string;
+	    issuesUrl: string;
+	    license: string;
+	    licenseUrl: string;
+	    platform: string;
+	    goVersion: string;
+	    hasThirdPartyLicenses: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new About(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.author = source["author"];
+	        this.authorUrl = source["authorUrl"];
+	        this.projectUrl = source["projectUrl"];
+	        this.issuesUrl = source["issuesUrl"];
+	        this.license = source["license"];
+	        this.licenseUrl = source["licenseUrl"];
+	        this.platform = source["platform"];
+	        this.goVersion = source["goVersion"];
+	        this.hasThirdPartyLicenses = source["hasThirdPartyLicenses"];
+	    }
+	}
 	export class AgentState {
 	    running: boolean;
 	    autostart: boolean;

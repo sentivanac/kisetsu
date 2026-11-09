@@ -14,6 +14,15 @@ var Version = "dev"
 // ProjectURL is the public home of the project.
 const ProjectURL = "https://github.com/sentivanac/kisetsu"
 
+// Author is the author and copyright holder, as in LICENSE.
+const Author = "Miroslav Sentivanac"
+
+// AuthorURL is the author's GitHub profile.
+const AuthorURL = "https://github.com/sentivanac"
+
+// License is Kisetsu's license, the full text of which is in LICENSE.
+const License = "MIT"
+
 // UserAgent identifies Kisetsu to external services, so providers can
 // see who is calling and how to reach the project.
 func UserAgent() string {

@@ -99,8 +99,8 @@ ends by itself. Linux desktops that do not start programs from
 `kisetsu agent` in their own startup file.
 
 **Tray icon** (optional, in the Wallpaper tab): its menu changes the
-wallpaper, turns rotation on or off, opens the window, or quits until the
-next login. On Windows it is in the notification area (it may be behind
+wallpaper, turns rotation on or off, opens the window or About Kisetsu,
+or quits until the next login. On Windows it is in the notification area (it may be behind
 the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.
@@ -210,6 +210,7 @@ rm ~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop
 
 ```sh
 kisetsu                              # open the window
+kisetsu --about                      # open the window showing About Kisetsu
 kisetsu agent                        # run the background process (normally started at login)
 kisetsu rotate                       # change to the next wallpaper now
 kisetsu fetch "Mountains" --count 5  # new images for the saved search "Mountains"

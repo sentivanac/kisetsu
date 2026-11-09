@@ -54,6 +54,7 @@ type trayActions struct {
 	rotating    func(ctx context.Context) (bool, error)
 	setRotating func(ctx context.Context, on bool) error
 	open        func() error
+	about       func() error
 }
 
 // runTray shows the icon and its menu until ctx ends or the user chooses
@@ -73,6 +74,7 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()
 		open := systray.AddMenuItem("Open Kisetsu", "Open the Kisetsu window")
+		about := systray.AddMenuItem("About Kisetsu", "Version, author and licenses")
 		systray.AddSeparator()
 		quitItem := systray.AddMenuItem("Quit", "Hide the icon and stop changing the wallpaper until the next login")
 
@@ -115,6 +117,10 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 				case <-open.ClickedCh:
 					if err := act.open(); err != nil {
 						log.Warn("window not opened from the tray", "err", err)
+					}
+				case <-about.ClickedCh:
+					if err := act.about(); err != nil {
+						log.Warn("About not opened from the tray", "err", err)
 					}
 				case <-quitItem.ClickedCh:
 					log.Info("quit from the tray")

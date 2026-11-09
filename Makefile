@@ -58,6 +58,7 @@ icons:
 	done
 	inkscape build/linux/$(APP_ID).svg -o build/appicon.png -w 1024 -h 1024
 	convert $(foreach s,16 24 32 48 64 128 256,build/linux/icons/$(s).png) build/windows/icon.ico
+	cp build/linux/icons/128.png frontend/src/assets/icon.png
 
 ## version: print the version of the next release
 version:

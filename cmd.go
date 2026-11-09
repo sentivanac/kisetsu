@@ -18,7 +18,8 @@ import (
 
 const usage = `Usage: kisetsu [command]
 
-Without a command, the Kisetsu window opens.
+Without a command, the Kisetsu window opens; with --about, it opens
+showing About Kisetsu.
 
 Commands:
   agent                run in the background: change the wallpaper when

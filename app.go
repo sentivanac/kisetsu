@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -64,6 +66,10 @@ type App struct {
 	executable   string
 	rotationLock string
 
+	// aboutRequested: the window was opened to show About (the tray's
+	// "About Kisetsu"); the frontend asks once, with TakeAboutRequest.
+	aboutRequested atomic.Bool
+
 	// emit sends a Wails event. It is a no-op until startup, because the
 	// Wails runtime exits the process when called without its context.
 	emit func(name string, data any)
@@ -95,11 +101,13 @@ type Deps struct {
 	Fetched       *fetched.Service
 	Executable    string
 	RotationLock  string
+	// ShowAbout opens the window with About shown (`kisetsu --about`).
+	ShowAbout bool
 }
 
 // NewApp creates a new App.
 func NewApp(d Deps) *App {
-	return &App{
+	a := &App{
 		ctx:         context.Background(),
 		log:         d.Log,
 		db:          d.DB,
@@ -123,6 +131,8 @@ func NewApp(d Deps) *App {
 		rotationLock: d.RotationLock,
 		emit:         func(string, any) {},
 	}
+	a.aboutRequested.Store(d.ShowAbout)
+	return a
 }
 
 // startup is called when the app starts. The context is kept for
@@ -134,11 +144,14 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // onSecondInstance brings the window to the front when Kisetsu is started
-// again while it runs.
-func (a *App) onSecondInstance(options.SecondInstanceData) {
+// again while it runs, and shows About when that was asked for.
+func (a *App) onSecondInstance(data options.SecondInstanceData) {
 	a.log.Info("Kisetsu started again; showing the open window")
 	runtime.WindowUnminimise(a.ctx)
 	runtime.WindowShow(a.ctx)
+	if slices.Contains(data.Args, aboutArg) {
+		a.emit(aboutEvent, nil)
+	}
 }
 
 // recoverPanic turns a panic in a bound method into an internal error.

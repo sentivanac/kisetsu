@@ -34,6 +34,10 @@ export function Download(arg1) {
   return window['go']['main']['App']['Download'](arg1);
 }
 
+export function GetAbout() {
+  return window['go']['main']['App']['GetAbout']();
+}
+
 export function GetFetchedStats() {
   return window['go']['main']['App']['GetFetchedStats']();
 }
@@ -56,6 +60,10 @@ export function GetSearchFilters() {
 
 export function GetStatus() {
   return window['go']['main']['App']['GetStatus']();
+}
+
+export function GetThirdPartyLicenses() {
+  return window['go']['main']['App']['GetThirdPartyLicenses']();
 }
 
 export function ImageCollections(arg1) {
@@ -152,4 +160,8 @@ export function SetWallpaper(arg1) {
 
 export function StartAgent() {
   return window['go']['main']['App']['StartAgent']();
+}
+
+export function TakeAboutRequest() {
+  return window['go']['main']['App']['TakeAboutRequest']();
 }

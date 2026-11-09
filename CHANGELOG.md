@@ -13,6 +13,15 @@ follow [Semantic Versioning](https://semver.org/).
   openly licensed or in the public domain. Only collections with files
   large enough for a wallpaper are searched.
 
+### Window
+- **About Kisetsu**: version, author, license, links to the website and
+  to bug reports, and credits. Open it by clicking the version at the
+  bottom of the window, or from the tray icon's menu.
+
+### Fixes
+- The preview no longer flashes blurred for a moment after the full
+  image appears.
+
 ## [0.4.0] - 2026-11-06
 
 ### On the wallpaper

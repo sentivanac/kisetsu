@@ -122,7 +122,8 @@ func runAgent(args []string) int {
 			c.log.Info("rotation turned on or off from the tray", "enabled", on)
 			return rotation.SaveSettings(ctx, store, cfg)
 		},
-		open: openWindow,
+		open:  func() error { return openWindow() },
+		about: func() error { return openWindow(aboutArg) },
 	}, cancel)
 	cancel()
 	<-done
@@ -130,14 +131,15 @@ func runAgent(args []string) int {
 	return 0
 }
 
-// openWindow starts the Kisetsu window in its own session; if one is open
-// already, it comes to the front instead (single instance).
-func openWindow() error {
+// openWindow starts the Kisetsu window in its own session, with args; if
+// one is open already, it comes to the front instead (single instance) and
+// gets the args.
+func openWindow(args ...string) error {
 	exe, err := os.Executable()
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(exe)
+	cmd := exec.Command(exe, args...)
 	detach(cmd)
 	if err := cmd.Start(); err != nil {
 		return err

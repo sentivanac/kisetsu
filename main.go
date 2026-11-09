@@ -37,19 +37,20 @@ var assets embed.FS
 var windowIcon []byte
 
 func main() {
+	showAbout := len(os.Args) == 2 && os.Args[1] == aboutArg
 	// A command (for example `kisetsu rotate`) runs without a window.
-	if len(os.Args) > 1 {
+	if len(os.Args) > 1 && !showAbout {
 		attachConsole()
 		os.Exit(runCommand(os.Args[1], os.Args[2:]))
 	}
-	if err := run(); err != nil {
+	if err := run(showAbout); err != nil {
 		fmt.Fprintln(os.Stderr, "kisetsu:", err)
 		os.Exit(1)
 	}
 }
 
-// run opens the Kisetsu window.
-func run() error {
+// run opens the Kisetsu window, with About shown if showAbout.
+func run(showAbout bool) error {
 	c, err := openCore(context.Background(), "app", os.Stderr)
 	if err != nil {
 		return err
@@ -110,6 +111,7 @@ func run() error {
 		Fetched:       c.fetchedService(),
 		Executable:    entry.Executable,
 		RotationLock:  c.rotationLockPath(),
+		ShowAbout:     showAbout,
 	})
 
 	err = wails.Run(&options.App{

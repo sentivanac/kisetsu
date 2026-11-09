@@ -23,6 +23,8 @@ export function DeleteSavedSearch(arg1:number):Promise<void>;
 
 export function Download(arg1:images.Image):Promise<string>;
 
+export function GetAbout():Promise<main.About>;
+
 export function GetFetchedStats():Promise<main.FetchedStats>;
 
 export function GetHiddenTags():Promise<Array<string>>;
@@ -34,6 +36,8 @@ export function GetRotation():Promise<main.RotationState>;
 export function GetSearchFilters():Promise<settings.SearchFilters>;
 
 export function GetStatus():Promise<main.Status>;
+
+export function GetThirdPartyLicenses():Promise<string>;
 
 export function ImageCollections(arg1:number):Promise<Array<number>>;
 
@@ -82,3 +86,5 @@ export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
 
 export function StartAgent():Promise<main.RotationState>;
+
+export function TakeAboutRequest():Promise<boolean>;

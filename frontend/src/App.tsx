@@ -1,13 +1,14 @@
 import {KeyboardEvent, useEffect, useState} from 'react';
 import './App.css';
-import {GetStatus, ListProviders, SaveDisplaySize} from '../wailsjs/go/main/App';
-import {ScreenGetAll} from '../wailsjs/runtime/runtime';
+import {GetStatus, ListProviders, SaveDisplaySize, TakeAboutRequest} from '../wailsjs/go/main/App';
+import {EventsOn, ScreenGetAll} from '../wailsjs/runtime/runtime';
 import {largestScreen, WailsScreen} from './lib/screen';
 import {main, search} from '../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from './lib/backend';
 import {SearchPanel} from './components/SearchPanel';
 import {LibraryView} from './components/LibraryView';
 import {WallpaperView} from './components/WallpaperView';
+import {AboutDialog} from './components/AboutDialog';
 
 type Tab = 'search' | 'library' | 'wallpaper';
 
@@ -22,6 +23,7 @@ function App() {
     const [error, setError] = useState<BackendError | null>(null);
     const [tab, setTab] = useState<Tab>('search');
     const [sources, setSources] = useState<search.ProviderInfo[]>([]);
+    const [showAbout, setShowAbout] = useState(false);
 
     useEffect(() => {
         GetStatus()
@@ -38,6 +40,12 @@ function App() {
                 if (size) return SaveDisplaySize(size.width, size.height);
             })
             .catch(() => {}); // the default size is used instead
+        // The tray's "About Kisetsu" opens the window with About, or shows
+        // it in the open window.
+        TakeAboutRequest()
+            .then((show) => show && setShowAbout(true))
+            .catch(() => {});
+        return EventsOn('about:show', () => setShowAbout(true));
     }, []);
 
     const sourceName = (id: string) => sources.find((p) => p.id === id)?.name ?? id;
@@ -93,13 +101,18 @@ function App() {
                 {error && <span className="error">{describeError(error)}</span>}
                 {status && (
                     // Details for bug reports stay available on hover.
-                    <span
-                        title={`${status.app.platform} · database schema v${status.database.schemaVersion} · ${status.database.path}`}
+                    <button
+                        type="button"
+                        className="footer-about"
+                        title={`About Kisetsu · ${status.app.platform} · database schema v${status.database.schemaVersion} · ${status.database.path}`}
+                        onClick={() => setShowAbout(true)}
                     >
                         {status.app.name} {status.app.version}
-                    </span>
+                    </button>
                 )}
             </footer>
+
+            {showAbout && <AboutDialog onClose={() => setShowAbout(false)}/>}
         </div>
     );
 }
