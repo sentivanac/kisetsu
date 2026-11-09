@@ -12,17 +12,17 @@ import (
 
 const settingsKey = "overlay"
 
-// ClockSize is how large the clock is drawn.
-type ClockSize string
+// Size is how large text is drawn: the clock or the text file.
+type Size string
 
 const (
-	Small  ClockSize = "small"
-	Medium ClockSize = "medium"
-	Large  ClockSize = "large"
+	Small  Size = "small"
+	Medium Size = "medium"
+	Large  Size = "large"
 )
 
-// share is the time's font size as a share of the screen height.
-func (s ClockSize) share() (float64, bool) {
+// clockShare is the time's font size as a share of the screen height.
+func (s Size) clockShare() (float64, bool) {
 	switch s {
 	case Small:
 		return 0.05, true
@@ -30,6 +30,20 @@ func (s ClockSize) share() (float64, bool) {
 		return 0.075, true
 	case Large:
 		return 0.11, true
+	}
+	return 0, false
+}
+
+// textFileShare is the text file's font size as a share of the screen
+// height: 18, 24 or 32 px at 1080 px.
+func (s Size) textFileShare() (float64, bool) {
+	switch s {
+	case Small:
+		return 0.017, true
+	case Medium:
+		return 0.022, true
+	case Large:
+		return 0.03, true
 	}
 	return 0, false
 }
@@ -77,15 +91,16 @@ type Settings struct {
 	Clock       bool           `json:"clock"`
 	ClockCorner overlay.Corner `json:"clockCorner"`
 	// Clock12h shows "3:04 PM" instead of "15:04".
-	Clock12h  bool      `json:"clock12h"`
-	ClockDate bool      `json:"clockDate"`
-	ClockSize ClockSize `json:"clockSize"`
+	Clock12h  bool `json:"clock12h"`
+	ClockDate bool `json:"clockDate"`
+	ClockSize Size `json:"clockSize"`
 
 	// TextFile shows the content of the file at TextFilePath, redrawn by
 	// the agent when it changes (ADR 0051).
 	TextFile       bool           `json:"textFile"`
 	TextFilePath   string         `json:"textFilePath"`
 	TextFileCorner overlay.Corner `json:"textFileCorner"`
+	TextFileSize   Size           `json:"textFileSize"`
 
 	// Effects change the whole image (ADR 0050).
 	Darken   Level `json:"darken"`
@@ -102,6 +117,7 @@ var DefaultSettings = Settings{
 	ClockDate:      true,
 	ClockSize:      Medium,
 	TextFileCorner: overlay.TopRight,
+	TextFileSize:   Medium,
 	Darken:         LevelOff,
 	Blur:           LevelOff,
 	Tone:           ToneOriginal,
@@ -142,8 +158,11 @@ func (s Settings) Validate() error {
 	if s.TextFile && !filepath.IsAbs(s.TextFilePath) {
 		errs = append(errs, fmt.Errorf("text file %q is not an absolute path", s.TextFilePath))
 	}
-	if _, ok := s.ClockSize.share(); !ok {
+	if _, ok := s.ClockSize.clockShare(); !ok {
 		errs = append(errs, fmt.Errorf("unknown clock size %q", s.ClockSize))
+	}
+	if _, ok := s.TextFileSize.textFileShare(); !ok {
+		errs = append(errs, fmt.Errorf("unknown text size %q", s.TextFileSize))
 	}
 	if _, ok := darkenShares[s.Darken]; !ok {
 		errs = append(errs, fmt.Errorf("unknown darken level %q", s.Darken))

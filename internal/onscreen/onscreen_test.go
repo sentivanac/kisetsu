@@ -261,6 +261,7 @@ func TestSettings(t *testing.T) {
 		func(s *Settings) { s.Darken = "very" },
 		func(s *Settings) { s.Blur = "" },
 		func(s *Settings) { s.Tone = "purple" },
+		func(s *Settings) { s.TextFileSize = "tiny" },
 	} {
 		s := DefaultSettings
 		bad(&s)
@@ -556,6 +557,9 @@ func TestTextFileSettings(t *testing.T) {
 	}
 	if !(Settings{TextFile: true}).Live() || (Settings{Credit: true}).Live() {
 		t.Error("Live() should be true for the text file and false for the credit alone")
+	}
+	if DefaultSettings.TextFileSize != Medium {
+		t.Errorf("default text size %q", DefaultSettings.TextFileSize)
 	}
 	if DefaultSettings.TextFileCorner != overlay.TopRight {
 		t.Errorf("default corner %q", DefaultSettings.TextFileCorner)

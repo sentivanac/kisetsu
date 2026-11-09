@@ -15,7 +15,7 @@ user's own cron job or timer) stays outside Kisetsu.
 ## Decision
 
 One text file the user chooses in the Wallpaper tab ("Show text from a
-file", "Choose file…", a corner; off by default) is drawn on the
+file", "Choose file…", a corner and a size; off by default) is drawn on the
 wallpaper and redrawn when it changes.
 
 ### Guards
@@ -38,8 +38,9 @@ showing nothing, so the user knows what to fix.
 
 ### Drawing and updates
 
-- Go Mono (from `golang.org/x/image`, like Go Regular), 2.2 % of the
-  screen height (24 px at 1080 px), the lines aligned with each other on
+- Go Mono (from `golang.org/x/image`, like Go Regular), in three sizes:
+  1.7, 2.2 or 3 % of the screen height (18, 24 or 32 px at 1080 px;
+  medium by default), the lines aligned with each other on
   the left in every corner: a command's columns stay columns.
 - The clock and the file are the "live" text the agent keeps up to date.
   Every 2 seconds it compares what they show with what it drew last

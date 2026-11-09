@@ -346,6 +346,7 @@ export namespace main {
 	    textFile: boolean;
 	    textFilePath: string;
 	    textFileCorner: string;
+	    textFileSize: string;
 	    darken: string;
 	    blur: string;
 	    tone: string;
@@ -367,6 +368,7 @@ export namespace main {
 	        this.textFile = source["textFile"];
 	        this.textFilePath = source["textFilePath"];
 	        this.textFileCorner = source["textFileCorner"];
+	        this.textFileSize = source["textFileSize"];
 	        this.darken = source["darken"];
 	        this.blur = source["blur"];
 	        this.tone = source["tone"];

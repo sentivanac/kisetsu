@@ -90,6 +90,7 @@ type WallpaperText struct {
 	TextFile       bool   `json:"textFile"`
 	TextFilePath   string `json:"textFilePath"`
 	TextFileCorner string `json:"textFileCorner"`
+	TextFileSize   string `json:"textFileSize"`
 	Darken         string `json:"darken"`
 	Blur           string `json:"blur"`
 	Tone           string `json:"tone"`
@@ -102,7 +103,8 @@ func wallpaperText(s onscreen.Settings) WallpaperText {
 		Clock: s.Clock, ClockCorner: string(s.ClockCorner), Clock12h: s.Clock12h,
 		ClockDate: s.ClockDate, ClockSize: string(s.ClockSize),
 		TextFile: s.TextFile, TextFilePath: s.TextFilePath, TextFileCorner: string(s.TextFileCorner),
-		Darken: string(s.Darken), Blur: string(s.Blur), Tone: string(s.Tone), Vignette: s.Vignette,
+		TextFileSize: string(s.TextFileSize),
+		Darken:       string(s.Darken), Blur: string(s.Blur), Tone: string(s.Tone), Vignette: s.Vignette,
 	}
 }
 
@@ -116,9 +118,10 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	cfg := onscreen.Settings{
 		Credit: t.Credit, CreditCorner: overlay.Corner(t.CreditCorner),
 		Clock: t.Clock, ClockCorner: overlay.Corner(t.ClockCorner), Clock12h: t.Clock12h,
-		ClockDate: t.ClockDate, ClockSize: onscreen.ClockSize(t.ClockSize),
+		ClockDate: t.ClockDate, ClockSize: onscreen.Size(t.ClockSize),
 		TextFile: t.TextFile, TextFilePath: t.TextFilePath, TextFileCorner: overlay.Corner(t.TextFileCorner),
-		Darken: onscreen.Level(t.Darken), Blur: onscreen.Level(t.Blur), Tone: onscreen.Tone(t.Tone), Vignette: t.Vignette,
+		TextFileSize: onscreen.Size(t.TextFileSize),
+		Darken:       onscreen.Level(t.Darken), Blur: onscreen.Level(t.Blur), Tone: onscreen.Tone(t.Tone), Vignette: t.Vignette,
 	}
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These settings are not valid.", err)
@@ -145,7 +148,7 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	a.log.Info("wallpaper text settings saved", "credit", cfg.Credit, "credit_corner", cfg.CreditCorner,
 		"clock", cfg.Clock, "clock_corner", cfg.ClockCorner, "clock_12h", cfg.Clock12h,
 		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize,
-		"text_file", cfg.TextFile, "text_file_corner", cfg.TextFileCorner,
+		"text_file", cfg.TextFile, "text_file_corner", cfg.TextFileCorner, "text_file_size", cfg.TextFileSize,
 		"darken", cfg.Darken, "blur", cfg.Blur, "tone", cfg.Tone, "vignette", cfg.Vignette)
 	if cfg != old && (cfg.Any() || old.Any()) {
 		a.showCurrentAgain()

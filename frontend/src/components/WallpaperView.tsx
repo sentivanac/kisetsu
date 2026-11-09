@@ -377,6 +377,20 @@ export function WallpaperView({active}: Props) {
                             ))}
                         </select>
                     </label>
+                    <label>
+                        Size
+                        <select
+                            value={state.text.textFileSize}
+                            onChange={(e) => saveText({textFileSize: e.target.value})}
+                            disabled={!state.text.textFile}
+                        >
+                            {clockSizes.map((c) => (
+                                <option key={c.value} value={c.value}>
+                                    {c.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                 </div>
                 <p className="muted small">
                     Up to 10 lines of the file, updated when it changes. Whatever is in it will be on your desktop,

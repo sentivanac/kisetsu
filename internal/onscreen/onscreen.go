@@ -51,8 +51,6 @@ const (
 	// creditShare is the credit's font size as a share of the screen
 	// height (20 px on a 1080 px screen).
 	creditShare = 0.019
-	// textFileShare is the text file's font size (24 px at 1080 px).
-	textFileShare = 0.022
 	// dateShare is the date's font size as a share of the time's.
 	dateShare = 0.32
 	// minFontSize keeps small screens legible.
@@ -219,7 +217,7 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 	// seconds, only when the text changes.
 	s.shownLive = live.key
 	if cfg.Clock {
-		share, _ := cfg.ClockSize.share()
+		share, _ := cfg.ClockSize.clockShare()
 		size := max(minFontSize, int(math.Round(float64(screen.Height)*share)))
 		blocks = append(blocks, overlay.Block{Lines: live.clock[:1], Corner: cfg.ClockCorner, Size: size})
 		if len(live.clock) > 1 {
@@ -233,6 +231,7 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 		if live.fileErr != nil {
 			s.Log.Warn("text file not read", "path", cfg.TextFilePath, "err", live.fileErr)
 		}
+		textShare, _ := cfg.TextFileSize.textFileShare()
 		lines := make([]string, len(live.file))
 		for i, l := range live.file {
 			lines[i] = drawableText(l)
@@ -240,7 +239,7 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 		blocks = append(blocks, overlay.Block{
 			Lines:        lines,
 			Corner:       cfg.TextFileCorner,
-			Size:         max(minFontSize, int(math.Round(float64(screen.Height)*textFileShare))),
+			Size:         max(minFontSize, int(math.Round(float64(screen.Height)*textShare))),
 			Preformatted: true,
 		})
 	}

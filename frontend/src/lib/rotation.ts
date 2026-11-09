@@ -79,7 +79,7 @@ export const corners: {value: string; label: string}[] = [
     {value: 'bottom-right', label: 'Bottom right'},
 ];
 
-// Clock sizes, in the order offered.
+// Text sizes (the clock, the text file), in the order offered.
 export const clockSizes: {value: string; label: string}[] = [
     {value: 'small', label: 'Small'},
     {value: 'medium', label: 'Medium'},
