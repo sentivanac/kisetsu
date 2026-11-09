@@ -64,6 +64,9 @@ text file and all effects on): 109 MB of its own memory before, 16 to
 about 40 MB. The rest of its resident memory (about 42 MB) is the mapped
 program and libraries, shared with other processes.
 
+On Windows 10 (the release candidate in the VM, a photo larger than the
+screen, the clock on): about 25 MB.
+
 ## Alternatives considered
 
 - **Bilinear scaling for the last step** (`draw.ApproxBiLinear`, no
