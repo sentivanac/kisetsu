@@ -24,6 +24,9 @@ follow [Semantic Versioning](https://semver.org/).
 ### Fixes
 - The preview no longer flashes blurred for a moment after the full
   image appears.
+- Quit in the tray menu no longer leaves a stopped clock on the
+  wallpaper: the wallpaper is shown again without it (with the author
+  and license if they are on).
 
 ## [0.4.0] - 2026-11-06
 

@@ -105,6 +105,12 @@ reads one setting and formats the time; drawing happens once a minute.
   for it, and the change draws the clock too.
 - Without a wallpaper set by Kisetsu, there is nothing to draw on; the
   agent tries again at the next minute.
+- Quit in the tray menu stops the agent, and with it the clock, until
+  the next login. Before it exits, the agent shows the current wallpaper
+  once more without the clock (with the author and license if they are
+  on), so no stale time stays on the desktop (added 2026-11-09). At the
+  end of a session this is not needed: the agent draws the clock again
+  when it starts at the next login.
 - While the clock is on, Kisetsu keeps showing the wallpaper it set
   last: a wallpaper chosen in the desktop's settings is replaced at the
   next minute. The Wallpaper tab says so.

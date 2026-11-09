@@ -90,10 +90,24 @@ type baseKey struct {
 
 // Show sets the image of e, whose file is at path, as the wallpaper.
 func (s *Service) Show(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error) {
+	return s.show(ctx, e, path, false)
+}
+
+// ShowWithoutClock sets the image as Show does, but without the clock: the
+// agent shows it when it quits, so no stale time stays on the desktop. The
+// author and license stay if they are turned on.
+func (s *Service) ShowWithoutClock(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error) {
+	return s.show(ctx, e, path, true)
+}
+
+func (s *Service) show(ctx context.Context, e library.Entry, path string, withoutClock bool) (wallpaper.Method, error) {
 	cfg, err := LoadSettings(ctx, s.Settings)
 	if err != nil {
 		s.Log.Warn("wallpaper text settings unreadable; showing the image without text", "err", err)
 		cfg = DefaultSettings
+	}
+	if withoutClock {
+		cfg.Clock = false
 	}
 	if !cfg.Any() || s.Setter.ViaVariety() {
 		return s.Setter.Set(ctx, path)

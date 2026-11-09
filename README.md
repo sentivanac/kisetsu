@@ -114,7 +114,8 @@ to your screen size; the image in the library is not changed. Good to
 know:
 
 - The clock is redrawn every minute by the background process, so it
-  runs while the clock is on, as for rotation.
+  runs while the clock is on, as for rotation. Quit in the tray menu
+  removes the clock from the wallpaper before the process ends.
 - While the clock is on, Kisetsu keeps showing the wallpaper it set
   last: a wallpaper chosen in the desktop's own settings is replaced at
   the next minute. Turn the clock off to use one of your own.

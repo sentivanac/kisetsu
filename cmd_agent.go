@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -98,6 +99,9 @@ func runAgent(args []string) int {
 	// The tray runs on the main goroutine; the schedule beside it. Either
 	// ending ends the other.
 	done := make(chan struct{})
+	// quit: the user chose Quit in the tray menu, rather than the session
+	// ending.
+	var quit atomic.Bool
 	go func() {
 		defer close(done)
 		a.Run(ctx)
@@ -124,9 +128,19 @@ func runAgent(args []string) int {
 		},
 		open:  func() error { return openWindow() },
 		about: func() error { return openWindow(aboutArg) },
-	}, cancel)
+	}, func() {
+		quit.Store(true)
+		cancel()
+	})
 	cancel()
 	<-done
+	if quit.Load() {
+		// The clock stops with the agent; its last time must not stay on
+		// the desktop until the next login.
+		removeClock(c, screen, rotation.NewHistory(c.db), func() (func(), error) {
+			return rotation.Lock(c.rotationLockPath())
+		})
+	}
 	c.log.Info("agent stopped")
 	return 0
 }
@@ -221,6 +235,53 @@ func refreshClock(ctx context.Context, c *core, screen *onscreen.Service, histor
 	if _, err := screen.Show(ctx, e, path); err != nil {
 		c.log.Warn("clock not redrawn", "entry", e.ID, "err", err)
 	}
+}
+
+// removeClockTimeout bounds removeClock: a wallpaper change in progress
+// (which holds the rotation lock) is waited for, briefly.
+const removeClockTimeout = 15 * time.Second
+
+// removeClock shows the current wallpaper again without the clock, with
+// the author and license if they are on. It does nothing when the clock is
+// off, when Variety sets the wallpaper (Kisetsu drew no clock), or when
+// Kisetsu never set a wallpaper.
+func removeClock(c *core, screen *onscreen.Service, history *rotation.History, lock func() (func(), error)) {
+	ctx, cancel := context.WithTimeout(context.Background(), removeClockTimeout)
+	defer cancel()
+	cfg, err := onscreen.LoadSettings(ctx, screen.Settings)
+	if err != nil || !cfg.Clock || screen.Setter.ViaVariety() {
+		return
+	}
+	var unlock func()
+	for {
+		unlock, err = lock()
+		if !errors.Is(err, rotation.ErrLocked) {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			c.log.Warn("clock not removed: a wallpaper change is still running")
+			return
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
+	if err != nil {
+		c.log.Warn("clock not removed", "err", err)
+		return
+	}
+	defer unlock()
+	e, path, ok, err := currentWallpaper(ctx, history, c.lib, c.files)
+	if err != nil || !ok {
+		if err != nil {
+			c.log.Warn("clock not removed", "err", err)
+		}
+		return
+	}
+	if _, err := screen.ShowWithoutClock(ctx, e, path); err != nil {
+		c.log.Warn("clock not removed", "entry", e.ID, "err", err)
+		return
+	}
+	c.log.Info("clock removed from the wallpaper", "entry", e.ID)
 }
 
 // lockAttempts: the window checks whether the agent runs by taking its
