@@ -87,4 +87,6 @@ export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
 
 export function StartAgent():Promise<main.RotationState>;
 
+export function SuggestSearches(arg1:string):Promise<Array<string>>;
+
 export function TakeAboutRequest():Promise<boolean>;

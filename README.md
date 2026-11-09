@@ -19,7 +19,9 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 - **Search** Wallhaven and, if you turn them on, Wikimedia Commons and
   museum collections through Openverse, at the same time. Filter by minimum size (or "my screen size"),
   orientation and Wallhaven category (General, Anime, People); exclude
-  words with `-word`, e.g. `mountains -snow`.
+  words with `-word`, e.g. `mountains -snow`. Under the results, Kisetsu
+  suggests the same search with synonyms ("fall forest" for "autumn
+  forest").
 - **Save searches** and run them again with one click.
 - **Library:** download images to keep them. They work offline, can be
   sorted into collections, and duplicates are detected — also re-encoded

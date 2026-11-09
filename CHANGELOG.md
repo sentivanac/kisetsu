@@ -12,6 +12,9 @@ follow [Semantic Versioning](https://semver.org/).
   Gallery of Denmark, and photos from the WordPress Photo Directory, all
   openly licensed or in the public domain. Only collections with files
   large enough for a wallpaper are searched.
+- Under the results, "Also try:" suggests the same search with synonyms
+  ("fall forest", "autumn woods" for "autumn forest") or the other
+  spelling ("gray" for "grey"); a click runs it.
 
 ### Window
 - **About Kisetsu**: version, author, license, links to the website and

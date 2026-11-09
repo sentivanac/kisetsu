@@ -69,10 +69,15 @@ library):
      access (1280 px otherwise). Checked 2026-11-06.
    - Later, perhaps: the Met (its files are excellent, but results come
      without sizes), NASA's image library.
-2. **Find similar**: Wallhaven's `like:<id>` search, computed by
-   Wallhaven, as a button in the preview.
-3. **Synonyms and query expansion**: a small, readable word list in the
-   code (for example "autumn" also finds "fall" and "foliage").
+2. **Find similar** (postponed 2026-11-09): Wallhaven's `like:<id>`
+   search, computed by Wallhaven, as a button in the preview. Its API
+   documents `like:`, but answers it with 403 and a Cloudflare challenge
+   page, while other searches work. Check again later; if it stays
+   blocked, a search by the image's tags is the fallback.
+3. **Synonyms**: a small, readable word list in the code, offered as
+   suggested searches under the results ("autumn" → "fall", "foliage";
+   ADR 0049). None of the sources can search alternatives in one
+   request.
 
 ## Phase 5: local AI search (postponed indefinitely, 2026-11-05)
 

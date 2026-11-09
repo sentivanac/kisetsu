@@ -9,6 +9,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/search"
+	"github.com/sentivanac/kisetsu/internal/synonyms"
 )
 
 // ListProviders returns the image providers the user can search.
@@ -16,6 +17,14 @@ func (a *App) ListProviders() (list []search.ProviderInfo, err error) {
 	defer a.recoverPanic("ListProviders", &err)
 
 	return a.search.Providers(), nil
+}
+
+// SuggestSearches returns other searches for text, with synonyms of its
+// words ("autumn forest" → "fall forest"), shown under the results.
+func (a *App) SuggestSearches(text string) (suggestions []string, err error) {
+	defer a.recoverPanic("SuggestSearches", &err)
+
+	return synonyms.Suggest(text), nil
 }
 
 // SourceStatus reports how one source did in a multi-source search.

@@ -199,6 +199,10 @@
     border-top: 1px solid var(--border);
 }
 
+.suggestions {
+    margin: 0.25rem 0 0.75rem;
+}
+
 .muted {
     color: var(--muted);
 }

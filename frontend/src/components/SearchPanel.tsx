@@ -14,6 +14,7 @@ import {
     SaveSearchFilters,
     SearchSources,
     SetTagHidden,
+    SuggestSearches,
 } from '../../wailsjs/go/main/App';
 import {images, main, providers, search, searches, settings} from '../../wailsjs/go/models';
 import {ScreenGetAll} from '../../wailsjs/runtime/runtime';
@@ -78,6 +79,8 @@ export function SearchPanel({active}: Props) {
     // The query of the search on screen, reused by "Load more".
     const [activeQuery, setActiveQuery] = useState<providers.Query | null>(null);
     const [statuses, setStatuses] = useState<SourceStatus[]>([]);
+    // Other searches with synonyms of the words searched ("fall forest").
+    const [suggestions, setSuggestions] = useState<string[]>([]);
     const [selected, setSelected] = useState<number | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
     const [loading, setLoading] = useState<'search' | 'more' | null>(null);
@@ -185,9 +188,20 @@ export function SearchPanel({active}: Props) {
         });
         setResults([]);
         setStatuses([]);
+        setSuggestions([]);
         setSelected(null);
         setActiveQuery(query);
+        SuggestSearches(searchText)
+            .then((list) => setSuggestions(list ?? []))
+            .catch(() => {}); // the search works without suggestions
         load(sources.map((providerId) => ({providerId, page: 1})), query, false);
+    }
+
+    // searchSuggestion runs a suggested search with the current filters.
+    function searchSuggestion(suggestion: string) {
+        setText(suggestion);
+        setActiveSaved(null);
+        startSearch(suggestion, selectedSources, resolution, orientation, categories);
     }
 
     useEffect(() => {
@@ -451,6 +465,19 @@ export function SearchPanel({active}: Props) {
                             </li>
                         ))}
                     </ul>
+                )}
+                {suggestions.length > 0 && (
+                    <p className="suggestions">
+                        <span className="muted">Also try:</span>{' '}
+                        {suggestions.map((suggestion, i) => (
+                            <span key={suggestion}>
+                                {i > 0 && <span className="muted"> · </span>}
+                                <button type="button" className="link" onClick={() => searchSuggestion(suggestion)}>
+                                    {suggestion}
+                                </button>
+                            </span>
+                        ))}
+                    </p>
                 )}
                 {finished && results.length === 0 && statuses.every((s) => !s.error) && (
                     <p className="muted">No images match this search. Try other words or fewer filters.</p>

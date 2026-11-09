@@ -162,6 +162,10 @@ export function StartAgent() {
   return window['go']['main']['App']['StartAgent']();
 }
 
+export function SuggestSearches(arg1) {
+  return window['go']['main']['App']['SuggestSearches'](arg1);
+}
+
 export function TakeAboutRequest() {
   return window['go']['main']['App']['TakeAboutRequest']();
 }
