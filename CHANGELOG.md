@@ -4,7 +4,7 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [0.5.0] - Unreleased
+## [0.5.0] - 2026-11-09
 
 ### Search
 - New source, **Openverse** (off by default): paintings, prints and
