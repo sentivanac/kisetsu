@@ -16,8 +16,8 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
 ## Features
 
-- **Search** Wallhaven and, if you turn it on, Wikimedia Commons at the
-  same time. Filter by minimum size (or "my screen size"),
+- **Search** Wallhaven and, if you turn them on, Wikimedia Commons and
+  museum collections through Openverse, at the same time. Filter by minimum size (or "my screen size"),
   orientation and Wallhaven category (General, Anime, People); exclude
   words with `-word`, e.g. `mountains -snow`.
 - **Save searches** and run them again with one click.
@@ -139,8 +139,15 @@ page before publishing or sharing an image.
   collections, with unsuitable results filtered out. Commons has no
   safe-for-work rating, so the filter cannot be perfect. Most images are
   under Creative Commons licenses that require crediting the author.
+- **Openverse** (off by default): only collections whose files are large
+  enough for a wallpaper: the Rijksmuseum, Museums Victoria, the
+  National Gallery of Denmark (SMK) and the WordPress Photo Directory.
+  Every image has an open license or is in the public domain. Museums
+  include nudes in art, and the filter cannot be perfect. Without an
+  account, Openverse allows 200 searches a day per network. Kisetsu uses
+  Openverse but is not endorsed by it.
 
-Kisetsu uses the official APIs of both sources, respects their rate
+Kisetsu uses the official APIs of all sources, respects their rate
 limits, and identifies itself to them as Kisetsu with its version.
 
 ## Privacy
@@ -148,9 +155,10 @@ limits, and identifies itself to them as Kisetsu with its version.
 Kisetsu has no account, no telemetry and no server of its own.
 
 - Your searches go to the image sources you selected (Wallhaven,
-  Wikimedia Commons) — that is how they are searched.
+  Wikimedia Commons, Openverse) — that is how they are searched.
 - Thumbnails, previews and downloads are loaded from those sources'
-  servers.
+  servers (for Openverse, from the museum or photo directory that holds
+  the image).
 - Everything else stays on your computer: library, collections, saved
   searches, settings and logs. Search text is not stored unless you save
   the search (or turn on debug logging, which writes it to the log).

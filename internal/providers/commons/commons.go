@@ -293,7 +293,7 @@ func (pg page) toImage() (images.Image, bool) {
 	for _, c := range pg.Categories {
 		texts = append(texts, c.Title)
 	}
-	if looksUnsafe(texts...) {
+	if providers.LooksUnsafe(texts...) {
 		return images.Image{}, false
 	}
 

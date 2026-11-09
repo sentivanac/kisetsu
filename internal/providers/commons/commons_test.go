@@ -323,21 +323,6 @@ func TestSearchHonoursCancellation(t *testing.T) {
 	}
 }
 
-func TestLooksUnsafe(t *testing.T) {
-	unsafe := []string{"Category:Nude sculptures", "Topless woman", "NAKED-eye astronomy? no: naked", "erotic art"}
-	for _, s := range unsafe {
-		if !looksUnsafe(s) {
-			t.Errorf("looksUnsafe(%q) = false", s)
-		}
-	}
-	safe := []string{"Essex coastline", "Sussex downs", "Middlesex", "Mountains of Nepal", ""}
-	for _, s := range safe {
-		if looksUnsafe(s) {
-			t.Errorf("looksUnsafe(%q) = true", s)
-		}
-	}
-}
-
 func TestParseHTML(t *testing.T) {
 	tests := []struct {
 		in    string

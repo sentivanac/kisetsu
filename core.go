@@ -22,6 +22,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/onscreen"
 	"github.com/sentivanac/kisetsu/internal/providers"
 	"github.com/sentivanac/kisetsu/internal/providers/commons"
+	"github.com/sentivanac/kisetsu/internal/providers/openverse"
 	"github.com/sentivanac/kisetsu/internal/providers/wallhaven"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/search"
@@ -201,6 +202,7 @@ func imageSources(client *http.Client) []providers.Provider {
 	return []providers.Provider{
 		wallhaven.New(client, appinfo.UserAgent()),
 		commons.New(client, appinfo.UserAgent()),
+		openverse.New(client, appinfo.UserAgent()),
 	}
 }
 

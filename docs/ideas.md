@@ -61,13 +61,14 @@ its weight (Python, PyTorch and a model: 1 to 2 GB, minutes of work per
 library):
 
 1. **More sources**, each its own provider module:
-   - **Openverse** first: over 800 million CC and public-domain images
-     (Flickr, museums, Wikimedia and more), always with author and
-     license, usable without an API key.
-   - **Unsplash**, then Pexels and Pixabay: each needs an API key. A key
-     must never be in the repository, and these services want one key
-     per application, so the user enters their own free key in the
-     settings; without it the source stays off (as in Variety).
+   - **Openverse**, limited to the museums and the photo directory whose
+     files are large enough (ADR 0048): most of its images come from
+     Flickr at 1024 px.
+   - **Not Unsplash or Pexels:** their API terms forbid wallpaper
+     applications by name. **Not Pixabay** without approval for full API
+     access (1280 px otherwise). Checked 2026-11-06.
+   - Later, perhaps: the Met (its files are excellent, but results come
+     without sizes), NASA's image library.
 2. **Find similar**: Wallhaven's `like:<id>` search, computed by
    Wallhaven, as a button in the preview.
 3. **Synonyms and query expansion**: a small, readable word list in the

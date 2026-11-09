@@ -6,6 +6,13 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [0.5.0] - Unreleased
 
+### Search
+- New source, **Openverse** (off by default): paintings, prints and
+  photographs from the Rijksmuseum, Museums Victoria and the National
+  Gallery of Denmark, and photos from the WordPress Photo Directory, all
+  openly licensed or in the public domain. Only collections with files
+  large enough for a wallpaper are searched.
+
 ## [0.4.0] - 2026-11-06
 
 ### On the wallpaper

@@ -385,6 +385,10 @@
 .preview-full {
     opacity: 0;
     transition: opacity 0.3s ease;
+    /* Keeps the image on its own layer after the fade. Otherwise WebKit
+       redraws it when the fade ends, and the blurred placeholder under it
+       shows for a frame. */
+    will-change: opacity;
 }
 
 .preview-full.loaded {
