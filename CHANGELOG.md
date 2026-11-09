@@ -4,6 +4,14 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - Unreleased
+
+### Fixes
+- Much less memory when an image is scaled to the screen: the
+  background process used over 100 MB with a large image (several
+  hundred MB on a 4K screen), and now uses about 20 MB. Scaling is also
+  faster, and downloads and fetched images benefit too.
+
 ## [0.6.0] - 2026-11-09
 
 ### On the wallpaper
