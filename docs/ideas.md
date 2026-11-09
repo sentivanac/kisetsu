@@ -40,6 +40,23 @@ runs). Later, on the same composer: simple effects (darken, blur,
 grayscale, vignette) and the output of a command (with a timeout and a
 length limit).
 
+## 0.6.0: effects and text from a file (planned 2026-11-09)
+
+Both build on the composer of 0.4.0 (ADR 0047), off by default.
+
+1. **Effects** on the wallpaper: darken, blur, black and white,
+   vignette. They make text and desktop icons legible on bright, busy
+   images. Applied once per image, to the base the clock is drawn on.
+2. **Text from a file**: the content of one text file the user picks,
+   in a corner, redrawn when it changes (checked with the clock). Kisetsu
+   never runs a command: output of `fortune` or `df -h` comes through a
+   file the user's own cron or timer writes. Guards: only a regular file
+   owned by the user and writable only by them, a few KB, valid UTF-8,
+   control and direction characters removed, at most about 10 lines; a
+   warning that whatever is in the file will be on the desktop. A folder
+   of files, shown in turn, may follow later.
+3. Checks on real desktops where behaviour may differ, docs, release.
+
 ## Restart the agent after a crash (decided 2026-11-04: later)
 
 If the agent crashes, rotation stops until the next login or until it is
