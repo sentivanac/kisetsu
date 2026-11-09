@@ -85,3 +85,18 @@ export const clockSizes: {value: string; label: string}[] = [
     {value: 'medium', label: 'Medium'},
     {value: 'large', label: 'Large'},
 ];
+
+// Strengths of an effect on the wallpaper, in the order offered.
+export const effectLevels: {value: string; label: string}[] = [
+    {value: 'off', label: 'Off'},
+    {value: 'light', label: 'Light'},
+    {value: 'medium', label: 'Medium'},
+    {value: 'strong', label: 'Strong'},
+];
+
+// Colors of the wallpaper, in the order offered.
+export const tones: {value: string; label: string}[] = [
+    {value: 'original', label: 'Original'},
+    {value: 'black-and-white', label: 'Black and white'},
+    {value: 'sepia', label: 'Sepia'},
+];

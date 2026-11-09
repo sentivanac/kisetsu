@@ -13,7 +13,17 @@ import {
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {collectionCount} from '../lib/collections';
-import {clockSizes, clockTime, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from '../lib/rotation';
+import {
+    clockSizes,
+    clockTime,
+    corners,
+    effectLevels,
+    intervalLabel,
+    parseSourceKey,
+    relativeTime,
+    sourceKey,
+    tones,
+} from '../lib/rotation';
 
 const refreshInterval = 30_000;
 
@@ -326,9 +336,55 @@ export function WallpaperView({active}: Props) {
                     The background process redraws the clock every minute. While it is on, Kisetsu keeps showing the
                     wallpaper it set last.
                 </p>
+
+                <h3 className="wallpaper-text-heading">Effects</h3>
+                <div className="clock-options">
+                    <label>
+                        Darken
+                        <select value={state.text.darken} onChange={(e) => saveText({darken: e.target.value})}>
+                            {effectLevels.map((l) => (
+                                <option key={l.value} value={l.value}>
+                                    {l.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label>
+                        Blur
+                        <select value={state.text.blur} onChange={(e) => saveText({blur: e.target.value})}>
+                            {effectLevels.map((l) => (
+                                <option key={l.value} value={l.value}>
+                                    {l.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <label>
+                        Colors
+                        <select value={state.text.tone} onChange={(e) => saveText({tone: e.target.value})}>
+                            {tones.map((t) => (
+                                <option key={t.value} value={t.value}>
+                                    {t.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.text.vignette}
+                        onChange={(e) => saveText({vignette: e.target.checked})}
+                    />
+                    <span>Darker edges (vignette)</span>
+                </label>
                 <p className="muted small">
-                    Kisetsu draws the text on a copy of the image, cropped to your screen; the image in your library is
-                    not changed.
+                    Effects make text and desktop icons easier to read on bright or busy images.
+                </p>
+
+                <p className="muted small">
+                    Kisetsu draws the text and effects on a copy of the image, cropped to your screen; the image in
+                    your library is not changed.
                     {state.varietyRunning &&
                         ' While Variety is running, images you choose with “Set as wallpaper” go to Variety, without text.'}
                 </p>
@@ -348,7 +404,7 @@ export function WallpaperView({active}: Props) {
                     <span>Show Kisetsu in the system tray</span>
                 </label>
                 <p className="muted small">
-                    The icon’s menu changes the wallpaper, turns rotation on or off and opens this window.
+                    The icon’s menu changes the wallpaper, turns rotation on or off and opens this window or About Kisetsu.
                 </p>
                 {state.showInTray && !state.trayHost && (
                     <p className="warning" role="note">

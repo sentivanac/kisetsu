@@ -4,6 +4,13 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - Unreleased
+
+### On the wallpaper
+- **Effects**: darken, blur, black and white or sepia, and darker
+  edges (vignette), each off by default. They make the clock, the author line
+  and desktop icons easier to read on bright or busy images.
+
 ## [0.5.0] - 2026-11-09
 
 ### Search

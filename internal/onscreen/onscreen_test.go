@@ -258,6 +258,9 @@ func TestSettings(t *testing.T) {
 		func(s *Settings) { s.CreditCorner = "middle" },
 		func(s *Settings) { s.ClockCorner = "" },
 		func(s *Settings) { s.ClockSize = "huge" },
+		func(s *Settings) { s.Darken = "very" },
+		func(s *Settings) { s.Blur = "" },
+		func(s *Settings) { s.Tone = "purple" },
 	} {
 		s := DefaultSettings
 		bad(&s)
@@ -430,5 +433,76 @@ func TestIsComposed(t *testing.T) {
 		if got := isComposed(name); got != want {
 			t.Errorf("isComposed(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+func TestSettingsFromBeforeTheEffects(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	// As saved by 0.5.0: text only.
+	if err := e.store.Save(ctx, settingsKey, map[string]any{
+		"credit": true, "creditCorner": "top-left", "clock": false, "clockCorner": "bottom-right",
+		"clock12h": false, "clockDate": true, "clockSize": "medium",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadSettings(ctx, e.store)
+	if err != nil || got.Darken != LevelOff || got.Blur != LevelOff || got.Tone != ToneOriginal || got.Vignette || !got.Credit {
+		t.Errorf("loaded %+v, %v", got, err)
+	}
+}
+
+func TestEffectsAloneComposeTheImage(t *testing.T) {
+	e := newEnv(t)
+	e.save(t, func(s *Settings) { s.Tone = ToneGray })
+	if _, err := e.s.Show(context.Background(), commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	got := e.setter.paths[0]
+	if filepath.Dir(got) != e.s.Dir {
+		t.Fatalf("set %q, want a composed image", got)
+	}
+	f, err := os.Open(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	img, err := jpeg.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// writeJPEG draws colors; in black and white red, green and blue are
+	// about equal everywhere (JPEG compression aside).
+	r, g, b, _ := img.At(160, 90).RGBA()
+	if diff(r, g) > 0x600 || diff(g, b) > 0x600 {
+		t.Errorf("pixel %d %d %d is not gray", r>>8, g>>8, b>>8)
+	}
+}
+
+func diff(a, b uint32) uint32 {
+	if a > b {
+		return a - b
+	}
+	return b - a
+}
+
+func TestChangedEffectsMakeANewBase(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.s.KeepBase = true
+	e.save(t, func(s *Settings) { s.Clock = true })
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	plain := e.s.base
+	e.save(t, func(s *Settings) { s.Clock, s.Darken = true, LevelStrong })
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.base == plain {
+		t.Fatal("the base without effects was kept after darkening was turned on")
+	}
+	if a, b := plain.RGBAAt(160, 90), e.s.base.RGBAAt(160, 90); b.R >= a.R && b.G >= a.G {
+		t.Errorf("darkened base %v is not darker than %v", b, a)
 	}
 }

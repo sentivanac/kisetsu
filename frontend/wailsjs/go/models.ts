@@ -343,6 +343,10 @@ export namespace main {
 	    clock12h: boolean;
 	    clockDate: boolean;
 	    clockSize: string;
+	    darken: string;
+	    blur: string;
+	    tone: string;
+	    vignette: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new WallpaperText(source);
@@ -357,6 +361,10 @@ export namespace main {
 	        this.clock12h = source["clock12h"];
 	        this.clockDate = source["clockDate"];
 	        this.clockSize = source["clockSize"];
+	        this.darken = source["darken"];
+	        this.blur = source["blur"];
+	        this.tone = source["tone"];
+	        this.vignette = source["vignette"];
 	    }
 	}
 	export class RotationState {

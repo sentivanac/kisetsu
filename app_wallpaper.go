@@ -85,6 +85,10 @@ type WallpaperText struct {
 	Clock12h     bool   `json:"clock12h"`
 	ClockDate    bool   `json:"clockDate"`
 	ClockSize    string `json:"clockSize"`
+	Darken       string `json:"darken"`
+	Blur         string `json:"blur"`
+	Tone         string `json:"tone"`
+	Vignette     bool   `json:"vignette"`
 }
 
 func wallpaperText(s onscreen.Settings) WallpaperText {
@@ -92,6 +96,7 @@ func wallpaperText(s onscreen.Settings) WallpaperText {
 		Credit: s.Credit, CreditCorner: string(s.CreditCorner),
 		Clock: s.Clock, ClockCorner: string(s.ClockCorner), Clock12h: s.Clock12h,
 		ClockDate: s.ClockDate, ClockSize: string(s.ClockSize),
+		Darken: string(s.Darken), Blur: string(s.Blur), Tone: string(s.Tone), Vignette: s.Vignette,
 	}
 }
 
@@ -106,6 +111,7 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 		Credit: t.Credit, CreditCorner: overlay.Corner(t.CreditCorner),
 		Clock: t.Clock, ClockCorner: overlay.Corner(t.ClockCorner), Clock12h: t.Clock12h,
 		ClockDate: t.ClockDate, ClockSize: onscreen.ClockSize(t.ClockSize),
+		Darken: onscreen.Level(t.Darken), Blur: onscreen.Level(t.Blur), Tone: onscreen.Tone(t.Tone), Vignette: t.Vignette,
 	}
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These settings are not valid.", err)
@@ -130,7 +136,8 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	}
 	a.log.Info("wallpaper text settings saved", "credit", cfg.Credit, "credit_corner", cfg.CreditCorner,
 		"clock", cfg.Clock, "clock_corner", cfg.ClockCorner, "clock_12h", cfg.Clock12h,
-		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize)
+		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize,
+		"darken", cfg.Darken, "blur", cfg.Blur, "tone", cfg.Tone, "vignette", cfg.Vignette)
 	if cfg != old && (cfg.Any() || old.Any()) {
 		a.showCurrentAgain()
 	}

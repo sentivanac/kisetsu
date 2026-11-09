@@ -199,6 +199,11 @@
     border-top: 1px solid var(--border);
 }
 
+.wallpaper-text-heading {
+    margin: 1rem 0 0.25rem;
+    font-size: 0.95rem;
+}
+
 .suggestions {
     margin: 0.25rem 0 0.75rem;
 }

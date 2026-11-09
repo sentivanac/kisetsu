@@ -81,11 +81,12 @@ type Service struct {
 }
 
 // baseKey identifies a base: the same file, unchanged, for the same
-// screen.
+// screen, with the same effects.
 type baseKey struct {
 	path          string
 	modTime       int64
 	width, height int
+	effects       overlay.Effects
 }
 
 // Show sets the image of e, whose file is at path, as the wallpaper.
@@ -206,7 +207,7 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 			Size:   max(minFontSize, int(math.Round(float64(screen.Height)*creditShare))),
 		})
 	}
-	base, err := s.baseOf(path, screen.Width, screen.Height, cfg.Clock && s.KeepBase)
+	base, err := s.baseOf(path, screen.Width, screen.Height, cfg.effects(), cfg.Clock && s.KeepBase)
 	if err != nil {
 		return "", err
 	}
@@ -236,11 +237,11 @@ func (s *Service) credit(img images.Image) string {
 	return strings.Join(parts, " · ")
 }
 
-// baseOf returns the base of the image at path for the screen. With keep,
-// it is kept for the next minute; without, any kept base is dropped (it
-// takes 33 MB for a 4K screen).
-func (s *Service) baseOf(path string, w, h int, keep bool) (*image.RGBA, error) {
-	key := baseKey{path: path, modTime: modTime(path), width: w, height: h}
+// baseOf returns the base of the image at path for the screen, with the
+// effects applied. With keep, it is kept for the next minute; without, any
+// kept base is dropped (it takes 33 MB for a 4K screen).
+func (s *Service) baseOf(path string, w, h int, effects overlay.Effects, keep bool) (*image.RGBA, error) {
+	key := baseKey{path: path, modTime: modTime(path), width: w, height: h, effects: effects}
 	if keep && s.base != nil && s.baseKey == key {
 		return s.base, nil
 	}
@@ -253,6 +254,9 @@ func (s *Service) baseOf(path string, w, h int, keep bool) (*image.RGBA, error) 
 	if err != nil {
 		return nil, err
 	}
+	// Effects change the base in place; Base made a new image, so the
+	// decoded file is not changed.
+	effects.Apply(base)
 	if keep {
 		s.base, s.baseKey = base, key
 	}

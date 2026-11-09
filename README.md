@@ -107,11 +107,12 @@ the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.
 
-**On the wallpaper** (Wallpaper tab, both off by default): the image's
+**On the wallpaper** (Wallpaper tab, all off by default): the image's
 author, license and source, and a clock with the date if you like, each
-in a corner of your choice. Kisetsu draws them on a copy of the image cut
-to your screen size; the image in the library is not changed. Good to
-know:
+in a corner of your choice; and effects that make text and desktop
+icons easier to read on bright images: darken, blur, black and white or
+sepia, darker edges. Kisetsu draws them on a copy of the image cut to your
+screen size; the image in the library is not changed. Good to know:
 
 - The clock is redrawn every minute by the background process, so it
   runs while the clock is on, as for rotation. Quit in the tray menu
