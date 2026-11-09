@@ -317,48 +317,48 @@ func TestClockLines(t *testing.T) {
 	}
 }
 
-func TestClockDue(t *testing.T) {
+func TestClockRedrawDue(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	now := time.Date(2026, 11, 5, 14, 7, 30, 0, time.Local)
 	e.s.Now = func() time.Time { return now }
 
-	if e.s.ClockDue(ctx) {
+	if e.s.RedrawDue(ctx) {
 		t.Error("due while the clock is off")
 	}
 	e.save(t, func(s *Settings) { s.Clock = true })
-	if !e.s.ClockDue(ctx) {
+	if !e.s.RedrawDue(ctx) {
 		t.Error("not due before the first drawing")
 	}
 	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
 		t.Fatal(err)
 	}
-	if e.s.ClockDue(ctx) {
+	if e.s.RedrawDue(ctx) {
 		t.Error("due again within the same minute")
 	}
 	now = now.Add(20 * time.Second) // 14:07:50
-	if e.s.ClockDue(ctx) {
+	if e.s.RedrawDue(ctx) {
 		t.Error("due within the same minute")
 	}
 	now = now.Add(15 * time.Second) // 14:08:05
-	if !e.s.ClockDue(ctx) {
+	if !e.s.RedrawDue(ctx) {
 		t.Error("not due in a new minute")
 	}
 	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
 		t.Fatal(err)
 	}
 	e.save(t, func(s *Settings) { s.Clock, s.Clock12h = true, true })
-	if !e.s.ClockDue(ctx) {
+	if !e.s.RedrawDue(ctx) {
 		t.Error("not due after the format changed")
 	}
 	now = now.Add(time.Minute)
-	e.s.SkipClock(ctx)
-	if e.s.ClockDue(ctx) {
-		t.Error("due after SkipClock in the same minute")
+	e.s.SkipRedraw(ctx)
+	if e.s.RedrawDue(ctx) {
+		t.Error("due after SkipRedraw in the same minute")
 	}
 	e.setter.variety = true
 	now = now.Add(time.Minute)
-	if e.s.ClockDue(ctx) {
+	if e.s.RedrawDue(ctx) {
 		t.Error("due while Variety shows the images")
 	}
 }
@@ -504,5 +504,76 @@ func TestChangedEffectsMakeANewBase(t *testing.T) {
 	}
 	if a, b := plain.RGBAAt(160, 90), e.s.base.RGBAAt(160, 90); b.R >= a.R && b.G >= a.G {
 		t.Errorf("darkened base %v is not darker than %v", b, a)
+	}
+}
+
+func TestTextFileIsRedrawnWhenItChanges(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	note := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(note, []byte("first"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if e.s.RedrawDue(ctx) {
+		t.Error("due with the text file off")
+	}
+	e.save(t, func(s *Settings) { s.TextFile, s.TextFilePath = true, note })
+	if !e.s.RedrawDue(ctx) {
+		t.Error("not due before the text file was drawn")
+	}
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Dir(e.setter.paths[0]) != e.s.Dir {
+		t.Fatalf("set %q, want a composed image", e.setter.paths[0])
+	}
+	if e.s.RedrawDue(ctx) {
+		t.Error("due again without a change")
+	}
+	if err := os.WriteFile(note, []byte("second"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !e.s.RedrawDue(ctx) {
+		t.Error("not due after the file changed")
+	}
+	// A removed file is a change too: the wallpaper says so.
+	if _, err := e.s.Show(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(note)
+	if !e.s.RedrawDue(ctx) {
+		t.Error("not due after the file was removed")
+	}
+}
+
+func TestTextFileSettings(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	s := DefaultSettings
+	s.TextFile, s.TextFilePath = true, "notes/today.txt"
+	if err := SaveSettings(ctx, e.store, s); err == nil {
+		t.Error("a relative path was saved")
+	}
+	if !(Settings{TextFile: true}).Live() || (Settings{Credit: true}).Live() {
+		t.Error("Live() should be true for the text file and false for the credit alone")
+	}
+	if DefaultSettings.TextFileCorner != overlay.TopRight {
+		t.Errorf("default corner %q", DefaultSettings.TextFileCorner)
+	}
+}
+
+func TestShowWithoutLiveDropsTheTextFile(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	note := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(note, []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e.save(t, func(s *Settings) { s.TextFile, s.TextFilePath = true, note })
+	if _, err := e.s.ShowWithoutLive(ctx, commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	if e.setter.paths[0] != e.image {
+		t.Errorf("set %q, want the original without the text file", e.setter.paths[0])
 	}
 }

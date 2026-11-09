@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/sentivanac/kisetsu/internal/overlay"
 	"github.com/sentivanac/kisetsu/internal/settings"
@@ -80,6 +81,12 @@ type Settings struct {
 	ClockDate bool      `json:"clockDate"`
 	ClockSize ClockSize `json:"clockSize"`
 
+	// TextFile shows the content of the file at TextFilePath, redrawn by
+	// the agent when it changes (ADR 0051).
+	TextFile       bool           `json:"textFile"`
+	TextFilePath   string         `json:"textFilePath"`
+	TextFileCorner overlay.Corner `json:"textFileCorner"`
+
 	// Effects change the whole image (ADR 0050).
 	Darken   Level `json:"darken"`
 	Blur     Level `json:"blur"`
@@ -90,18 +97,25 @@ type Settings struct {
 // DefaultSettings are used until the user changes them. Settings saved
 // before the clock existed get the clock's defaults.
 var DefaultSettings = Settings{
-	CreditCorner: overlay.BottomLeft,
-	ClockCorner:  overlay.BottomRight,
-	ClockDate:    true,
-	ClockSize:    Medium,
-	Darken:       LevelOff,
-	Blur:         LevelOff,
-	Tone:         ToneOriginal,
+	CreditCorner:   overlay.BottomLeft,
+	ClockCorner:    overlay.BottomRight,
+	ClockDate:      true,
+	ClockSize:      Medium,
+	TextFileCorner: overlay.TopRight,
+	Darken:         LevelOff,
+	Blur:           LevelOff,
+	Tone:           ToneOriginal,
 }
 
 // Any reports whether anything is drawn: text or an effect.
 func (s Settings) Any() bool {
-	return s.Credit || s.Clock || !s.effects().None()
+	return s.Credit || s.Live() || !s.effects().None()
+}
+
+// Live reports whether anything is drawn that the agent keeps up to date:
+// the clock or the text file.
+func (s Settings) Live() bool {
+	return s.Clock || s.TextFile
 }
 
 // effects returns the effects to apply to the image.
@@ -121,6 +135,12 @@ func (s Settings) Validate() error {
 	}
 	if !s.ClockCorner.Valid() {
 		errs = append(errs, fmt.Errorf("unknown corner %q", s.ClockCorner))
+	}
+	if !s.TextFileCorner.Valid() {
+		errs = append(errs, fmt.Errorf("unknown corner %q", s.TextFileCorner))
+	}
+	if s.TextFile && !filepath.IsAbs(s.TextFilePath) {
+		errs = append(errs, fmt.Errorf("text file %q is not an absolute path", s.TextFilePath))
 	}
 	if _, ok := s.ClockSize.share(); !ok {
 		errs = append(errs, fmt.Errorf("unknown clock size %q", s.ClockSize))

@@ -193,7 +193,8 @@ func (a *App) SetShowInTray(show bool) (state RotationState, err error) {
 }
 
 // agentWanted reports whether the agent has anything to do: rotation, the
-// clock or the tray icon is on. Unreadable settings count as wanted.
+// clock, the text file or the tray icon is on. Unreadable settings count
+// as wanted.
 func (a *App) agentWanted() bool {
 	wanted, err := agentWanted(a.ctx, a.settings)
 	return err != nil || wanted

@@ -319,3 +319,37 @@ func BenchmarkBaseFitted(b *testing.B) {
 		}
 	}
 }
+
+func TestPreformattedLinesAlignOnTheLeft(t *testing.T) {
+	base := image.NewRGBA(image.Rect(0, 0, 800, 400))
+	out, err := Draw(base, []Block{{
+		Lines: []string{"Filesystem  Size", "tmpfs        7G"}, Corner: TopRight, Size: 20, Preformatted: true,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Both lines start at the same column: the leftmost lit pixel of each
+	// line is the same (Go Mono, same first glyph width).
+	left := func(y0, y1 int) int {
+		for x := range 800 {
+			for y := y0; y < y1; y++ {
+				if out.RGBAAt(x, y).R > 200 {
+					return x
+				}
+			}
+		}
+		return -1
+	}
+	m := int(400 * margin)
+	first, second := left(m, m+22), left(m+24, m+46)
+	if first < 0 || second < 0 || absInt(first-second) > 3 {
+		t.Errorf("lines start at %d and %d, want the same column", first, second)
+	}
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
+}

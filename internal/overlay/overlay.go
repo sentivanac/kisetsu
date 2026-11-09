@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/font/sfnt"
@@ -60,6 +61,10 @@ type Block struct {
 	Corner Corner
 	// Size is the font size in pixels.
 	Size int
+	// Preformatted text, such as a command's output, is drawn in the
+	// monospaced Go Mono, its lines aligned with each other on the left
+	// in every corner, so columns stay columns.
+	Preformatted bool
 }
 
 const (
@@ -144,6 +149,10 @@ func Draw(base *image.RGBA, blocks []Block) (*image.RGBA, error) {
 	type line struct {
 		text string
 		face font.Face
+		// block marks preformatted lines, which share blockWidth (the
+		// widest line of their block), so they align on the left.
+		block      bool
+		blockWidth int
 	}
 	stacks := map[Corner][][]line{}
 	for _, bl := range blocks {
@@ -153,14 +162,20 @@ func Draw(base *image.RGBA, blocks []Block) (*image.RGBA, error) {
 		if len(bl.Lines) == 0 {
 			continue
 		}
-		face, err := faceOf(bl.Size)
+		face, err := faceOf(bl.Size, bl.Preformatted)
 		if err != nil {
 			return nil, err
 		}
 		defer face.Close()
 		var ls []line
+		widest := 0
 		for _, t := range bl.Lines {
-			ls = append(ls, line{shorten(face, t, int(float64(w)*maxLineWidth)), face})
+			t = shorten(face, t, int(float64(w)*maxLineWidth))
+			widest = max(widest, font.MeasureString(face, t).Ceil())
+			ls = append(ls, line{text: t, face: face, block: bl.Preformatted})
+		}
+		for i := range ls {
+			ls[i].blockWidth = widest
 		}
 		stacks[bl.Corner] = append(stacks[bl.Corner], ls)
 	}
@@ -189,7 +204,10 @@ func Draw(base *image.RGBA, blocks []Block) (*image.RGBA, error) {
 			for _, l := range ls {
 				m := l.face.Metrics()
 				x := sx
-				if corner.right() {
+				switch {
+				case corner.right() && l.block:
+					x = w - sx - l.blockWidth
+				case corner.right():
 					x = w - sx - font.MeasureString(l.face, l.text).Ceil()
 				}
 				drawText(out, l.face, l.text, x, y+m.Ascent.Ceil())
@@ -243,23 +261,33 @@ func Encode(w io.Writer, img image.Image) error {
 var (
 	fontOnce sync.Once
 	goFont   *sfnt.Font
+	monoFont *sfnt.Font
 	fontErr  error
 )
 
-func parsedFont() (*sfnt.Font, error) {
-	fontOnce.Do(func() { goFont, fontErr = opentype.Parse(goregular.TTF) })
-	return goFont, fontErr
+func parsedFonts() (regular, mono *sfnt.Font, err error) {
+	fontOnce.Do(func() {
+		goFont, fontErr = opentype.Parse(goregular.TTF)
+		if fontErr == nil {
+			monoFont, fontErr = opentype.Parse(gomono.TTF)
+		}
+	})
+	return goFont, monoFont, fontErr
 }
 
-// faceOf returns the font at size pixels. A face is not safe for
-// concurrent use, so each Draw makes its own; that is cheap.
-func faceOf(size int) (font.Face, error) {
+// faceOf returns the font at size pixels, Go Mono if mono. A face is not
+// safe for concurrent use, so each Draw makes its own; that is cheap.
+func faceOf(size int, mono bool) (font.Face, error) {
 	if size < 6 || size > 1000 {
 		return nil, fmt.Errorf("invalid font size %d", size)
 	}
-	f, err := parsedFont()
+	regular, monospaced, err := parsedFonts()
 	if err != nil {
 		return nil, err
+	}
+	f := regular
+	if mono {
+		f = monospaced
 	}
 	// At 72 DPI, points are pixels.
 	return opentype.NewFace(f, &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: font.HintingFull})
@@ -269,7 +297,8 @@ func faceOf(size int) (font.Face, error) {
 // so it is drawn without empty boxes (it has none for Chinese or Japanese,
 // for example).
 func Drawable(s string) bool {
-	f, err := parsedFont()
+	// Go Mono covers the same characters as Go Regular.
+	f, _, err := parsedFonts()
 	if err != nil {
 		return false
 	}

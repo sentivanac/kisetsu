@@ -343,6 +343,9 @@ export namespace main {
 	    clock12h: boolean;
 	    clockDate: boolean;
 	    clockSize: string;
+	    textFile: boolean;
+	    textFilePath: string;
+	    textFileCorner: string;
 	    darken: string;
 	    blur: string;
 	    tone: string;
@@ -361,6 +364,9 @@ export namespace main {
 	        this.clock12h = source["clock12h"];
 	        this.clockDate = source["clockDate"];
 	        this.clockSize = source["clockSize"];
+	        this.textFile = source["textFile"];
+	        this.textFilePath = source["textFilePath"];
+	        this.textFileCorner = source["textFileCorner"];
 	        this.darken = source["darken"];
 	        this.blur = source["blur"];
 	        this.tone = source["tone"];

@@ -194,7 +194,7 @@ func newAgent(c *core, r *rotation.Rotator, screen *onscreen.Service) *agent.Age
 }
 
 // agentWanted reports whether the agent has anything to do: rotation, the
-// clock or the tray icon is on.
+// clock, the text file or the tray icon is on.
 func agentWanted(ctx context.Context, store *settings.Store) (bool, error) {
 	cfg, err := rotation.LoadSettings(ctx, store)
 	if err != nil {
@@ -205,14 +205,14 @@ func agentWanted(ctx context.Context, store *settings.Store) (bool, error) {
 		return true, err
 	}
 	prefs, err := agent.LoadPrefs(ctx, store)
-	return cfg.Enabled || text.Clock || prefs.ShowInTray, err
+	return cfg.Enabled || text.Live() || prefs.ShowInTray, err
 }
 
-// refreshClock shows the current wallpaper again when the clock's text
-// changed. A wallpaper change in progress is left alone: it draws the
-// clock as well.
+// refreshClock shows the current wallpaper again when the clock's text or
+// the text file changed. A wallpaper change in progress is left alone: it
+// draws them as well.
 func refreshClock(ctx context.Context, c *core, screen *onscreen.Service, history *rotation.History, lock func() (func(), error)) {
-	if !screen.ClockDue(ctx) {
+	if !screen.RedrawDue(ctx) {
 		return
 	}
 	unlock, err := lock()
@@ -226,7 +226,7 @@ func refreshClock(ctx context.Context, c *core, screen *onscreen.Service, histor
 	e, path, ok, err := currentWallpaper(ctx, history, c.lib, c.files)
 	if err != nil || !ok {
 		// Tried again at the next minute, not every few seconds.
-		screen.SkipClock(ctx)
+		screen.SkipRedraw(ctx)
 		if err != nil {
 			c.log.Warn("clock not redrawn", "err", err)
 		}
@@ -241,15 +241,16 @@ func refreshClock(ctx context.Context, c *core, screen *onscreen.Service, histor
 // (which holds the rotation lock) is waited for, briefly.
 const removeClockTimeout = 15 * time.Second
 
-// removeClock shows the current wallpaper again without the clock, with
-// the author and license if they are on. It does nothing when the clock is
-// off, when Variety sets the wallpaper (Kisetsu drew no clock), or when
-// Kisetsu never set a wallpaper.
+// removeClock shows the current wallpaper again without the clock and the
+// text file, which nothing updates once the agent ends, with the author,
+// license and effects if they are on. It does nothing when both are off,
+// when Variety sets the wallpaper (Kisetsu drew neither), or when Kisetsu
+// never set a wallpaper.
 func removeClock(c *core, screen *onscreen.Service, history *rotation.History, lock func() (func(), error)) {
 	ctx, cancel := context.WithTimeout(context.Background(), removeClockTimeout)
 	defer cancel()
 	cfg, err := onscreen.LoadSettings(ctx, screen.Settings)
-	if err != nil || !cfg.Clock || screen.Setter.ViaVariety() {
+	if err != nil || !cfg.Live() || screen.Setter.ViaVariety() {
 		return
 	}
 	var unlock func()
@@ -277,7 +278,7 @@ func removeClock(c *core, screen *onscreen.Service, history *rotation.History, l
 		}
 		return
 	}
-	if _, err := screen.ShowWithoutClock(ctx, e, path); err != nil {
+	if _, err := screen.ShowWithoutLive(ctx, e, path); err != nil {
 		c.log.Warn("clock not removed", "entry", e.ID, "err", err)
 		return
 	}

@@ -108,8 +108,8 @@ the **^** arrow). Plain GNOME shows tray icons only with the extension
 default.
 
 **On the wallpaper** (Wallpaper tab, all off by default): the image's
-author, license and source, and a clock with the date if you like, each
-in a corner of your choice; and effects that make text and desktop
+author, license and source, a clock with the date if you like, and the
+text of a file you choose, each in a corner of your choice; and effects that make text and desktop
 icons easier to read on bright images: darken, blur, black and white or
 sepia, darker edges. Kisetsu draws them on a copy of the image cut to your
 screen size; the image in the library is not changed. Good to know:
@@ -120,6 +120,13 @@ screen size; the image in the library is not changed. Good to know:
 - While the clock is on, Kisetsu keeps showing the wallpaper it set
   last: a wallpaper chosen in the desktop's own settings is replaced at
   the next minute. Turn the clock off to use one of your own.
+- **Text from a file** shows up to 10 lines and follows the file within a
+  couple of seconds. Kisetsu never runs commands: to show the output of
+  one, let your own scheduled task write it to the file, for example
+  `df -h > ~/.cache/disk.txt`. Whatever is in the file is on your
+  desktop, also in screenshots and screen sharing. On Linux the file
+  must be yours and writable only by you; otherwise the wallpaper says
+  so instead of showing it.
 - KDE Plasma and Cinnamon fade briefly to each new minute.
 - The text is placed for your largest screen; on a screen of a
   different shape it may sit closer to the edge.

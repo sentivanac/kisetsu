@@ -199,6 +199,15 @@
     border-top: 1px solid var(--border);
 }
 
+.text-file-path {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.text-file-path code {
+    word-break: break-all;
+}
+
 .wallpaper-text-heading {
     margin: 1rem 0 0.25rem;
     font-size: 0.95rem;

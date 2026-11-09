@@ -13,6 +13,8 @@ export function CancelDownload(arg1:string):Promise<void>;
 
 export function CancelSearch():Promise<void>;
 
+export function ChooseTextFile():Promise<string>;
+
 export function CreateCollection(arg1:string):Promise<main.CollectionInfo>;
 
 export function DeleteCollection(arg1:number):Promise<void>;

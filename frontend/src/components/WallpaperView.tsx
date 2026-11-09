@@ -6,6 +6,7 @@ import {
     NextWallpaper,
     RepairAgent,
     SaveRotation,
+    ChooseTextFile,
     SaveWallpaperText,
     SetShowInTray,
     StartAgent,
@@ -86,6 +87,15 @@ export function WallpaperView({active}: Props) {
         if (!state) return;
         const next = new main.WallpaperText({...state.text, ...change});
         apply(() => SaveWallpaperText(next), 'save');
+    }
+
+    // chooseTextFile asks for the file and turns the text on with it.
+    function chooseTextFile() {
+        ChooseTextFile()
+            .then((path) => {
+                if (path) saveText({textFilePath: path, textFile: true});
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
     }
 
     if (!state) {
@@ -335,6 +345,44 @@ export function WallpaperView({active}: Props) {
                 <p className="muted small">
                     The background process redraws the clock every minute. While it is on, Kisetsu keeps showing the
                     wallpaper it set last.
+                </p>
+
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        checked={state.text.textFile}
+                        disabled={!state.text.textFilePath}
+                        onChange={(e) => saveText({textFile: e.target.checked})}
+                    />
+                    <span>Show text from a file</span>
+                </label>
+                <div className="clock-options">
+                    <p className="text-file-path">
+                        {state.text.textFilePath ? <code>{state.text.textFilePath}</code> : 'No file chosen.'}{' '}
+                        <button type="button" className="btn secondary" onClick={chooseTextFile}>
+                            Choose file…
+                        </button>
+                    </p>
+                    <label>
+                        Corner
+                        <select
+                            value={state.text.textFileCorner}
+                            onChange={(e) => saveText({textFileCorner: e.target.value})}
+                            disabled={!state.text.textFile}
+                        >
+                            {corners.map((c) => (
+                                <option key={c.value} value={c.value}>
+                                    {c.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+                <p className="muted small">
+                    Up to 10 lines of the file, updated when it changes. Whatever is in it will be on your desktop,
+                    also in screenshots and screen sharing: do not choose a file with passwords or private notes.
+                    Kisetsu never runs commands; to show the output of one (for example <code>df -h</code>), let
+                    your own scheduled task write it to the file. The file must be yours and writable only by you.
                 </p>
 
                 <h3 className="wallpaper-text-heading">Effects</h3>

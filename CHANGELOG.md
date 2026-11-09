@@ -8,8 +8,12 @@ follow [Semantic Versioning](https://semver.org/).
 
 ### On the wallpaper
 - **Effects**: darken, blur, black and white or sepia, and darker
-  edges (vignette), each off by default. They make the clock, the author line
-  and desktop icons easier to read on bright or busy images.
+  edges (vignette), each off by default. They make the clock, the author
+  line and desktop icons easier to read on bright or busy images.
+- **Text from a file**: up to 10 lines of a text file you choose, in a
+  corner of the wallpaper, updated when the file changes (off by
+  default). Kisetsu never runs commands; to show the output of one, let
+  your own scheduled task write it to the file.
 
 ## [0.5.0] - 2026-11-09
 

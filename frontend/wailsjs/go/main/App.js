@@ -14,6 +14,10 @@ export function CancelSearch() {
   return window['go']['main']['App']['CancelSearch']();
 }
 
+export function ChooseTextFile() {
+  return window['go']['main']['App']['ChooseTextFile']();
+}
+
 export function CreateCollection(arg1) {
   return window['go']['main']['App']['CreateCollection'](arg1);
 }

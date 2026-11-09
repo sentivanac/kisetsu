@@ -36,7 +36,7 @@ func TestRefreshClock(t *testing.T) {
 	if fake.path != "" {
 		t.Fatalf("set %q before Kisetsu set any wallpaper", fake.path)
 	}
-	if screen.ClockDue(ctx) {
+	if screen.RedrawDue(ctx) {
 		t.Error("tried again within the same minute")
 	}
 
@@ -161,5 +161,19 @@ func writeJPEG(t *testing.T, path string) {
 	defer f.Close()
 	if err := jpeg.Encode(f, img, nil); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAgentWantedForTheTextFile(t *testing.T) {
+	c, _, _ := testCore(t, 0)
+	ctx := context.Background()
+	store := settings.NewStore(c.db)
+	cfg := onscreen.DefaultSettings
+	cfg.TextFile, cfg.TextFilePath = true, filepath.Join(t.TempDir(), "note.txt")
+	if err := onscreen.SaveSettings(ctx, store, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if wanted, _ := agentWanted(ctx, store); !wanted {
+		t.Error("not wanted with the text file on")
 	}
 }

@@ -51,6 +51,8 @@ const (
 	// creditShare is the credit's font size as a share of the screen
 	// height (20 px on a 1080 px screen).
 	creditShare = 0.019
+	// textFileShare is the text file's font size (24 px at 1080 px).
+	textFileShare = 0.022
 	// dateShare is the date's font size as a share of the time's.
 	dateShare = 0.32
 	// minFontSize keeps small screens legible.
@@ -67,17 +69,17 @@ type Service struct {
 	ProviderName func(id string) string
 	Log          *slog.Logger
 	Now          func() time.Time // nil means time.Now
-	// KeepBase keeps the base of the current image while the clock is on,
-	// so a new minute only draws the text (ADR 0047). The agent sets it;
-	// the window, which does not redraw the clock, does not.
+	// KeepBase keeps the base of the current image while the clock or the
+	// text file is on, so a redraw only draws the text (ADR 0047). The
+	// agent sets it; the window, which does not redraw, does not.
 	KeepBase bool
 
 	mu      sync.Mutex
 	base    *image.RGBA
 	baseKey baseKey
-	// shownClock is the clock text last drawn, or tried; ClockDue
-	// compares it with the current one.
-	shownClock string
+	// shownLive is the live text (clock and text file) last drawn, or
+	// tried; RedrawDue compares it with the current one.
+	shownLive string
 }
 
 // baseKey identifies a base: the same file, unchanged, for the same
@@ -94,21 +96,22 @@ func (s *Service) Show(ctx context.Context, e library.Entry, path string) (wallp
 	return s.show(ctx, e, path, false)
 }
 
-// ShowWithoutClock sets the image as Show does, but without the clock: the
-// agent shows it when it quits, so no stale time stays on the desktop. The
-// author and license stay if they are turned on.
-func (s *Service) ShowWithoutClock(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error) {
+// ShowWithoutLive sets the image as Show does, but without what the agent
+// keeps up to date (the clock and the text file): the agent shows it when
+// it quits, so no stale time or text stays on the desktop. The author,
+// license and effects stay if they are turned on.
+func (s *Service) ShowWithoutLive(ctx context.Context, e library.Entry, path string) (wallpaper.Method, error) {
 	return s.show(ctx, e, path, true)
 }
 
-func (s *Service) show(ctx context.Context, e library.Entry, path string, withoutClock bool) (wallpaper.Method, error) {
+func (s *Service) show(ctx context.Context, e library.Entry, path string, withoutLive bool) (wallpaper.Method, error) {
 	cfg, err := LoadSettings(ctx, s.Settings)
 	if err != nil {
 		s.Log.Warn("wallpaper text settings unreadable; showing the image without text", "err", err)
 		cfg = DefaultSettings
 	}
-	if withoutClock {
-		cfg.Clock = false
+	if withoutLive {
+		cfg.Clock, cfg.TextFile = false, false
 	}
 	if !cfg.Any() || s.Setter.ViaVariety() {
 		return s.Setter.Set(ctx, path)
@@ -123,31 +126,62 @@ func (s *Service) show(ctx context.Context, e library.Entry, path string, withou
 	return s.Setter.Set(ctx, composed)
 }
 
-// ClockDue reports whether the clock is on and its text differs from the
-// one last drawn: a new minute, a new day, or a changed format. It is
-// cheap, so the agent asks every few seconds; asking rather than timing
+// RedrawDue reports whether the clock or the text file is on and what
+// they show differs from what was last drawn: a new minute, a new day, a
+// changed format or a changed file. It is cheap (the file is at most a
+// few KB), so the agent asks every few seconds; asking rather than timing
 // keeps the clock right after a suspend or a change of the system clock.
-func (s *Service) ClockDue(ctx context.Context) bool {
+func (s *Service) RedrawDue(ctx context.Context) bool {
 	cfg, err := LoadSettings(ctx, s.Settings)
-	if err != nil || !cfg.Clock || s.Setter.ViaVariety() {
+	if err != nil || !cfg.Live() || s.Setter.ViaVariety() {
 		return false
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return clockText(s.now(), cfg) != s.shownClock
+	return s.live(cfg).key != s.shownLive
 }
 
-// SkipClock records the current clock text as shown without drawing it,
-// when there is no wallpaper to draw it on, so ClockDue waits for the
-// next minute.
-func (s *Service) SkipClock(ctx context.Context) {
+// SkipRedraw records the current live text as shown without drawing it,
+// when there is no wallpaper to draw it on, so RedrawDue waits for a
+// change.
+func (s *Service) SkipRedraw(ctx context.Context) {
 	cfg, err := LoadSettings(ctx, s.Settings)
 	if err != nil {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.shownClock = clockText(s.now(), cfg)
+	s.shownLive = s.live(cfg).key
+}
+
+// liveText is what the agent keeps up to date.
+type liveText struct {
+	clock []string // the time and the date; nil when the clock is off
+	file  []string // the text file's lines, or why they are not shown
+	// fileErr is a problem reading the file other than the expected ones
+	// (it is logged when drawn).
+	fileErr error
+	key     string // compared by RedrawDue
+}
+
+func (s *Service) live(cfg Settings) liveText {
+	var t liveText
+	if cfg.Clock {
+		t.clock = clockLines(s.now(), cfg)
+	}
+	if cfg.TextFile {
+		lines, err := readTextFile(cfg.TextFilePath)
+		var p *textFileProblem
+		switch {
+		case errors.As(err, &p):
+			lines = []string{p.msg}
+		case err != nil:
+			lines, t.fileErr = []string{"The text file could not be read"}, err
+		}
+		t.file = lines
+	}
+	t.key = strings.Join(t.clock, "\n") + "\x00" + strings.Join(t.file, "\n")
+	return t
 }
 
 func (s *Service) now() time.Time {
@@ -172,10 +206,6 @@ func clockLines(t time.Time, cfg Settings) []string {
 	return lines
 }
 
-func clockText(t time.Time, cfg Settings) string {
-	return strings.Join(clockLines(t, cfg), "\n")
-}
-
 // compose draws the text on the image and returns the composed file. The
 // caller holds s.mu.
 func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg Settings) (string, error) {
@@ -184,21 +214,35 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 		return "", err
 	}
 	var blocks []overlay.Block
+	live := s.live(cfg)
+	// Recorded before drawing, so a failure is not retried every few
+	// seconds, only when the text changes.
+	s.shownLive = live.key
 	if cfg.Clock {
-		now := s.now()
-		// Recorded before drawing, so a failure is not retried every few
-		// seconds, only at the next minute.
-		s.shownClock = clockText(now, cfg)
 		share, _ := cfg.ClockSize.share()
 		size := max(minFontSize, int(math.Round(float64(screen.Height)*share)))
-		lines := clockLines(now, cfg)
-		blocks = append(blocks, overlay.Block{Lines: lines[:1], Corner: cfg.ClockCorner, Size: size})
-		if len(lines) > 1 {
+		blocks = append(blocks, overlay.Block{Lines: live.clock[:1], Corner: cfg.ClockCorner, Size: size})
+		if len(live.clock) > 1 {
 			blocks = append(blocks, overlay.Block{
-				Lines: lines[1:], Corner: cfg.ClockCorner,
+				Lines: live.clock[1:], Corner: cfg.ClockCorner,
 				Size: max(minFontSize, int(math.Round(float64(size)*dateShare))),
 			})
 		}
+	}
+	if cfg.TextFile {
+		if live.fileErr != nil {
+			s.Log.Warn("text file not read", "path", cfg.TextFilePath, "err", live.fileErr)
+		}
+		lines := make([]string, len(live.file))
+		for i, l := range live.file {
+			lines[i] = drawableText(l)
+		}
+		blocks = append(blocks, overlay.Block{
+			Lines:        lines,
+			Corner:       cfg.TextFileCorner,
+			Size:         max(minFontSize, int(math.Round(float64(screen.Height)*textFileShare))),
+			Preformatted: true,
+		})
 	}
 	if cfg.Credit {
 		blocks = append(blocks, overlay.Block{
@@ -207,7 +251,7 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 			Size:   max(minFontSize, int(math.Round(float64(screen.Height)*creditShare))),
 		})
 	}
-	base, err := s.baseOf(path, screen.Width, screen.Height, cfg.effects(), cfg.Clock && s.KeepBase)
+	base, err := s.baseOf(path, screen.Width, screen.Height, cfg.effects(), cfg.Live() && s.KeepBase)
 	if err != nil {
 		return "", err
 	}
@@ -216,6 +260,23 @@ func (s *Service) compose(ctx context.Context, e library.Entry, path string, cfg
 		return "", err
 	}
 	return s.write(out)
+}
+
+// drawableText replaces the characters the font cannot draw with "?", so
+// none shows as an empty box.
+func drawableText(s string) string {
+	if overlay.Drawable(s) {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if overlay.Drawable(string(r)) {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('?')
+		}
+	}
+	return b.String()
 }
 
 // credit is the author, the license and the source, such as

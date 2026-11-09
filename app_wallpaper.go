@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
 	"github.com/sentivanac/kisetsu/internal/apperr"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/onscreen"
@@ -78,17 +80,20 @@ func (a *App) SetWallpaper(imageID int64) (result WallpaperResult, err error) {
 // WallpaperText mirrors onscreen.Settings for the frontend: the text drawn
 // on the wallpaper (ADR 0047).
 type WallpaperText struct {
-	Credit       bool   `json:"credit"`
-	CreditCorner string `json:"creditCorner"`
-	Clock        bool   `json:"clock"`
-	ClockCorner  string `json:"clockCorner"`
-	Clock12h     bool   `json:"clock12h"`
-	ClockDate    bool   `json:"clockDate"`
-	ClockSize    string `json:"clockSize"`
-	Darken       string `json:"darken"`
-	Blur         string `json:"blur"`
-	Tone         string `json:"tone"`
-	Vignette     bool   `json:"vignette"`
+	Credit         bool   `json:"credit"`
+	CreditCorner   string `json:"creditCorner"`
+	Clock          bool   `json:"clock"`
+	ClockCorner    string `json:"clockCorner"`
+	Clock12h       bool   `json:"clock12h"`
+	ClockDate      bool   `json:"clockDate"`
+	ClockSize      string `json:"clockSize"`
+	TextFile       bool   `json:"textFile"`
+	TextFilePath   string `json:"textFilePath"`
+	TextFileCorner string `json:"textFileCorner"`
+	Darken         string `json:"darken"`
+	Blur           string `json:"blur"`
+	Tone           string `json:"tone"`
+	Vignette       bool   `json:"vignette"`
 }
 
 func wallpaperText(s onscreen.Settings) WallpaperText {
@@ -96,6 +101,7 @@ func wallpaperText(s onscreen.Settings) WallpaperText {
 		Credit: s.Credit, CreditCorner: string(s.CreditCorner),
 		Clock: s.Clock, ClockCorner: string(s.ClockCorner), Clock12h: s.Clock12h,
 		ClockDate: s.ClockDate, ClockSize: string(s.ClockSize),
+		TextFile: s.TextFile, TextFilePath: s.TextFilePath, TextFileCorner: string(s.TextFileCorner),
 		Darken: string(s.Darken), Blur: string(s.Blur), Tone: string(s.Tone), Vignette: s.Vignette,
 	}
 }
@@ -111,6 +117,7 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 		Credit: t.Credit, CreditCorner: overlay.Corner(t.CreditCorner),
 		Clock: t.Clock, ClockCorner: overlay.Corner(t.ClockCorner), Clock12h: t.Clock12h,
 		ClockDate: t.ClockDate, ClockSize: onscreen.ClockSize(t.ClockSize),
+		TextFile: t.TextFile, TextFilePath: t.TextFilePath, TextFileCorner: overlay.Corner(t.TextFileCorner),
 		Darken: onscreen.Level(t.Darken), Blur: onscreen.Level(t.Blur), Tone: onscreen.Tone(t.Tone), Vignette: t.Vignette,
 	}
 	if err := cfg.Validate(); err != nil {
@@ -123,10 +130,11 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	if err := onscreen.SaveSettings(a.ctx, a.settings, cfg); err != nil {
 		return RotationState{}, apperr.New(apperr.Unavailable, "The setting could not be saved.", err)
 	}
-	if cfg.Clock != old.Clock {
+	// The clock and the text file need the agent, which redraws them.
+	if cfg.Live() != old.Live() {
 		if err := a.updateAgent(); err != nil {
-			if cfg.Clock {
-				cfg.Clock = false
+			if cfg.Live() {
+				cfg.Clock, cfg.TextFile = false, false
 				if saveErr := onscreen.SaveSettings(a.ctx, a.settings, cfg); saveErr != nil {
 					a.log.Warn("wallpaper text settings not saved", "err", saveErr)
 				}
@@ -137,11 +145,30 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 	a.log.Info("wallpaper text settings saved", "credit", cfg.Credit, "credit_corner", cfg.CreditCorner,
 		"clock", cfg.Clock, "clock_corner", cfg.ClockCorner, "clock_12h", cfg.Clock12h,
 		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize,
+		"text_file", cfg.TextFile, "text_file_corner", cfg.TextFileCorner,
 		"darken", cfg.Darken, "blur", cfg.Blur, "tone", cfg.Tone, "vignette", cfg.Vignette)
 	if cfg != old && (cfg.Any() || old.Any()) {
 		a.showCurrentAgain()
 	}
 	return a.GetRotation()
+}
+
+// ChooseTextFile asks for the text file to show on the wallpaper, in the
+// system's file dialog. It returns the chosen path, or "" when the dialog
+// was closed.
+func (a *App) ChooseTextFile() (path string, err error) {
+	defer a.recoverPanic("ChooseTextFile", &err)
+	path, err = runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Choose a text file to show on the wallpaper",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Text files (*.txt)", Pattern: "*.txt"},
+			{DisplayName: "All files", Pattern: "*"},
+		},
+	})
+	if err != nil {
+		return "", apperr.New(apperr.Unavailable, "The file dialog could not be opened.", err)
+	}
+	return path, nil
 }
 
 // showCurrentAgain shows the wallpaper Kisetsu set last again, so a change
