@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	_ "image/png" // registers the PNG decoder
 	"io"
@@ -184,10 +183,10 @@ func Resize(img image.Image, w, h int) *image.RGBA {
 // resize scales img to w×h. Transparent areas become black, the background
 // of the app, because JPEG has no alpha channel.
 func resize(img image.Image, w, h int) *image.RGBA {
-	// Catmull-Rom over a 20 MP original takes seconds, so the image is
-	// first halved while it stays at least twice the target size. Halving
+	// Catmull-Rom over a 20 MP original takes long, so the image is first
+	// halved while it stays at least twice the target size. Halving
 	// averages 2×2 pixels, which is a good downscaling filter; the final
-	// step still uses Catmull-Rom.
+	// step uses Catmull-Rom (resample.go).
 	src := img
 	for sb := src.Bounds(); sb.Dx()/2 >= 2*w && sb.Dy()/2 >= 2*h; sb = src.Bounds() {
 		// RGBA destinations use the fast paths of x/image/draw, including
@@ -197,10 +196,7 @@ func resize(img image.Image, w, h int) *image.RGBA {
 		src = half
 	}
 
-	dst := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.Black), image.Point{}, draw.Src)
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Over, nil)
-	return dst
+	return resample(src, w, h)
 }
 
 // DHash computes a 64-bit difference hash: the image is reduced to 9×8

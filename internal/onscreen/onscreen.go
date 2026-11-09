@@ -17,6 +17,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -71,6 +72,10 @@ type Service struct {
 	// text file is on, so a redraw only draws the text (ADR 0047). The
 	// agent sets it; the window, which does not redraw, does not.
 	KeepBase bool
+	// ReleaseMemory returns memory to the system after each composed
+	// image. The agent sets it: it runs all session, and between redraws
+	// it needs only the kept base (ADR 0052).
+	ReleaseMemory bool
 
 	mu      sync.Mutex
 	base    *image.RGBA
@@ -117,6 +122,11 @@ func (s *Service) show(ctx context.Context, e library.Entry, path string, withou
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	composed, err := s.compose(ctx, e, path, cfg)
+	if s.ReleaseMemory {
+		// The decoded file, the scaled copies and the drawn image are
+		// garbage now; without this, Go keeps their memory for minutes.
+		debug.FreeOSMemory()
+	}
 	if err != nil {
 		s.Log.Warn("text not drawn on the wallpaper; showing the image without it", "entry", e.ID, "err", err)
 		return s.Setter.Set(ctx, path)

@@ -127,6 +127,7 @@ On an Intel i7-10510U (a 2019 laptop CPU), for a 4K screen:
 | JPEG encoding                          | every minute (clock)    | 300 ms  |
 
 A 1920×1080 screen has a quarter of the pixels.
+Scaling became faster and much leaner in 0.6.1 (ADR 0052).
 
 ## Verification
 

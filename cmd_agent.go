@@ -69,7 +69,8 @@ func runAgent(args []string) int {
 	defer dl.Close()
 
 	screen := c.rotationScreen()
-	screen.KeepBase = true // it redraws the clock every minute
+	screen.KeepBase = true      // it redraws the clock every minute
+	screen.ReleaseMemory = true // it runs all session
 	a := newAgent(c, c.rotator(c.fetcher(searcher, dl), screen), screen)
 	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
 		c.log.Info("rotation, the clock and the tray icon are off; agent not started")
