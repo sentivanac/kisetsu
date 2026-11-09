@@ -4,16 +4,17 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [0.6.0] - Unreleased
+## [0.6.0] - 2026-11-09
 
 ### On the wallpaper
 - **Effects**: darken, blur, black and white or sepia, and darker
   edges (vignette), each off by default. They make the clock, the author
   line and desktop icons easier to read on bright or busy images.
 - **Text from a file**: up to 10 lines of a text file you choose, in a
-  corner of the wallpaper and in three sizes, updated when the file changes (off by
-  default). Kisetsu never runs commands; to show the output of one, let
-  your own scheduled task write it to the file.
+  corner of the wallpaper and in three sizes, updated when the file
+  changes (off by default). Kisetsu never runs commands; to show the
+  output of one, let your own scheduled task write it to the file.
+- Tested on Linux and in a Windows 10 virtual machine.
 
 ## [0.5.0] - 2026-11-09
 

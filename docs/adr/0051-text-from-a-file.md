@@ -15,8 +15,8 @@ user's own cron job or timer) stays outside Kisetsu.
 ## Decision
 
 One text file the user chooses in the Wallpaper tab ("Show text from a
-file", "Choose file…", a corner and a size; off by default) is drawn on the
-wallpaper and redrawn when it changes.
+file", "Choose file…", a corner and a size; off by default) is drawn on
+the wallpaper and redrawn when it changes.
 
 ### Guards
 
@@ -40,8 +40,8 @@ showing nothing, so the user knows what to fix.
 
 - Go Mono (from `golang.org/x/image`, like Go Regular), in three sizes:
   1.7, 2.2 or 3 % of the screen height (18, 24 or 32 px at 1080 px;
-  medium by default), the lines aligned with each other on
-  the left in every corner: a command's columns stay columns.
+  medium by default), the lines aligned with each other on the left in
+  every corner: a command's columns stay columns.
 - The clock and the file are the "live" text the agent keeps up to date.
   Every 2 seconds it compares what they show with what it drew last
   (`RedrawDue`, formerly `ClockDue`) and redraws when they differ; reading
@@ -50,6 +50,19 @@ showing nothing, so the user knows what to fix.
 - The agent runs while the file is on, as for the clock. Quit in the
   tray menu shows the wallpaper without the clock and without the file,
   which nothing would update any more.
+
+## Verification
+
+Unit tests for every guard (a FIFO does not block, files others can
+write, a missing file, a directory, binary content, a symlink, the line
+and size limits, escape and direction characters), for redrawing when
+the file changes or disappears, for the agent being wanted, and for the
+block alignment. In the window on Linux: choosing the file in the
+dialog, `df -h` output with color codes (cleaned, columns aligned), a
+change shown about 3 seconds later, the three sizes, and a file made
+writable by everyone (the message instead of the content). On Windows 10
+(the release candidate in the VM): the file dialog, the sizes, updates,
+and Quit in the tray removing the text.
 
 ## Limitations
 
