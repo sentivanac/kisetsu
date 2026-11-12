@@ -48,7 +48,9 @@ function App() {
         return EventsOn('about:show', () => setShowAbout(true));
     }, []);
 
-    const sourceName = (id: string) => sources.find((p) => p.id === id)?.name ?? id;
+    // Images from the user's own folders have no search source (ADR 0053).
+    const sourceName = (id: string) =>
+        id === 'folder' ? 'Local folder' : (sources.find((p) => p.id === id)?.name ?? id);
 
     // Arrow keys move between tabs, as in the WAI-ARIA tabs pattern.
     function onTabKey(event: KeyboardEvent) {

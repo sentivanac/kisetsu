@@ -35,3 +35,22 @@ export function fetchedStatsLabel(stats: {images: number; bytes: number; maxByte
     const used = formatFileSize(stats.bytes) || '0 B';
     return `${count} · ${used} of ${formatFileSize(stats.maxBytes)}`;
 }
+
+// folderSyncLabel says what reading a folder found, such as
+// "312 images. 3 new, 1 gone since last time."
+export function folderSyncLabel(r: {
+    folder: {images: number};
+    added: number;
+    updated: number;
+    removed: number;
+    skipped: number;
+}): string {
+    const parts = [`${r.folder.images} ${r.folder.images === 1 ? 'image' : 'images'}.`];
+    const changes: string[] = [];
+    if (r.added) changes.push(`${r.added} new`);
+    if (r.updated) changes.push(`${r.updated} changed`);
+    if (r.removed) changes.push(`${r.removed} gone`);
+    if (changes.length) parts.push(`${changes.join(', ')} since last time.`);
+    if (r.skipped) parts.push(`${r.skipped} ${r.skipped === 1 ? 'file' : 'files'} could not be read.`);
+    return parts.join(' ');
+}

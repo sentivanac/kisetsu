@@ -260,3 +260,46 @@ func TestThumbnails(t *testing.T) {
 		}
 	}
 }
+
+func TestCheck(t *testing.T) {
+	root := t.TempDir()
+	own := filepath.Join(root, "share", "kisetsu")
+	os.MkdirAll(filepath.Join(own, "images"), 0o755)
+	pics := filepath.Join(root, "Pictures")
+	os.MkdirAll(pics, 0o755)
+	os.WriteFile(filepath.Join(root, "file.jpg"), []byte("x"), 0o644)
+
+	if got, err := Check(pics+string(filepath.Separator), []string{own}); err != nil || got != pics {
+		t.Errorf("Pictures: %q, %v", got, err)
+	}
+	if _, err := Check(filepath.Join(own, "images"), []string{own}); !errors.Is(err, ErrOwnDirectory) {
+		t.Errorf("Kisetsu's own images: %v", err)
+	}
+	if _, err := Check(own, []string{own}); !errors.Is(err, ErrOwnDirectory) {
+		t.Errorf("Kisetsu's own directory: %v", err)
+	}
+	// A folder that merely contains Kisetsu's directory is allowed; Sync
+	// skips the directory.
+	if _, err := Check(root, []string{own}); err != nil {
+		t.Errorf("a parent of Kisetsu's directory: %v", err)
+	}
+	for _, bad := range []string{"Pictures", filepath.Join(root, "file.jpg"), filepath.Join(root, "gone")} {
+		if _, err := Check(bad, []string{own}); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+func TestSyncSkipsKisetsusOwnDirectory(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	home := t.TempDir()
+	writeImage(t, filepath.Join(home, "mine.jpg"), 40, 30, false)
+	own := filepath.Join(home, "AppData", "Kisetsu")
+	writeImage(t, filepath.Join(own, "images", "w", "x.jpg"), 40, 30, false)
+	f, _ := s.AddFolder(ctx, home)
+	res, err := Sync(ctx, s, f, own)
+	if err != nil || res.Added != 1 {
+		t.Errorf("sync: %+v, %v; want only mine.jpg", res, err)
+	}
+}

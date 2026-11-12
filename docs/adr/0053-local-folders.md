@@ -74,11 +74,21 @@ the files stay.
   modification time in the name means a changed file gets a new
   thumbnail rather than a cached old one.
 
+### In the window
+
+- The Library tab shows each folder as a chip next to "Fetched", with
+  its image count, and "+ Add folder" opens the system's folder dialog.
+  Kisetsu's own directories (data, cache, configuration, state) are
+  refused; a folder that contains one is allowed, and syncing skips it.
+- Opening a folder reads it again first, then shows its images; the view
+  says what changed, or that the folder is not available now.
+- The preview offers "Set as wallpaper" and collections, but no
+  "Delete…" and no source page; `DeleteFromLibrary` refuses folder
+  images as well. "Remove folder…" asks first and says the files stay.
+
 ### Still to come in 0.7.0
 
-1. A "Folders" view in the Library tab: add (system dialog), browse,
-   preview, set as wallpaper, collections, remove.
-2. A folder as a rotation source; the agent syncs it before each change.
+1. A folder as a rotation source; the agent syncs it before each change.
 
 ## Alternatives considered
 

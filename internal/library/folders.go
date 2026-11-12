@@ -224,3 +224,22 @@ func (s *Store) FolderIDs(ctx context.Context, folderID int64) ([]int64, error) 
 	}
 	return ids, rows.Err()
 }
+
+// FolderCounts returns the number of images of each folder.
+func (s *Store) FolderCounts(ctx context.Context) (map[int64]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT folder_id, count(*) FROM images WHERE folder_id IS NOT NULL GROUP BY folder_id`)
+	if err != nil {
+		return nil, fmt.Errorf("count folder images: %w", err)
+	}
+	defer rows.Close()
+	out := map[int64]int{}
+	for rows.Next() {
+		var id int64
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, fmt.Errorf("count folder images: %w", err)
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}

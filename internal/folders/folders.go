@@ -57,11 +57,45 @@ type Result struct {
 	Thumbnails []string
 }
 
+// ErrOwnDirectory means the folder is, or is inside, one of Kisetsu's own
+// directories (the library, the cache).
+var ErrOwnDirectory = errors.New("folder belongs to Kisetsu")
+
+// Check returns the cleaned absolute path of a folder the user chose, or
+// an error when it is not a directory or lies in one of Kisetsu's own
+// directories (own), whose images are in the library already.
+func Check(path string, own []string) (string, error) {
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("%q is not an absolute path", path)
+	}
+	path = filepath.Clean(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", ErrMissing, path)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%q is not a folder", path)
+	}
+	for _, dir := range own {
+		if inside(path, dir) {
+			return "", fmt.Errorf("%w: %s", ErrOwnDirectory, path)
+		}
+	}
+	return path, nil
+}
+
+// inside reports whether path is dir or lies under it.
+func inside(path, dir string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
 // Sync reads the folder and brings its images in the library up to date.
-// Subfolders count; hidden folders (".cache") and symbolic links are
-// skipped. Only new and changed files are opened, and only their headers
-// are read.
-func Sync(ctx context.Context, store *library.Store, f library.Folder) (Result, error) {
+// Subfolders count; hidden folders (".cache"), symbolic links and skip
+// (Kisetsu's own directories, should the folder contain them) are left
+// out. Only new and changed files are opened, and only their headers are
+// read.
+func Sync(ctx context.Context, store *library.Store, f library.Folder, skip ...string) (Result, error) {
 	var res Result
 	info, err := os.Stat(f.Path)
 	if err != nil || !info.IsDir() {
@@ -90,6 +124,11 @@ func Sync(ctx context.Context, store *library.Store, f library.Folder) (Result, 
 		if d.IsDir() {
 			if p != f.Path && strings.HasPrefix(d.Name(), ".") {
 				return fs.SkipDir
+			}
+			for _, dir := range skip {
+				if filepath.Clean(dir) == p {
+					return fs.SkipDir
+				}
 			}
 			return nil
 		}

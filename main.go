@@ -112,6 +112,7 @@ func run(showAbout bool) error {
 		Executable:    entry.Executable,
 		RotationLock:  c.rotationLockPath(),
 		ShowAbout:     showAbout,
+		OwnDirs:       c.ownDirs(),
 	})
 
 	err = wails.Run(&options.App{

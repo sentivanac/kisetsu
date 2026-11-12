@@ -227,6 +227,11 @@ func providerName(id string) string {
 	return id
 }
 
+// ownDirs are Kisetsu's own directories, which are never local folders.
+func (c *core) ownDirs() []string {
+	return []string{c.paths.Data, c.paths.Cache, c.paths.Config, c.paths.State}
+}
+
 // rotationLockPath is shared by the timer, the window and manual commands.
 func (c *core) rotationLockPath() string {
 	return filepath.Join(c.paths.State, "rotate.lock")

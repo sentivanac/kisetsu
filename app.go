@@ -65,6 +65,8 @@ type App struct {
 	// that starts another one.
 	executable   string
 	rotationLock string
+	// ownDirs are Kisetsu's own directories, never added as local folders.
+	ownDirs []string
 
 	// aboutRequested: the window was opened to show About (the tray's
 	// "About Kisetsu"); the frontend asks once, with TakeAboutRequest.
@@ -103,6 +105,9 @@ type Deps struct {
 	RotationLock  string
 	// ShowAbout opens the window with About shown (`kisetsu --about`).
 	ShowAbout bool
+	// OwnDirs are Kisetsu's own directories (data, cache, configuration,
+	// state), refused as local folders.
+	OwnDirs []string
 }
 
 // NewApp creates a new App.
@@ -129,6 +134,7 @@ func NewApp(d Deps) *App {
 
 		executable:   d.Executable,
 		rotationLock: d.RotationLock,
+		ownDirs:      d.OwnDirs,
 		emit:         func(string, any) {},
 	}
 	a.aboutRequested.Store(d.ShowAbout)

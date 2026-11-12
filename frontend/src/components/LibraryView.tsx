@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {
+    AddFolder,
     AddToCollection,
     CreateCollection,
     DeleteCollection,
@@ -9,16 +10,20 @@ import {
     KeepFetched,
     ListCollections,
     ListFetched,
+    ListFolder,
+    ListFolders,
     ListLibrary,
+    RemoveFolder,
     RemoveFromCollection,
     RenameCollection,
     SetWallpaper,
+    SyncFolder,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
 import {formatFileSize} from '../lib/images';
-import {fetchedStatsLabel, formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
-import {CollectionBar, FetchedView} from './CollectionBar';
+import {fetchedStatsLabel, folderSyncLabel, formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
+import {CollectionBar, FetchedView, folderOf, folderView, isFolderView} from './CollectionBar';
 import {CollectionPicker} from './CollectionPicker';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
@@ -38,6 +43,10 @@ export function LibraryView({active, sourceName}: Props) {
     const [stats, setStats] = useState<main.LibraryStats | null>(null);
     const [fetchedStats, setFetchedStats] = useState<main.FetchedStats | null>(null);
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
+    const [folders, setFolders] = useState<main.FolderInfo[]>([]);
+    const [addingFolder, setAddingFolder] = useState(false);
+    // What the last reading of the shown folder found.
+    const [folderNote, setFolderNote] = useState<string | null>(null);
     const [collection, setCollection] = useState(0); // 0 = all images
     const [selected, setSelected] = useState<number | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
@@ -47,12 +56,18 @@ export function LibraryView({active, sourceName}: Props) {
     const refreshCounts = useCallback(() => {
         GetLibraryStats().then(setStats).catch(() => {});
         GetFetchedStats().then(setFetchedStats).catch(() => {});
-        ListCollections()
-            .then((list) => {
+        Promise.all([ListCollections(), ListFolders()])
+            .then(([list, folderList]) => {
                 setCollections(list);
-                // The shown collection may have been deleted meanwhile.
+                setFolders(folderList);
+                // The shown collection or folder may have been removed meanwhile.
                 setCollection((current) =>
-                    current === 0 || current === FetchedView || list.some((c) => c.id === current) ? current : 0,
+                    current === 0 ||
+                    current === FetchedView ||
+                    list.some((c) => c.id === current) ||
+                    (isFolderView(current) && folderList.some((f) => f.id === folderOf(current)))
+                        ? current
+                        : 0,
                 );
             })
             .catch((err: unknown) => setError(toBackendError(err)));
@@ -62,7 +77,25 @@ export function LibraryView({active, sourceName}: Props) {
         const request = ++latestRequest.current;
         setLoading(true);
         setError(null);
-        (collectionID === FetchedView ? ListFetched(offset, pageSize) : ListLibrary(collectionID, offset, pageSize))
+        let page: Promise<main.LibraryPage>;
+        if (isFolderView(collectionID)) {
+            const id = folderOf(collectionID);
+            // Opening a folder reads it again first: new and removed files.
+            const read =
+                offset === 0
+                    ? SyncFolder(id).then((r) => {
+                          if (request !== latestRequest.current) return;
+                          setFolderNote(folderSyncLabel(r));
+                          setFolders((list) => list.map((f) => (f.id === id ? r.folder : f)));
+                      })
+                    : Promise.resolve();
+            page = read.then(() => ListFolder(id, offset, pageSize));
+        } else if (collectionID === FetchedView) {
+            page = ListFetched(offset, pageSize);
+        } else {
+            page = ListLibrary(collectionID, offset, pageSize);
+        }
+        page
             .then((page) => {
                 if (request !== latestRequest.current) return;
                 setItems((current) => (offset === 0 ? page.items : [...current, ...page.items]));
@@ -83,8 +116,31 @@ export function LibraryView({active, sourceName}: Props) {
     useEffect(() => {
         if (!active) return;
         setSelected(null);
+        setFolderNote(null);
         load(collection, 0);
     }, [active, collection, load]);
+
+    function addFolder() {
+        setAddingFolder(true);
+        setError(null);
+        AddFolder()
+            .then((r) => {
+                if (!r.folder.id) return; // the dialog was closed
+                refreshCounts();
+                setCollection(folderView(r.folder.id));
+            })
+            .catch((err: unknown) => setError(toBackendError(err)))
+            .finally(() => setAddingFolder(false));
+    }
+
+    function removeFolder(id: number) {
+        RemoveFolder(id)
+            .then(() => {
+                setCollection(0);
+                refreshCounts();
+            })
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
 
     // dropItem removes an item from the shown list and moves the preview on.
     function dropItem(id: number) {
@@ -136,21 +192,28 @@ export function LibraryView({active, sourceName}: Props) {
     const selectedItem = selected === null ? null : items[selected];
     const current = collections.find((c) => c.id === collection);
     const showingFetched = collection === FetchedView;
+    const folder = isFolderView(collection) ? folders.find((f) => f.id === folderOf(collection)) : undefined;
 
     return (
         <section className="library" aria-busy={loading}>
             <div className="library-header">
-                <h2>{showingFetched ? 'Fetched' : current ? current.name : 'Library'}</h2>
+                <h2>{showingFetched ? 'Fetched' : folder ? folder.name : current ? current.name : 'Library'}</h2>
                 {showingFetched
                     ? fetchedStats && <p className="muted">{fetchedStatsLabel(fetchedStats)}</p>
-                    : stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
+                    : folder
+                      ? <p className="muted">{folder.path}</p>
+                      : stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
             </div>
 
             <CollectionBar
                 collections={collections}
+                folders={folders}
                 selected={collection}
                 totalImages={stats?.images ?? 0}
                 fetchedImages={fetchedStats?.images ?? 0}
+                addingFolder={addingFolder}
+                onAddFolder={addFolder}
+                onRemoveFolder={removeFolder}
                 onSelect={setCollection}
                 onCreate={async (name) => {
                     const created = await CreateCollection(name);
@@ -176,9 +239,19 @@ export function LibraryView({active, sourceName}: Props) {
                     size; the oldest are removed when that is full. Keep an image to move it into your library.
                 </p>
             )}
-            {!loading && items.length === 0 && stats !== null && (
+            {folder && (
+                <p className={folder.missing ? 'notice error' : 'muted small'}>
+                    {folder.missing
+                        ? 'This folder is not available now (a drive that is not connected?). Its images come back when it is.'
+                        : (folderNote ?? 'Reading the folder…') +
+                          ' Kisetsu uses the images where they are and never changes or deletes them.'}
+                </p>
+            )}
+            {!loading && items.length === 0 && stats !== null && !folder?.missing && (
                 <p className="muted">
-                    {showingFetched
+                    {folder
+                        ? 'No images in this folder yet. Kisetsu shows JPEG, PNG and WebP files, subfolders included.'
+                        : showingFetched
                         ? 'No fetched images yet. Choose a saved search as the rotation source in the Wallpaper tab.'
                         : stats.images === 0
                           ? 'Your library is empty. Open an image in Search and choose Download.'
@@ -229,8 +302,8 @@ export function LibraryView({active, sourceName}: Props) {
                             <LibraryActions
                                 key={selectedItem.id}
                                 imageID={selectedItem.id}
-                                addedAt={selectedItem.addedAt}
-                                onDelete={() => deleteItem(selectedItem.id)}
+                                addedAt={folder ? '' : selectedItem.addedAt}
+                                onDelete={folder ? undefined : () => deleteItem(selectedItem.id)}
                             />
                         </>
                     }
@@ -246,7 +319,8 @@ export function LibraryView({active, sourceName}: Props) {
 interface ActionsProps {
     imageID: number;
     addedAt: string;
-    onDelete: () => void;
+    // Not set for images in the user's folders, which are never deleted.
+    onDelete?: () => void;
 }
 
 // LibraryActions sets the image as wallpaper and deletes it. Deleting asks
@@ -278,7 +352,7 @@ function LibraryActions({imageID, addedAt, onDelete}: ActionsProps) {
                     {wallpaperResult.message}
                 </p>
             )}
-            {confirming ? (
+            {!onDelete ? null : confirming ? (
                 <div className="confirm" role="group" aria-label="Confirm deletion">
                     <p>Delete this image and its file from your library? This cannot be undone.</p>
                     <div className="download-row">

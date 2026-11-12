@@ -134,9 +134,12 @@ export function PreviewDialog({image, fullUrl, providerName, actions, onClose, o
                 {actions}
 
                 <div className="preview-actions">
-                    <button type="button" className="btn secondary" onClick={() => BrowserOpenURL(image.pageUrl)}>
-                        Open on {providerName}
-                    </button>
+                    {/* Images from the user's own folders have no page. */}
+                    {image.pageUrl && (
+                        <button type="button" className="btn secondary" onClick={() => BrowserOpenURL(image.pageUrl)}>
+                            Open on {providerName}
+                        </button>
+                    )}
                     {image.sourceUrl && (
                         <button type="button" className="btn secondary" onClick={() => BrowserOpenURL(image.sourceUrl)}>
                             Original source

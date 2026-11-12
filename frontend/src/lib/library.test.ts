@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {fetchedStatsLabel, formatAddedDate, libraryStatsLabel, removeItem} from './library';
+import {fetchedStatsLabel, formatAddedDate, libraryStatsLabel, removeItem, folderSyncLabel} from './library';
 
 describe('libraryStatsLabel', () => {
     it('summarizes count and size', () => {
@@ -36,5 +36,20 @@ describe('fetchedStatsLabel', () => {
             '12 images · 84 MB of 200 MB',
         );
         expect(fetchedStatsLabel({images: 0, bytes: 0, maxBytes: 200 * 1024 * 1024})).toBe('0 images · 0 B of 200 MB');
+    });
+});
+
+describe('folderSyncLabel', () => {
+    const r = (images: number, added = 0, updated = 0, removed = 0, skipped = 0) => ({
+        folder: {images},
+        added,
+        updated,
+        removed,
+        skipped,
+    });
+    it('says how many images, and what changed', () => {
+        expect(folderSyncLabel(r(1))).toBe('1 image.');
+        expect(folderSyncLabel(r(312, 3, 0, 1))).toBe('312 images. 3 new, 1 gone since last time.');
+        expect(folderSyncLabel(r(5, 0, 2, 0, 1))).toBe('5 images. 2 changed since last time. 1 file could not be read.');
     });
 });

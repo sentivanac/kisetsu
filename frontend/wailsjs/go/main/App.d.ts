@@ -7,6 +7,8 @@ import {search} from '../models';
 import {searches} from '../models';
 import {providers} from '../models';
 
+export function AddFolder():Promise<main.FolderSync>;
+
 export function AddToCollection(arg1:number,arg2:number):Promise<void>;
 
 export function CancelDownload(arg1:string):Promise<void>;
@@ -53,6 +55,10 @@ export function ListCollections():Promise<Array<main.CollectionInfo>>;
 
 export function ListFetched(arg1:number,arg2:number):Promise<main.LibraryPage>;
 
+export function ListFolder(arg1:number,arg2:number,arg3:number):Promise<main.LibraryPage>;
+
+export function ListFolders():Promise<Array<main.FolderInfo>>;
+
 export function ListLibrary(arg1:number,arg2:number,arg3:number):Promise<main.LibraryPage>;
 
 export function ListProviders():Promise<Array<search.ProviderInfo>>;
@@ -60,6 +66,8 @@ export function ListProviders():Promise<Array<search.ProviderInfo>>;
 export function ListSavedSearches():Promise<Array<main.SavedSearch>>;
 
 export function NextWallpaper():Promise<main.RotationState>;
+
+export function RemoveFolder(arg1:number):Promise<void>;
 
 export function RemoveFromCollection(arg1:number,arg2:number):Promise<void>;
 
@@ -90,5 +98,7 @@ export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
 export function StartAgent():Promise<main.RotationState>;
 
 export function SuggestSearches(arg1:string):Promise<Array<string>>;
+
+export function SyncFolder(arg1:number):Promise<main.FolderSync>;
 
 export function TakeAboutRequest():Promise<boolean>;

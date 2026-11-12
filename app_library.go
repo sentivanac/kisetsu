@@ -103,6 +103,10 @@ func (a *App) DeleteFromLibrary(id int64) (err error) {
 	if err != nil {
 		return apperr.New(apperr.Unavailable, "The image could not be deleted.", err)
 	}
+	if e.Origin == library.FromFolder {
+		// The file is the user's own (ADR 0053).
+		return apperr.New(apperr.InvalidInput, "This image is in one of your folders; Kisetsu does not delete it.", nil)
+	}
 	if err := a.library.Delete(a.ctx, id); err != nil {
 		return apperr.New(apperr.Unavailable, "The image could not be deleted.", err)
 	}
