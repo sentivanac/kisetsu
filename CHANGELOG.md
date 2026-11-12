@@ -19,6 +19,10 @@ follow [Semantic Versioning](https://semver.org/).
   image's preview (a heart): an ordinary "Favorites" collection, made
   the first time, that you can rotate like any collection. A fetched
   image is kept in your library when you add it.
+- With a saved search as the source, "Next wallpaper" changes at once
+  and fetches new images afterwards, instead of waiting up to half a
+  minute for them first. Only when nothing new is left does it wait;
+  the tray menu then says "Fetching new images…".
 
 ## [0.7.1] - 2026-11-12
 

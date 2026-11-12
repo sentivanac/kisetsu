@@ -350,3 +350,73 @@ func TestSettingsRejectBothSources(t *testing.T) {
 		t.Error("a collection and a saved search together were accepted")
 	}
 }
+
+func TestSavedSearchChangesBeforeFetching(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	addFetched(t, e, 0, 2) // two unshown: enough to change at once
+	var order []string
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+		order = append(order, "fetch")
+		return 0, nil
+	}
+	e.r.Fetching = func(bool) { order = append(order, "waiting") }
+	shownBefore := len(e.setter.paths)
+	if _, err := e.r.Next(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.setter.paths) != shownBefore+1 {
+		t.Fatal("the wallpaper did not change")
+	}
+	// Changed first, then fetched (one left, fewer than lowWater), never
+	// waiting for it.
+	if len(order) != 1 || order[0] != "fetch" {
+		t.Errorf("order %v, want only a fetch after the change", order)
+	}
+}
+
+func TestSavedSearchWaitsOnlyWhenNothingIsNew(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	first := addFetched(t, e, 0, 1)
+	e.r.RecordManual(context.Background(), first[0]) // on screen
+	st, _ := e.r.History.State(context.Background())
+	e.r.History.Record(context.Background(), first[0], st.Cycle, ByRotation) // and shown
+	var waiting []bool
+	e.r.Fetching = func(on bool) { waiting = append(waiting, on) }
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+		addFetched(t, e, 10, want)
+		return want, nil
+	}
+	res, err := e.r.Next(context.Background())
+	if err != nil || res.ImageID == first[0] {
+		t.Fatalf("Next: %+v, %v; want a new image", res, err)
+	}
+	if len(waiting) != 2 || !waiting[0] || waiting[1] {
+		t.Errorf("Fetching calls %v, want [true false] around the wait", waiting)
+	}
+}
+
+func TestSavedSearchFetchesInTheBackground(t *testing.T) {
+	e, _ := newEnv(t, 0)
+	useSavedSearch(t, e)
+	addFetched(t, e, 0, 2)
+	release := make(chan struct{})
+	done := make(chan struct{})
+	e.r.TopUpInBackground = true
+	e.r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {
+		<-release // a slow network
+		close(done)
+		return 0, nil
+	}
+	if _, err := e.r.Next(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// Next returned while the fetch still waits.
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the background fetch never ran")
+	}
+}

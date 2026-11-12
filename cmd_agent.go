@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -72,6 +73,19 @@ func runAgent(args []string) int {
 	screen.KeepBase = true      // it redraws the clock every minute
 	screen.ReleaseMemory = true // it runs all session
 	r := c.rotator(c.fetcher(searcher, dl), screen)
+	// New images for a saved search are fetched after a change; the tray
+	// says so when a change has to wait for them (ADR 0054).
+	r.TopUpInBackground = true
+	var labelMu sync.Mutex
+	var fetchingLabel func(waiting bool)
+	r.Fetching = func(waiting bool) {
+		labelMu.Lock()
+		f := fetchingLabel
+		labelMu.Unlock()
+		if f != nil {
+			f(waiting)
+		}
+	}
 	a := newAgent(c, r, screen)
 	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
 		c.log.Info("rotation, the clock and the tray icon are off; agent not started")
@@ -149,6 +163,11 @@ func runAgent(args []string) int {
 			cfg.Enabled = on
 			c.log.Info("rotation turned on or off from the tray", "enabled", on)
 			return rotation.SaveSettings(ctx, store, cfg)
+		},
+		showFetching: func(f func(waiting bool)) {
+			labelMu.Lock()
+			fetchingLabel = f
+			labelMu.Unlock()
 		},
 		open:  func() error { return openWindow() },
 		about: func() error { return openWindow(aboutArg) },

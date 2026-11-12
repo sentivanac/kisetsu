@@ -54,3 +54,9 @@ new ones are downloaded at screen size when fewer than 3 are left unshown.
   without `gsettings` is needed now), `kisetsu rotate` with a saved search "forest -snow" as source
   fetched 5 images from the live Wallhaven API (3.5 MB in total) in 4.5 s
   and then stopped at setting the wallpaper, as intended.
+
+**Changed in 0.8.0 (ADR 0054):** the top-up no longer comes before the
+change while at least one fetched image is unshown. The wallpaper
+changes at once, and new images are fetched after it (in the
+background in the window and the agent). Only with nothing new left
+does the change wait for them.

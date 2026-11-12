@@ -16,7 +16,9 @@ import (
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/fetched"
 	"github.com/sentivanac/kisetsu/internal/legacytimer"
+	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
 	"github.com/sentivanac/kisetsu/internal/wallpaper"
@@ -102,7 +104,7 @@ func run(showAbout bool) error {
 		Files:     c.files,
 		Wallpaper: setter,
 		Screen:    c.screen(setter),
-		Rotation:  c.rotator(c.fetcher(searcher, downloader), c.rotationScreen()),
+		Rotation:  windowRotator(c, c.fetcher(searcher, downloader)),
 
 		Agent:         &agentControl{entry: entry, lockPath: c.agentLockPath(), log: log},
 		LegacyTimer:   legacy,
@@ -159,4 +161,13 @@ func run(showAbout bool) error {
 
 	log.Info("stopped")
 	return nil
+}
+
+// windowRotator changes the wallpaper for the window: new images for a
+// saved search are fetched after a change, in the background, so "Next"
+// does not wait for them (ADR 0054).
+func windowRotator(c *core, f *fetched.Fetcher) *rotation.Rotator {
+	r := c.rotator(f, c.rotationScreen())
+	r.TopUpInBackground = true
+	return r
 }

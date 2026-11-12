@@ -69,6 +69,21 @@ to favorites, in the tray menu and in the window.
   wallpaper is one, and takes it out when clicked. In an image's
   preview, a heart adds or removes that image.
 
+### Next does not wait for the internet
+
+Found while using the tray: with a saved search as the source, "Next"
+fetched new images (searches and five downloads, about 30 seconds)
+before changing whenever fewer than three were left unshown, and the
+disabled menu item said nothing about why.
+
+- The change now happens at once while at least one image of the saved
+  search is unshown; the top-up (ADR 0030) follows the change. The
+  window and the agent fetch in the background, so "Next" returns;
+  `kisetsu rotate`, which ends at once, fetches right after the change.
+  One top-up runs at a time in a process.
+- Only with nothing new left does the change wait for new images, so it
+  does not repeat one; the tray item then reads "Fetching new images…".
+
 ## Verification
 
 Unit tests for Previous: going back three steps and stopping at the
@@ -89,3 +104,7 @@ renamed and still used, an existing "Favourites" reused, a fetched image
 kept in the library, the current wallpaper, removing. In the window: the
 Wallpaper tab button in both directions, and the heart in a folder
 image's preview (the collection's checkbox followed).
+
+Unit tests for the order of change and fetch: changing first with
+images left, waiting (and telling the tray) only with none left, and
+fetching in the background while Next returns.

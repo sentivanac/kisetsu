@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/library"
@@ -59,6 +60,16 @@ type Rotator struct {
 	// SyncFolder, if set, reads a local folder again before its images are
 	// chosen, so new files take part and removed ones are not tried.
 	SyncFolder func(ctx context.Context, folderID int64) error
+	// TopUpInBackground fetches new images for a saved search after a
+	// change without waiting for them (the window and the agent, which
+	// keep running). Otherwise Next fetches them after the change before
+	// it returns (`kisetsu rotate`, which ends at once).
+	TopUpInBackground bool
+	// Fetching, if set, is told when Next waits for new images (true) and
+	// when it is done (false), so the tray can say so.
+	Fetching func(waiting bool)
+
+	topUpMu sync.Mutex // one top-up at a time
 }
 
 // Result describes a wallpaper change.
@@ -116,6 +127,14 @@ func (r *Rotator) Next(ctx context.Context) (Result, error) {
 			return Result{}, err
 		}
 		r.Log.Info("wallpaper rotated", "entry", id, "cycle", cycle, "order", cfg.Order, "method", method)
+		if cfg.SavedSearchID != 0 && r.TopUp != nil {
+			// New images for the next changes, after this one (ADR 0054).
+			if r.TopUpInBackground {
+				go r.topUpIfLow(context.WithoutCancel(ctx), cfg.SavedSearchID, id)
+			} else {
+				r.topUpIfLow(ctx, cfg.SavedSearchID, id)
+			}
+		}
 		return Result{ImageID: id, Method: method}, nil
 	}
 	return Result{}, fmt.Errorf("%w: %d images had missing files", ErrNoImages, maxAttempts)
@@ -153,21 +172,55 @@ func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int
 	if err != nil {
 		return nil, err
 	}
-	if r.TopUp != nil && len(unshown(ids, st.Shown)) < lowWater {
-		tctx, cancel := context.WithTimeout(ctx, topUpTimeout)
-		n, err := r.TopUp(tctx, cfg.SavedSearchID, topUpCount, []int64{st.Current})
-		cancel()
-		if err != nil {
-			// Offline or a provider problem: rotate what is there.
-			r.Log.Warn("could not fetch new images; using the fetched ones", "saved_search", cfg.SavedSearchID, "err", err)
+	// Only with nothing new left does the change wait for new images;
+	// otherwise it uses what is there, and new ones are fetched after it.
+	if r.TopUp != nil && len(unshown(ids, st.Shown)) == 0 {
+		if r.Fetching != nil {
+			r.Fetching(true)
+			defer r.Fetching(false)
 		}
-		if n > 0 {
+		if n := r.topUp(ctx, cfg.SavedSearchID, st.Current); n > 0 {
 			if ids, err = r.Library.FetchedIDs(ctx, cfg.SavedSearchID); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return ids, nil
+}
+
+// topUpIfLow fetches new images for a saved search when fewer than
+// lowWater are left unshown, keeping the image on screen.
+func (r *Rotator) topUpIfLow(ctx context.Context, savedSearchID, current int64) {
+	ids, err := r.Library.FetchedIDs(ctx, savedSearchID)
+	if err != nil {
+		r.Log.Warn("fetched images not read", "saved_search", savedSearchID, "err", err)
+		return
+	}
+	st, err := r.History.State(ctx)
+	if err != nil {
+		r.Log.Warn("wallpaper history not read", "err", err)
+		return
+	}
+	if len(unshown(ids, st.Shown)) < lowWater {
+		r.topUp(ctx, savedSearchID, current)
+	}
+}
+
+// topUp fetches new images and returns how many arrived. A top-up already
+// running is not started twice.
+func (r *Rotator) topUp(ctx context.Context, savedSearchID, current int64) int {
+	if !r.topUpMu.TryLock() {
+		return 0
+	}
+	defer r.topUpMu.Unlock()
+	tctx, cancel := context.WithTimeout(ctx, topUpTimeout)
+	defer cancel()
+	n, err := r.TopUp(tctx, savedSearchID, topUpCount, []int64{current})
+	if err != nil {
+		// Offline or a provider problem: rotate what is there.
+		r.Log.Warn("could not fetch new images; using the fetched ones", "saved_search", savedSearchID, "err", err)
+	}
+	return n
 }
 
 // folderCandidates reads the folder again and returns its images. A folder

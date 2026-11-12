@@ -50,14 +50,17 @@ const traySync = 5 * time.Second
 
 // trayActions is what the tray menu does; runAgent connects them.
 type trayActions struct {
-	next        func(ctx context.Context) error
-	previous    func(ctx context.Context) error
-	hide        func(ctx context.Context) error
-	favorite    func(ctx context.Context) error
-	rotating    func(ctx context.Context) (bool, error)
-	setRotating func(ctx context.Context, on bool) error
-	open        func() error
-	about       func() error
+	next     func(ctx context.Context) error
+	previous func(ctx context.Context) error
+	hide     func(ctx context.Context) error
+	favorite func(ctx context.Context) error
+	// showFetching receives the function that relabels "Next wallpaper"
+	// while a change waits for new images.
+	showFetching func(f func(waiting bool))
+	rotating     func(ctx context.Context) (bool, error)
+	setRotating  func(ctx context.Context, on bool) error
+	open         func() error
+	about        func() error
 }
 
 // runTray shows the icon and its menu until ctx ends or the user chooses
@@ -75,6 +78,15 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		systray.SetTooltip("Kisetsu")
 		previous := systray.AddMenuItem("Previous wallpaper", "Go back to the wallpaper before this one")
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
+		if act.showFetching != nil {
+			act.showFetching(func(waiting bool) {
+				if waiting {
+					next.SetTitle("Fetching new images…")
+				} else {
+					next.SetTitle("Next wallpaper")
+				}
+			})
+		}
 		systray.AddSeparator()
 		favorite := systray.AddMenuItem("Add to favorites", "Add this wallpaper to the Favorites collection")
 		hide := systray.AddMenuItem("Don't show again", "Never show this wallpaper again, and change to the next")
