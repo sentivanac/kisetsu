@@ -296,6 +296,7 @@ export namespace main {
 	    image: images.Image;
 	    fileUrl: string;
 	    addedAt: string;
+	    hidden: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LibraryItem(source);
@@ -307,6 +308,7 @@ export namespace main {
 	        this.image = this.convertValues(source["image"], images.Image);
 	        this.fileUrl = source["fileUrl"];
 	        this.addedAt = source["addedAt"];
+	        this.hidden = source["hidden"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

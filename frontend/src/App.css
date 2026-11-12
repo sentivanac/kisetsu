@@ -718,6 +718,29 @@
     font-size: 1.1rem;
 }
 
+.hidden-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hidden-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.hidden-list img {
+    width: 160px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
 .wallpaper-now {
     display: flex;
     align-items: center;
@@ -733,6 +756,7 @@
 
 .rotation,
 .wallpaper-text,
+.hidden-images,
 .tray {
     display: flex;
     flex-direction: column;
@@ -745,6 +769,7 @@
 
 .rotation legend,
 .wallpaper-text legend,
+.hidden-images legend,
 .tray legend {
     padding: 0 0.25rem;
     color: var(--muted);

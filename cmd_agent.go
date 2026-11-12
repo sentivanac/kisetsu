@@ -115,6 +115,15 @@ func runAgent(args []string) int {
 			defer stop()
 			return a.ChangeNow(ctx)
 		},
+		hide: func(ctx context.Context) error {
+			unlock, err := rotation.Lock(c.rotationLockPath())
+			if err != nil {
+				return err
+			}
+			defer unlock()
+			_, err = hideCurrentWallpaper(ctx, c.lib, r)
+			return err
+		},
 		previous: func(ctx context.Context) error {
 			unlock, err := rotation.Lock(c.rotationLockPath())
 			if err != nil {

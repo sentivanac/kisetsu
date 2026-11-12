@@ -50,7 +50,7 @@ func (r *Rotator) Previous(ctx context.Context) (Result, error) {
 		if e.ImageID == last.ImageID {
 			continue // the same picture again is no step back
 		}
-		if r.Hidden != nil && r.Hidden(ctx, e.ImageID) {
+		if hidden, err := r.Library.IsHidden(ctx, e.ImageID); err != nil || hidden {
 			continue
 		}
 		img, path, err := r.path(ctx, e.ImageID)

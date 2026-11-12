@@ -59,9 +59,6 @@ type Rotator struct {
 	// SyncFolder, if set, reads a local folder again before its images are
 	// chosen, so new files take part and removed ones are not tried.
 	SyncFolder func(ctx context.Context, folderID int64) error
-	// Hidden, if set, reports images the user hid from rotation; Previous
-	// skips them (ADR 0054).
-	Hidden func(ctx context.Context, imageID int64) bool
 }
 
 // Result describes a wallpaper change.
@@ -89,6 +86,12 @@ func (r *Rotator) Next(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	// Images the user does not want to see again (ADR 0054).
+	hidden, err := r.Library.HiddenIDs(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	candidates = slices.DeleteFunc(candidates, func(id int64) bool { return hidden[id] })
 	rng := r.Rand
 	if rng == nil {
 		rng = rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))

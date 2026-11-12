@@ -22,6 +22,8 @@ type LibraryItem struct {
 	Image   images.Image `json:"image"`
 	FileURL string       `json:"fileUrl"` // the local original
 	AddedAt string       `json:"addedAt"` // RFC 3339
+	// Hidden: kept out of rotation ("Don't show again", ADR 0054).
+	Hidden bool `json:"hidden"`
 }
 
 // LibraryPage is one page of the library.
@@ -58,6 +60,7 @@ func (a *App) ListLibrary(collectionID int64, offset, limit int) (page LibraryPa
 	for i, e := range entries {
 		page.Items[i] = libraryItem(e)
 	}
+	a.markHidden(page.Items)
 	return page, nil
 }
 
@@ -75,6 +78,19 @@ func libraryItem(e library.Entry) LibraryItem {
 		Image:   img,
 		FileURL: libfiles.URL(e.FilePath),
 		AddedAt: e.AddedAt.Format(time.RFC3339),
+	}
+}
+
+// markHidden sets Hidden on the items kept out of rotation. A failure only
+// leaves them unmarked.
+func (a *App) markHidden(items []LibraryItem) {
+	hidden, err := a.library.HiddenIDs(a.ctx)
+	if err != nil {
+		a.log.Warn("hidden images not read", "err", err)
+		return
+	}
+	for i := range items {
+		items[i].Hidden = hidden[items[i].ID]
 	}
 }
 

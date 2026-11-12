@@ -74,6 +74,14 @@ export function GetThirdPartyLicenses() {
   return window['go']['main']['App']['GetThirdPartyLicenses']();
 }
 
+export function HideCurrentWallpaper() {
+  return window['go']['main']['App']['HideCurrentWallpaper']();
+}
+
+export function HideImage(arg1) {
+  return window['go']['main']['App']['HideImage'](arg1);
+}
+
 export function ImageCollections(arg1) {
   return window['go']['main']['App']['ImageCollections'](arg1);
 }
@@ -104,6 +112,10 @@ export function ListFolder(arg1, arg2, arg3) {
 
 export function ListFolders() {
   return window['go']['main']['App']['ListFolders']();
+}
+
+export function ListHidden() {
+  return window['go']['main']['App']['ListHidden']();
 }
 
 export function ListLibrary(arg1, arg2, arg3) {
@@ -180,6 +192,10 @@ export function SetTagHidden(arg1, arg2) {
 
 export function SetWallpaper(arg1) {
   return window['go']['main']['App']['SetWallpaper'](arg1);
+}
+
+export function ShowImageAgain(arg1) {
+  return window['go']['main']['App']['ShowImageAgain'](arg1);
 }
 
 export function StartAgent() {

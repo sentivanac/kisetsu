@@ -4,8 +4,11 @@ import {
     ListCollections,
     ListFolders,
     ListSavedSearches,
+    HideCurrentWallpaper,
+    ListHidden,
     NextWallpaper,
     PreviousWallpaper,
+    ShowImageAgain,
     RepairAgent,
     SaveRotation,
     ChooseTextFile,
@@ -42,7 +45,9 @@ export function WallpaperView({active}: Props) {
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
     const [savedSearches, setSavedSearches] = useState<main.SavedSearch[]>([]);
     const [folders, setFolders] = useState<main.FolderInfo[]>([]);
-    const [busy, setBusy] = useState<'save' | 'next' | 'previous' | null>(null);
+    const [busy, setBusy] = useState<'save' | 'next' | 'previous' | 'hide' | null>(null);
+    // Images kept out of rotation ("Don't show again").
+    const [hidden, setHidden] = useState<main.LibraryItem[]>([]);
     const [error, setError] = useState<BackendError | null>(null);
     const [, setTick] = useState(0); // re-renders relative times
 
@@ -64,6 +69,9 @@ export function WallpaperView({active}: Props) {
         ListFolders()
             .then(setFolders)
             .catch(() => {});
+        ListHidden()
+            .then(setHidden)
+            .catch(() => {});
         const timer = window.setInterval(() => {
             refresh();
             setTick((t) => t + 1);
@@ -71,7 +79,7 @@ export function WallpaperView({active}: Props) {
         return () => window.clearInterval(timer);
     }, [active, refresh]);
 
-    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next' | 'previous') {
+    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next' | 'previous' | 'hide') {
         setBusy(kind);
         setError(null);
         action()
@@ -149,6 +157,24 @@ export function WallpaperView({active}: Props) {
                     aria-describedby="wallpaper-now-note"
                 >
                     {busy === 'next' ? 'Changing…' : 'Next wallpaper'}
+                </button>
+                <button
+                    type="button"
+                    className="btn secondary"
+                    onClick={() =>
+                        apply(async () => {
+                            const next = await HideCurrentWallpaper();
+                            // The list below gains the image.
+                            ListHidden()
+                                .then(setHidden)
+                                .catch(() => {});
+                            return next;
+                        }, 'hide')
+                    }
+                    disabled={busy !== null || !state.lastChange}
+                    title="Never show this wallpaper again, and change to the next"
+                >
+                    {busy === 'hide' ? 'Changing…' : "Don't show this again"}
                 </button>
                 <p className="muted" id="wallpaper-now-note">
                     {nothingToShow
@@ -484,6 +510,35 @@ export function WallpaperView({active}: Props) {
                 </p>
             </fieldset>
 
+            <fieldset className="hidden-images">
+                <legend>Hidden from rotation</legend>
+                {hidden.length === 0 ? (
+                    <p className="muted small">
+                        No hidden images. “Don't show again” in the tray menu or in an image's preview keeps an image
+                        out of rotation without deleting it.
+                    </p>
+                ) : (
+                    <ul className="hidden-list">
+                        {hidden.map((item) => (
+                            <li key={item.id}>
+                                <img src={item.image.thumbnailUrl} alt="" loading="lazy" />
+                                <button
+                                    type="button"
+                                    className="btn secondary"
+                                    onClick={() =>
+                                        ShowImageAgain(item.id)
+                                            .then(() => setHidden((list) => list.filter((x) => x.id !== item.id)))
+                                            .catch((err: unknown) => setError(toBackendError(err)))
+                                    }
+                                >
+                                    Show again
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </fieldset>
+
             <fieldset className="tray" disabled={busy === 'save'}>
                 <legend>Tray icon</legend>
                 <label className="toggle">
@@ -498,7 +553,7 @@ export function WallpaperView({active}: Props) {
                     <span>Show Kisetsu in the system tray</span>
                 </label>
                 <p className="muted small">
-                    The icon’s menu changes the wallpaper, turns rotation on or off and opens this window or About Kisetsu.
+                    The icon’s menu goes back or on to another wallpaper, hides this one, turns rotation on or off, and opens this window or About Kisetsu.
                 </p>
                 {state.showInTray && !state.trayHost && (
                     <p className="warning" role="note">

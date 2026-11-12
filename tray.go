@@ -52,6 +52,7 @@ const traySync = 5 * time.Second
 type trayActions struct {
 	next        func(ctx context.Context) error
 	previous    func(ctx context.Context) error
+	hide        func(ctx context.Context) error
 	rotating    func(ctx context.Context) (bool, error)
 	setRotating func(ctx context.Context, on bool) error
 	open        func() error
@@ -73,6 +74,9 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		systray.SetTooltip("Kisetsu")
 		previous := systray.AddMenuItem("Previous wallpaper", "Go back to the wallpaper before this one")
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
+		systray.AddSeparator()
+		hide := systray.AddMenuItem("Don't show again", "Never show this wallpaper again, and change to the next")
+		systray.AddSeparator()
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()
 		open := systray.AddMenuItem("Open Kisetsu", "Open the Kisetsu window")
@@ -118,6 +122,14 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 						err := act.previous(ctx)
 						if err != nil && !errors.Is(err, rotation.ErrLocked) && !errors.Is(err, rotation.ErrNoPrevious) {
 							log.Warn("previous wallpaper from the tray failed", "err", err)
+						}
+					}()
+				case <-hide.ClickedCh:
+					hide.Disable()
+					go func() {
+						defer hide.Enable()
+						if err := act.hide(ctx); err != nil && !errors.Is(err, rotation.ErrLocked) {
+							log.Warn("hiding the wallpaper from the tray failed", "err", err)
 						}
 					}()
 				case <-rotate.ClickedCh:

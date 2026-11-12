@@ -36,16 +36,38 @@ to favorites, in the tray menu and in the window.
 - In the tray menu above "Next wallpaper", and as "Previous" next to
   "Next wallpaper" in the Wallpaper tab. Both hold the rotation lock.
 
+### Don't show again
+
+- Table `hidden_images` (migration 0010, a new table, no rebuild): the
+  image stays in the library or its folder, and the row goes with the
+  image (`ON DELETE CASCADE`).
+- `Rotator.Next` leaves hidden images out of every source; `Previous`
+  skips them. Setting one as the wallpaper by hand still works: it is
+  the user's choice.
+- "Don't show again" in the tray menu and "Don't show this again" in the
+  Wallpaper tab hide the wallpaper on screen and show the next one (if
+  nothing else is left, the hidden one stays until there is). In an
+  image's preview, the same button hides that image, and becomes "Show
+  in rotation again".
+- The Wallpaper tab lists the hidden images, with "Show again" for each.
+- This is how a folder image leaves rotation: Kisetsu deletes nothing
+  in a folder.
+
 ### Still to come in 0.8.0
 
-1. Don't show again: out of rotation for good, with a list that undoes
-   it.
-2. Add to favorites: an ordinary collection "Favorites".
+1. Add to favorites: an ordinary collection "Favorites".
 
 ## Verification
 
-Unit tests: going back three steps and stopping at the start of the
-history; another change ending the run; skipping a missing file, a
-hidden image and a repeated picture; not counting as shown in the cycle;
-no history at all. In the window: Next, Next, Previous, Previous showed
+Unit tests for Previous: going back three steps and stopping at the
+start of the history; another change ending the run; skipping a missing
+file, a hidden image and a repeated picture; not counting as shown in
+the cycle; no history at all. In the window: Next, Next, Previous, Previous showed
 the images in exactly the reverse order.
+
+Unit tests for hiding: rotation without hidden images, none left
+(`ErrNoImages`), shown again; Previous skipping a hidden image; the App
+marking hidden items, listing them, hiding the current wallpaper and
+changing to the next. In the window: "Don't show this again" in the
+Wallpaper tab (hidden, next image shown, listed), "Show again", and the
+button in a folder image's preview.

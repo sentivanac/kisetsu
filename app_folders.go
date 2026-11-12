@@ -167,6 +167,7 @@ func (a *App) ListFolder(id int64, offset, limit int) (page LibraryPage, err err
 	for i, e := range entries {
 		page.Items[i] = libraryItem(e)
 	}
+	a.markHidden(page.Items)
 	return page, nil
 }
 

@@ -33,6 +33,7 @@ func (a *App) ListFetched(offset, limit int) (page LibraryPage, err error) {
 	for i, e := range entries {
 		page.Items[i] = libraryItem(e)
 	}
+	a.markHidden(page.Items)
 	return page, nil
 }
 

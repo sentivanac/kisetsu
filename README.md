@@ -105,8 +105,13 @@ ends by itself. Linux desktops that do not start programs from
 `kisetsu agent` in their own startup file.
 
 **Tray icon** (optional, in the Wallpaper tab): its menu goes back to
-the previous wallpaper or on to the next, turns rotation on or off,
-opens the window or About Kisetsu, or quits until the next login. On Windows it is in the notification area (it may be behind
+the previous wallpaper or on to the next, hides the current one ("Don't
+show again"), turns rotation on or off, opens the window or About
+Kisetsu, or quits until the next login.
+
+**Don't show again** keeps an image out of rotation without deleting
+it, from the tray, the Wallpaper tab or an image's preview. The
+Wallpaper tab lists hidden images and shows them again. On Windows it is in the notification area (it may be behind
 the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.

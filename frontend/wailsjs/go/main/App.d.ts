@@ -43,6 +43,10 @@ export function GetStatus():Promise<main.Status>;
 
 export function GetThirdPartyLicenses():Promise<string>;
 
+export function HideCurrentWallpaper():Promise<main.RotationState>;
+
+export function HideImage(arg1:number):Promise<void>;
+
 export function ImageCollections(arg1:number):Promise<Array<number>>;
 
 export function ImageTags(arg1:string,arg2:string):Promise<Array<string>>;
@@ -58,6 +62,8 @@ export function ListFetched(arg1:number,arg2:number):Promise<main.LibraryPage>;
 export function ListFolder(arg1:number,arg2:number,arg3:number):Promise<main.LibraryPage>;
 
 export function ListFolders():Promise<Array<main.FolderInfo>>;
+
+export function ListHidden():Promise<Array<main.LibraryItem>>;
 
 export function ListLibrary(arg1:number,arg2:number,arg3:number):Promise<main.LibraryPage>;
 
@@ -96,6 +102,8 @@ export function SetShowInTray(arg1:boolean):Promise<main.RotationState>;
 export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
 
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
+
+export function ShowImageAgain(arg1:number):Promise<void>;
 
 export function StartAgent():Promise<main.RotationState>;
 

@@ -11,6 +11,10 @@ follow [Semantic Versioning](https://semver.org/).
   back through the wallpapers Kisetsu set, one per click. Images that
   are gone or whose files are missing are skipped; "Next" then shows a
   new image, as before.
+- **Don't show again**, in the tray menu, the Wallpaper tab and an
+  image's preview: keeps an image out of rotation without deleting it
+  (also the way out of rotation for images in your folders). The
+  Wallpaper tab lists hidden images and can show them again.
 
 ## [0.7.1] - 2026-11-12
 

@@ -65,7 +65,9 @@ func TestPreviousSkipsWhatCannotBeShown(t *testing.T) {
 	shownSequence(t, e, ids[0], ids[1], ids[2], ids[2], ids[3])
 
 	e.files.missing["images/wallhaven/2.jpg"] = true // ids[2]'s file is gone
-	e.r.Hidden = func(_ context.Context, id int64) bool { return id == ids[1] }
+	if err := e.lib.Hide(ctx, ids[1]); err != nil {
+		t.Fatal(err)
+	}
 	res, err := e.r.Previous(ctx)
 	if err != nil || res.ImageID != ids[0] {
 		t.Errorf("Previous: %d, %v; want %d past a missing and a hidden image", res.ImageID, err, ids[0])
@@ -90,5 +92,30 @@ func TestPreviousWithoutHistory(t *testing.T) {
 	e, _ := newEnv(t, 2)
 	if _, err := e.r.Previous(context.Background()); !errors.Is(err, ErrNoPrevious) {
 		t.Errorf("no history: %v", err)
+	}
+}
+
+func TestNextLeavesOutHiddenImages(t *testing.T) {
+	e, ids := newEnv(t, 3)
+	ctx := context.Background()
+	e.lib.Hide(ctx, ids[0])
+	e.lib.Hide(ctx, ids[2])
+	for range 3 {
+		res, err := e.r.Next(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.ImageID != ids[1] {
+			t.Errorf("Next showed hidden image %d", res.ImageID)
+		}
+	}
+	e.lib.Hide(ctx, ids[1])
+	if _, err := e.r.Next(ctx); !errors.Is(err, ErrNoImages) {
+		t.Errorf("everything hidden: %v, want ErrNoImages", err)
+	}
+	// Shown again: back in rotation.
+	e.lib.Unhide(ctx, ids[0])
+	if res, err := e.r.Next(ctx); err != nil || res.ImageID != ids[0] {
+		t.Errorf("after showing it again: %d, %v", res.ImageID, err)
 	}
 }

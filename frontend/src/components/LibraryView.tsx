@@ -7,6 +7,7 @@ import {
     DeleteFromLibrary,
     GetFetchedStats,
     GetLibraryStats,
+    HideImage,
     KeepFetched,
     ListCollections,
     ListFetched,
@@ -17,6 +18,7 @@ import {
     RemoveFromCollection,
     RenameCollection,
     SetWallpaper,
+    ShowImageAgain,
     SyncFolder,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
@@ -306,6 +308,14 @@ export function LibraryView({active, sourceName}: Props) {
                             <LibraryActions
                                 key={selectedItem.id}
                                 imageID={selectedItem.id}
+                                hidden={selectedItem.hidden}
+                                onHiddenChange={(hidden) =>
+                                    setItems((list) =>
+                                        list.map((it) =>
+                                            it.id === selectedItem.id ? new main.LibraryItem({...it, hidden}) : it,
+                                        ),
+                                    )
+                                }
                                 addedAt={fromFolder(selectedItem) ? '' : selectedItem.addedAt}
                                 onDelete={fromFolder(selectedItem) ? undefined : () => deleteItem(selectedItem.id)}
                             />
@@ -323,6 +333,9 @@ export function LibraryView({active, sourceName}: Props) {
 interface ActionsProps {
     imageID: number;
     addedAt: string;
+    // hidden: kept out of rotation ("Don't show again").
+    hidden: boolean;
+    onHiddenChange: (hidden: boolean) => void;
     // Not set for images in the user's folders, which are never deleted.
     onDelete?: () => void;
 }
@@ -330,7 +343,7 @@ interface ActionsProps {
 // LibraryActions sets the image as wallpaper and deletes it. Deleting asks
 // for confirmation: the first click only reveals the buttons that delete
 // or keep the image.
-function LibraryActions({imageID, addedAt, onDelete}: ActionsProps) {
+function LibraryActions({imageID, addedAt, hidden, onHiddenChange, onDelete}: ActionsProps) {
     const [confirming, setConfirming] = useState(false);
     const [settingWallpaper, setSettingWallpaper] = useState(false);
     const [wallpaperResult, setWallpaperResult] = useState<{ok: boolean; message: string} | null>(null);
@@ -351,6 +364,21 @@ function LibraryActions({imageID, addedAt, onDelete}: ActionsProps) {
             <button type="button" className="btn" onClick={setAsWallpaper} disabled={settingWallpaper}>
                 {settingWallpaper ? 'Setting wallpaper…' : 'Set as wallpaper'}
             </button>
+            <button
+                type="button"
+                className="btn secondary"
+                onClick={() => {
+                    setWallpaperResult(null);
+                    (hidden ? ShowImageAgain(imageID) : HideImage(imageID))
+                        .then(() => onHiddenChange(!hidden))
+                        .catch((err: unknown) =>
+                            setWallpaperResult({ok: false, message: describeError(toBackendError(err))}),
+                        );
+                }}
+            >
+                {hidden ? 'Show in rotation again' : "Don't show again"}
+            </button>
+            {hidden && <p className="muted small">Rotation and Previous skip this image.</p>}
             {wallpaperResult && (
                 <p className={wallpaperResult.ok ? 'notice' : 'notice error'} role={wallpaperResult.ok ? 'status' : 'alert'}>
                     {wallpaperResult.message}
