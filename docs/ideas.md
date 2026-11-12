@@ -40,6 +40,14 @@ runs). Later, on the same composer: simple effects (darken, blur,
 grayscale, vignette) and the output of a command (with a timeout and a
 length limit).
 
+## 0.7.0: local folders (planned 2026-11-12)
+
+Images the user already has, used where they are, subfolders included
+(ADR 0053). Steps: the data and syncing; the window showing folder files
+and thumbnails; a "Folders" view in the Library tab; a folder as a
+rotation source; checks, docs, release. Favorites and rotation by time of
+day (theme A) follow after.
+
 ## 0.6.0: effects and text from a file (planned 2026-11-09)
 
 Both build on the composer of 0.4.0 (ADR 0047), off by default.

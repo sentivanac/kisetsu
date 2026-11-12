@@ -4,6 +4,8 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - Unreleased
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixes
