@@ -40,6 +40,21 @@ runs). Later, on the same composer: simple effects (darken, blur,
 grayscale, vignette) and the output of a command (with a timeout and a
 length limit).
 
+## 0.8.0: the current wallpaper (planned 2026-11-12)
+
+Three actions for the wallpaper on screen, in the tray menu and in the
+window (ADR 0054):
+
+1. **Previous wallpaper**: back through the history, one image per
+   click; "Next" then shows a new image, as before.
+2. **Don't show again**: leaves rotation for good, without deleting
+   anything (the only way out of rotation for a folder image); a list
+   in the Wallpaper tab undoes it.
+3. **Add to favorites**: an ordinary collection "Favorites", made the
+   first time; a fetched image is kept in the library first.
+
+Rotation by time of day and a separate image per monitor wait.
+
 ## 0.7.0: local folders (planned 2026-11-12)
 
 Images the user already has, used where they are, subfolders included

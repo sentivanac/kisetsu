@@ -4,6 +4,14 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - Unreleased
+
+### Wallpaper
+- **Previous wallpaper**, in the tray menu and next to "Next wallpaper":
+  back through the wallpapers Kisetsu set, one per click. Images that
+  are gone or whose files are missing are skipped; "Next" then shows a
+  new image, as before.
+
 ## [0.7.1] - 2026-11-12
 
 ### Fixes
