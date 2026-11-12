@@ -5,6 +5,7 @@ import {
     ListFolders,
     ListSavedSearches,
     NextWallpaper,
+    PreviousWallpaper,
     RepairAgent,
     SaveRotation,
     ChooseTextFile,
@@ -41,7 +42,7 @@ export function WallpaperView({active}: Props) {
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
     const [savedSearches, setSavedSearches] = useState<main.SavedSearch[]>([]);
     const [folders, setFolders] = useState<main.FolderInfo[]>([]);
-    const [busy, setBusy] = useState<'save' | 'next' | null>(null);
+    const [busy, setBusy] = useState<'save' | 'next' | 'previous' | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
     const [, setTick] = useState(0); // re-renders relative times
 
@@ -70,7 +71,7 @@ export function WallpaperView({active}: Props) {
         return () => window.clearInterval(timer);
     }, [active, refresh]);
 
-    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next') {
+    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next' | 'previous') {
         setBusy(kind);
         setError(null);
         action()
@@ -131,6 +132,15 @@ export function WallpaperView({active}: Props) {
             )}
 
             <div className="wallpaper-now">
+                <button
+                    type="button"
+                    className="btn secondary"
+                    onClick={() => apply(PreviousWallpaper, 'previous')}
+                    disabled={busy !== null || !state.lastChange}
+                    title="Go back to the wallpaper before this one"
+                >
+                    {busy === 'previous' ? 'Changing…' : 'Previous'}
+                </button>
                 <button
                     type="button"
                     className="btn"

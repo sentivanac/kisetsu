@@ -59,6 +59,9 @@ type Rotator struct {
 	// SyncFolder, if set, reads a local folder again before its images are
 	// chosen, so new files take part and removed ones are not tried.
 	SyncFolder func(ctx context.Context, folderID int64) error
+	// Hidden, if set, reports images the user hid from rotation; Previous
+	// skips them (ADR 0054).
+	Hidden func(ctx context.Context, imageID int64) bool
 }
 
 // Result describes a wallpaper change.

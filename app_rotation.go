@@ -296,6 +296,32 @@ func (a *App) NextWallpaper() (state RotationState, err error) {
 	return a.GetRotation()
 }
 
+// PreviousWallpaper shows the wallpaper before the current one; called
+// again, it goes further back (ADR 0054).
+func (a *App) PreviousWallpaper() (state RotationState, err error) {
+	defer a.recoverPanic("PreviousWallpaper", &err)
+
+	unlock, err := rotation.Lock(a.rotationLock)
+	if errors.Is(err, rotation.ErrLocked) {
+		return RotationState{}, apperr.New(apperr.InvalidInput, "The wallpaper is already being changed. Try again in a moment.", err)
+	}
+	if err != nil {
+		return RotationState{}, apperr.New(apperr.Unavailable, "The wallpaper could not be changed.", err)
+	}
+	defer unlock()
+
+	if _, err := a.rotation.Previous(a.ctx); err != nil {
+		if errors.Is(err, rotation.ErrNoPrevious) {
+			return RotationState{}, apperr.New(apperr.InvalidInput, "There is no earlier wallpaper to go back to.", err)
+		}
+		if errors.Is(err, wallpaper.ErrUnsupportedDesktop) {
+			return RotationState{}, apperr.New(Unsupported, unsupportedDesktopMessage, err)
+		}
+		return RotationState{}, apperr.New(apperr.Unavailable, "The wallpaper could not be changed.", err)
+	}
+	return a.GetRotation()
+}
+
 func agentError(err error) error {
 	switch {
 	case errors.Is(err, autostart.ErrForeign):

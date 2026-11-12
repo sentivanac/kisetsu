@@ -67,6 +67,8 @@ export function ListSavedSearches():Promise<Array<main.SavedSearch>>;
 
 export function NextWallpaper():Promise<main.RotationState>;
 
+export function PreviousWallpaper():Promise<main.RotationState>;
+
 export function RemoveFolder(arg1:number):Promise<void>;
 
 export function RemoveFromCollection(arg1:number,arg2:number):Promise<void>;

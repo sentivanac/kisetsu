@@ -71,7 +71,8 @@ func runAgent(args []string) int {
 	screen := c.rotationScreen()
 	screen.KeepBase = true      // it redraws the clock every minute
 	screen.ReleaseMemory = true // it runs all session
-	a := newAgent(c, c.rotator(c.fetcher(searcher, dl), screen), screen)
+	r := c.rotator(c.fetcher(searcher, dl), screen)
+	a := newAgent(c, r, screen)
 	if wanted, err := a.Wanted(ctx); err == nil && !wanted {
 		c.log.Info("rotation, the clock and the tray icon are off; agent not started")
 		fmt.Println("Rotation, the clock and the tray icon are off, so the agent has nothing to do. " +
@@ -113,6 +114,15 @@ func runAgent(args []string) int {
 			ctx, stop := context.WithTimeout(ctx, rotateTimeout)
 			defer stop()
 			return a.ChangeNow(ctx)
+		},
+		previous: func(ctx context.Context) error {
+			unlock, err := rotation.Lock(c.rotationLockPath())
+			if err != nil {
+				return err
+			}
+			defer unlock()
+			_, err = r.Previous(ctx)
+			return err
 		},
 		rotating: func(ctx context.Context) (bool, error) {
 			cfg, err := rotation.LoadSettings(ctx, store)

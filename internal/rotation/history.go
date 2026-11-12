@@ -90,3 +90,53 @@ func (h *History) Last(ctx context.Context) (LastChange, bool, error) {
 	}
 	return lc, true, nil
 }
+
+// Entry is one wallpaper change in the history.
+type Entry struct {
+	ID      int64 // the history row
+	ImageID int64
+}
+
+// lastEntry returns the most recent history row, and false if there is
+// none.
+func (h *History) lastEntry(ctx context.Context) (Entry, bool, error) {
+	var e Entry
+	err := h.db.QueryRowContext(ctx,
+		`SELECT id, image_id FROM wallpaper_history ORDER BY id DESC LIMIT 1`).Scan(&e.ID, &e.ImageID)
+	if err == sql.ErrNoRows {
+		return Entry{}, false, nil
+	}
+	if err != nil {
+		return Entry{}, false, fmt.Errorf("read wallpaper history: %w", err)
+	}
+	return e, true, nil
+}
+
+// before returns up to limit history rows older than row id, newest first.
+func (h *History) before(ctx context.Context, id int64, limit int) ([]Entry, error) {
+	rows, err := h.db.QueryContext(ctx,
+		`SELECT id, image_id FROM wallpaper_history WHERE id < ? ORDER BY id DESC LIMIT ?`, id, limit)
+	if err != nil {
+		return nil, fmt.Errorf("read wallpaper history: %w", err)
+	}
+	defer rows.Close()
+	var out []Entry
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(&e.ID, &e.ImageID); err != nil {
+			return nil, fmt.Errorf("read wallpaper history: %w", err)
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// record notes a change and returns its history row.
+func (h *History) record(ctx context.Context, imageID int64, cycle int, reason Reason) (int64, error) {
+	res, err := h.db.ExecContext(ctx,
+		`INSERT INTO wallpaper_history (image_id, cycle, reason) VALUES (?, ?, ?)`, imageID, cycle, string(reason))
+	if err != nil {
+		return 0, fmt.Errorf("record wallpaper: %w", err)
+	}
+	return res.LastInsertId()
+}

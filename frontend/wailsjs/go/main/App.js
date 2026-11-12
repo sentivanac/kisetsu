@@ -122,6 +122,10 @@ export function NextWallpaper() {
   return window['go']['main']['App']['NextWallpaper']();
 }
 
+export function PreviousWallpaper() {
+  return window['go']['main']['App']['PreviousWallpaper']();
+}
+
 export function RemoveFolder(arg1) {
   return window['go']['main']['App']['RemoveFolder'](arg1);
 }

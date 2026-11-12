@@ -51,6 +51,7 @@ const traySync = 5 * time.Second
 // trayActions is what the tray menu does; runAgent connects them.
 type trayActions struct {
 	next        func(ctx context.Context) error
+	previous    func(ctx context.Context) error
 	rotating    func(ctx context.Context) (bool, error)
 	setRotating func(ctx context.Context, on bool) error
 	open        func() error
@@ -70,6 +71,7 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		setTrayIconOnReady()
 		systray.SetTitle("Kisetsu")
 		systray.SetTooltip("Kisetsu")
+		previous := systray.AddMenuItem("Previous wallpaper", "Go back to the wallpaper before this one")
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()
@@ -107,6 +109,15 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 						defer next.Enable()
 						if err := act.next(ctx); err != nil && !errors.Is(err, rotation.ErrLocked) {
 							log.Warn("wallpaper change from the tray failed", "err", err)
+						}
+					}()
+				case <-previous.ClickedCh:
+					previous.Disable()
+					go func() {
+						defer previous.Enable()
+						err := act.previous(ctx)
+						if err != nil && !errors.Is(err, rotation.ErrLocked) && !errors.Is(err, rotation.ErrNoPrevious) {
+							log.Warn("previous wallpaper from the tray failed", "err", err)
 						}
 					}()
 				case <-rotate.ClickedCh:

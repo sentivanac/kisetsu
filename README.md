@@ -104,9 +104,9 @@ ends by itself. Linux desktops that do not start programs from
 `~/.config/autostart` (i3, sway and other window managers) need
 `kisetsu agent` in their own startup file.
 
-**Tray icon** (optional, in the Wallpaper tab): its menu changes the
-wallpaper, turns rotation on or off, opens the window or About Kisetsu,
-or quits until the next login. On Windows it is in the notification area (it may be behind
+**Tray icon** (optional, in the Wallpaper tab): its menu goes back to
+the previous wallpaper or on to the next, turns rotation on or off,
+opens the window or About Kisetsu, or quits until the next login. On Windows it is in the notification area (it may be behind
 the **^** arrow). Plain GNOME shows tray icons only with the extension
 "AppIndicator and KStatusNotifierItem Support"; Ubuntu has it on by
 default.
