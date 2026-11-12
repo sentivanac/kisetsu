@@ -4,6 +4,13 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-11-12
+
+### Fixes
+- An image from one of your folders put in a collection now shows in
+  that collection, and rotation from the collection uses it. Before,
+  the collection counted it but did not show or rotate it.
+
 ## [0.7.0] - 2026-11-12
 
 ### Library
