@@ -58,7 +58,9 @@ type Settings struct {
 	// SavedSearchID, when set, rotates the images fetched for that saved
 	// search instead of the library (ADR 0030).
 	SavedSearchID int64 `json:"savedSearchId"`
-	Order         Order `json:"order"`
+	// FolderID, when set, rotates the images of a local folder (ADR 0053).
+	FolderID int64 `json:"folderId"`
+	Order    Order `json:"order"`
 }
 
 // DefaultSettings are used until the user changes them.
@@ -73,11 +75,17 @@ func (s Settings) Validate() error {
 	if s.Order != Random && s.Order != Sequential {
 		errs = append(errs, fmt.Errorf("unknown order %q", s.Order))
 	}
-	if s.CollectionID < 0 || s.SavedSearchID < 0 {
-		errs = append(errs, fmt.Errorf("invalid source %d/%d", s.CollectionID, s.SavedSearchID))
+	if s.CollectionID < 0 || s.SavedSearchID < 0 || s.FolderID < 0 {
+		errs = append(errs, fmt.Errorf("invalid source %d/%d/%d", s.CollectionID, s.SavedSearchID, s.FolderID))
 	}
-	if s.CollectionID != 0 && s.SavedSearchID != 0 {
-		errs = append(errs, errors.New("choose a collection or a saved search, not both"))
+	sources := 0
+	for _, id := range []int64{s.CollectionID, s.SavedSearchID, s.FolderID} {
+		if id != 0 {
+			sources++
+		}
+	}
+	if sources > 1 {
+		errs = append(errs, errors.New("choose one source: a collection, a saved search or a folder"))
 	}
 	return errors.Join(errs...)
 }

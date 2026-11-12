@@ -26,6 +26,10 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 - **Library:** download images to keep them. They work offline, can be
   sorted into collections, and duplicates are detected — also re-encoded
   copies of the same picture.
+- **Your own folders:** add a folder of images you already have (for
+  example `~/Pictures/Wallpapers`), subfolders included. Kisetsu uses the
+  images where they are, never copies, changes or deletes them, and
+  picks up new files on its own. A folder can be the source of rotation.
 - **Credit where it is due:** author, source page and license are kept
   for every image and shown with it.
 - **Set as wallpaper**, or **rotate** automatically — every 15 minutes up
@@ -185,7 +189,9 @@ Kisetsu has no account, no telemetry and no server of its own.
 | The program (Windows) | | `%LocalAppData%\Programs\Kisetsu` |
 
 Kisetsu never deletes images from your library on its own; only the
-cache of fresh images is cleaned up automatically.
+cache of fresh images is cleaned up automatically. Your own folders are
+only read: their thumbnails are kept in the library directory, and
+removing a folder from Kisetsu leaves its files where they are.
 
 ## Uninstall
 

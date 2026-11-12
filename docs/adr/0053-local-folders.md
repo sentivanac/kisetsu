@@ -1,6 +1,6 @@
 # ADR 0053: Local folders
 
-- **Status:** accepted; being built for 0.7.0
+- **Status:** accepted, for 0.7.0
 - **Date:** 2026-11-12
 
 ## Context
@@ -86,9 +86,28 @@ the files stay.
   "Delete…" and no source page; `DeleteFromLibrary` refuses folder
   images as well. "Remove folder…" asks first and says the files stay.
 
-### Still to come in 0.7.0
+### Rotation
 
-1. A folder as a rotation source; the agent syncs it before each change.
+- "Images from" offers the folders. The rotator reads the folder again
+  before choosing (`Rotator.SyncFolder`), so new files take part and
+  removed ones are not tried; the agent and `kisetsu rotate` do the
+  same.
+- A folder that was removed falls back to the whole library, like a
+  deleted collection. A folder that cannot be read now changes nothing:
+  none of its files could be shown.
+
+## Verification
+
+Unit tests for the migration (on test data and on a copy of a real
+database), syncing (new, changed, removed, hidden, damaged, symbolic
+links, a read-only folder, a missing folder, Kisetsu's own directories),
+the file server (serving, paths and links out of the folder, refusing to
+delete, thumbnails on request), the App (listing, refusing to delete,
+setting as wallpaper, removing) and rotation (reading before the first
+change, a new file, a missing and a removed folder). In the window on
+Linux: adding a folder in the system dialog, thumbnails, preview, set as
+wallpaper, removing (the files stayed), and a folder as the rotation
+source.
 
 ## Alternatives considered
 

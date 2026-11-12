@@ -165,6 +165,14 @@ func (c *core) rotator(fetcher *fetched.Fetcher, screen *onscreen.Service) *rota
 		Files:    c.files,
 		Screen:   screen,
 		Log:      c.log,
+		SyncFolder: func(ctx context.Context, id int64) error {
+			f, err := c.lib.Folder(ctx, id)
+			if err != nil {
+				return err
+			}
+			_, err = syncFolder(ctx, c.lib, c.files, f, c.ownDirs(), c.log)
+			return err
+		},
 	}
 	if fetcher != nil {
 		r.TopUp = func(ctx context.Context, id int64, want int, protect []int64) (int, error) {

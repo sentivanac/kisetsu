@@ -2,6 +2,7 @@ import {useCallback, useEffect, useState} from 'react';
 import {
     GetRotation,
     ListCollections,
+    ListFolders,
     ListSavedSearches,
     NextWallpaper,
     RepairAgent,
@@ -39,6 +40,7 @@ export function WallpaperView({active}: Props) {
     const [state, setState] = useState<main.RotationState | null>(null);
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
     const [savedSearches, setSavedSearches] = useState<main.SavedSearch[]>([]);
+    const [folders, setFolders] = useState<main.FolderInfo[]>([]);
     const [busy, setBusy] = useState<'save' | 'next' | null>(null);
     const [error, setError] = useState<BackendError | null>(null);
     const [, setTick] = useState(0); // re-renders relative times
@@ -57,6 +59,9 @@ export function WallpaperView({active}: Props) {
             .catch(() => {}); // the whole library is still offered
         ListSavedSearches()
             .then(setSavedSearches)
+            .catch(() => {});
+        ListFolders()
+            .then(setFolders)
             .catch(() => {});
         const timer = window.setInterval(() => {
             refresh();
@@ -110,6 +115,7 @@ export function WallpaperView({active}: Props) {
     const s = state.settings;
     const collectionMissing = s.collectionId !== 0 && !collections.some((c) => c.id === s.collectionId);
     const searchMissing = s.savedSearchId !== 0 && !savedSearches.some((x) => x.id === s.savedSearchId);
+    const folderMissing = s.folderId !== 0 && !folders.some((f) => f.id === s.folderId);
     const fromSearch = s.savedSearchId !== 0 && !searchMissing;
     // A saved search downloads images when it has none, so it can always try.
     const nothingToShow = state.sourceImages === 0 && !fromSearch;
@@ -173,7 +179,7 @@ export function WallpaperView({active}: Props) {
                         <optgroup label="Your library">
                             <option value="library">Whole library</option>
                             {collections.map((c) => (
-                                <option key={c.id} value={sourceKey({collectionId: c.id, savedSearchId: 0})}>
+                                <option key={c.id} value={sourceKey({collectionId: c.id})}>
                                     {c.name} ({collectionCount(c.images)})
                                 </option>
                             ))}
@@ -183,7 +189,7 @@ export function WallpaperView({active}: Props) {
                         </optgroup>
                         <optgroup label="New images from a saved search">
                             {savedSearches.map((x) => (
-                                <option key={x.id} value={sourceKey({collectionId: 0, savedSearchId: x.id})}>
+                                <option key={x.id} value={sourceKey({savedSearchId: x.id})}>
                                     {x.name}
                                 </option>
                             ))}
@@ -194,13 +200,29 @@ export function WallpaperView({active}: Props) {
                                 <option disabled value="none">Save a search in the Search tab first</option>
                             )}
                         </optgroup>
+                        <optgroup label="Your folders">
+                            {folders.map((f) => (
+                                <option key={f.id} value={sourceKey({folderId: f.id})}>
+                                    {f.name} ({collectionCount(f.images)})
+                                </option>
+                            ))}
+                            {folderMissing && (
+                                <option value={sourceKey(s)}>Removed folder (whole library is used)</option>
+                            )}
+                            {folders.length === 0 && !folderMissing && (
+                                <option disabled value="no-folder">Add a folder in the Library tab first</option>
+                            )}
+                        </optgroup>
                     </select>
                 </label>
                 <p className="muted small">
                     {fromSearch
                         ? `${collectionCount(state.sourceImages)} fetched so far. When fewer than 3 are left unshown, ` +
                           'Kisetsu downloads new ones at screen size before changing the wallpaper.'
-                        : `${collectionCount(state.sourceImages)} to choose from.`}
+                        : s.folderId !== 0 && !folderMissing
+                          ? `${collectionCount(state.sourceImages)} to choose from. Kisetsu reads the folder again ` +
+                            'before each change, so new images take part.'
+                          : `${collectionCount(state.sourceImages)} to choose from.`}
                 </p>
 
                 <div role="radiogroup" aria-label="Order" className="order">

@@ -56,6 +56,9 @@ type Rotator struct {
 	Rand     *rand.Rand // nil means a random seed
 	// TopUp, if set, fetches new images when a saved search runs low.
 	TopUp TopUp
+	// SyncFolder, if set, reads a local folder again before its images are
+	// chosen, so new files take part and removed ones are not tried.
+	SyncFolder func(ctx context.Context, folderID int64) error
 }
 
 // Result describes a wallpaper change.
@@ -125,6 +128,9 @@ func (r *Rotator) RecordManual(ctx context.Context, imageID int64) error {
 // candidates returns the images to choose from. For a saved search they
 // are its fetched images, topped up first when few are left unshown.
 func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int64, error) {
+	if cfg.FolderID != 0 {
+		return r.folderCandidates(ctx, cfg.FolderID)
+	}
 	if cfg.SavedSearchID == 0 {
 		return r.libraryCandidates(ctx, cfg.CollectionID)
 	}
@@ -156,6 +162,25 @@ func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int
 		}
 	}
 	return ids, nil
+}
+
+// folderCandidates reads the folder again and returns its images. A folder
+// that was removed falls back to the whole library, like a deleted
+// collection; one that cannot be read now (a drive that is not connected)
+// changes nothing, since none of its files can be shown.
+func (r *Rotator) folderCandidates(ctx context.Context, folderID int64) ([]int64, error) {
+	if _, err := r.Library.Folder(ctx, folderID); errors.Is(err, library.ErrNotFound) {
+		r.Log.Warn("rotation folder no longer exists; using the whole library", "folder", folderID)
+		return r.libraryCandidates(ctx, 0)
+	} else if err != nil {
+		return nil, err
+	}
+	if r.SyncFolder != nil {
+		if err := r.SyncFolder(ctx, folderID); err != nil {
+			return nil, fmt.Errorf("rotation folder %d: %w", folderID, err)
+		}
+	}
+	return r.Library.FolderIDs(ctx, folderID)
 }
 
 func (r *Rotator) libraryCandidates(ctx context.Context, collectionID int64) ([]int64, error) {

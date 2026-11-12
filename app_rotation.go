@@ -26,8 +26,10 @@ type RotationSettings struct {
 	Interval     string `json:"interval"`
 	CollectionID int64  `json:"collectionId"`
 	// SavedSearchID rotates the images fetched for a saved search.
-	SavedSearchID int64  `json:"savedSearchId"`
-	Order         string `json:"order"`
+	SavedSearchID int64 `json:"savedSearchId"`
+	// FolderID rotates the images of a local folder.
+	FolderID int64  `json:"folderId"`
+	Order    string `json:"order"`
 }
 
 // AgentState describes the background agent for the frontend.
@@ -73,12 +75,15 @@ func (a *App) GetRotation() (state RotationState, err error) {
 	}
 	state.Settings = RotationSettings{
 		Enabled: cfg.Enabled, Interval: string(cfg.Interval), CollectionID: cfg.CollectionID,
-		SavedSearchID: cfg.SavedSearchID, Order: string(cfg.Order),
+		SavedSearchID: cfg.SavedSearchID, FolderID: cfg.FolderID, Order: string(cfg.Order),
 	}
 	var ids []int64
-	if cfg.SavedSearchID != 0 {
+	switch {
+	case cfg.FolderID != 0:
+		ids, err = a.library.FolderIDs(a.ctx, cfg.FolderID)
+	case cfg.SavedSearchID != 0:
 		ids, err = a.library.FetchedIDs(a.ctx, cfg.SavedSearchID)
-	} else {
+	default:
 		ids, err = a.library.IDs(a.ctx, cfg.CollectionID)
 	}
 	if err == nil {
@@ -135,6 +140,7 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 		Interval:      rotation.Interval(s.Interval),
 		CollectionID:  s.CollectionID,
 		SavedSearchID: s.SavedSearchID,
+		FolderID:      s.FolderID,
 		Order:         rotation.Order(s.Order),
 	}
 	if err := cfg.Validate(); err != nil {
@@ -161,7 +167,7 @@ func (a *App) SaveRotation(s RotationSettings) (state RotationState, err error) 
 	a.retireTimer()
 
 	a.log.Info("rotation settings saved", "enabled", cfg.Enabled, "interval", cfg.Interval,
-		"collection", cfg.CollectionID, "saved_search", cfg.SavedSearchID, "order", cfg.Order)
+		"collection", cfg.CollectionID, "saved_search", cfg.SavedSearchID, "folder", cfg.FolderID, "order", cfg.Order)
 	return a.GetRotation()
 }
 

@@ -6,6 +6,15 @@ follow [Semantic Versioning](https://semver.org/).
 
 ## [0.7.0] - Unreleased
 
+### Library
+- **Your own folders**: add a folder of images you already have
+  (Library tab → "+ Add folder"), subfolders included. Kisetsu uses the
+  images where they are and never copies, changes or deletes them; new
+  and removed files are picked up when the folder is opened and before
+  each wallpaper change. Folder images can be set as the wallpaper, put
+  in collections, and a folder can be the source of rotation. A folder
+  on a drive that is not connected keeps its images until it is back.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixes

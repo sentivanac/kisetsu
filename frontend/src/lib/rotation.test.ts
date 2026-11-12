@@ -33,17 +33,20 @@ describe('relativeTime', () => {
 describe('rotation source keys', () => {
     it('round-trips every kind of source', () => {
         for (const choice of [
-            {collectionId: 0, savedSearchId: 0},
-            {collectionId: 7, savedSearchId: 0},
-            {collectionId: 0, savedSearchId: 3},
+            {collectionId: 0, savedSearchId: 0, folderId: 0},
+            {collectionId: 7, savedSearchId: 0, folderId: 0},
+            {collectionId: 0, savedSearchId: 3, folderId: 0},
+            {collectionId: 0, savedSearchId: 0, folderId: 2},
         ]) {
             expect(parseSourceKey(sourceKey(choice))).toEqual(choice);
         }
     });
 
     it('falls back to the whole library for unknown keys', () => {
-        expect(parseSourceKey('search:x')).toEqual({collectionId: 0, savedSearchId: 0});
-        expect(parseSourceKey('album:4')).toEqual({collectionId: 0, savedSearchId: 0});
+        const library = {collectionId: 0, savedSearchId: 0, folderId: 0};
+        expect(parseSourceKey('search:x')).toEqual(library);
+        expect(parseSourceKey('album:4')).toEqual(library);
+        expect(parseSourceKey('folder:-1')).toEqual(library);
     });
 });
 

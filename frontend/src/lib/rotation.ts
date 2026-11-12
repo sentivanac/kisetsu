@@ -48,14 +48,18 @@ export function clockTime(rfc3339: string, locale?: string): string {
     return t.toLocaleTimeString(locale, {hour: '2-digit', minute: '2-digit'});
 }
 
-// Rotation source as one <select> value: "library", "collection:7" or
-// "search:3".
+// Rotation source as one <select> value: "library", "collection:7",
+// "search:3" or "folder:2".
 export interface SourceChoice {
     collectionId: number;
     savedSearchId: number;
+    folderId: number;
 }
 
-export function sourceKey(s: SourceChoice): string {
+const noSource: SourceChoice = {collectionId: 0, savedSearchId: 0, folderId: 0};
+
+export function sourceKey(s: Partial<SourceChoice>): string {
+    if (s.folderId) return `folder:${s.folderId}`;
     if (s.savedSearchId) return `search:${s.savedSearchId}`;
     if (s.collectionId) return `collection:${s.collectionId}`;
     return 'library';
@@ -65,10 +69,11 @@ export function parseSourceKey(key: string): SourceChoice {
     const [kind, raw] = key.split(':');
     const id = Number(raw);
     if (Number.isInteger(id) && id > 0) {
-        if (kind === 'search') return {collectionId: 0, savedSearchId: id};
-        if (kind === 'collection') return {collectionId: id, savedSearchId: 0};
+        if (kind === 'search') return {...noSource, savedSearchId: id};
+        if (kind === 'collection') return {...noSource, collectionId: id};
+        if (kind === 'folder') return {...noSource, folderId: id};
     }
-    return {collectionId: 0, savedSearchId: 0};
+    return {...noSource};
 }
 
 // Corners for text on the wallpaper, in the order offered.

@@ -378,6 +378,7 @@ export namespace main {
 	    interval: string;
 	    collectionId: number;
 	    savedSearchId: number;
+	    folderId: number;
 	    order: string;
 	
 	    static createFrom(source: any = {}) {
@@ -390,6 +391,7 @@ export namespace main {
 	        this.interval = source["interval"];
 	        this.collectionId = source["collectionId"];
 	        this.savedSearchId = source["savedSearchId"];
+	        this.folderId = source["folderId"];
 	        this.order = source["order"];
 	    }
 	}
