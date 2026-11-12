@@ -9,10 +9,13 @@
 //	thumbs/<provider>/<file>
 //	fetched/images/<provider>/<file>  fetched images (cache directory)
 //	fetched/thumbs/<provider>/<file>
+//	folders/<folder id>/<file>        a local folder's files (ADR 0053)
+//	thumbs/folders/<folder id>/<file> thumbnails Kisetsu made for them
 //
 // Only these places are reachable, for every operation; the database,
 // temporary files and anything else are not. Each directory is opened with
 // os.Root, which refuses paths and symbolic links that lead outside it.
+// A local folder's files are only ever read: Remove refuses them.
 package libfiles
 
 import (
@@ -24,7 +27,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // URLPrefix is where library files appear to the frontend, for example
@@ -34,11 +39,23 @@ const URLPrefix = "/library/"
 // ErrOutsideLibrary means a path does not name a library file.
 var ErrOutsideLibrary = errors.New("path is not a library file")
 
+// ErrReadOnly means the file belongs to the user's own folder, which
+// Kisetsu never changes.
+var ErrReadOnly = errors.New("file in a local folder is never changed")
+
 // Server serves and manages library files.
 type Server struct {
 	dataDir    string // holds images/ and thumbs/
 	fetchedDir string // holds fetched images/ and thumbs/
 	roots      map[string]*os.Root
+
+	// folderPath looks up a local folder; nil until SetFolders.
+	folderPath func(id int64) (string, error)
+	// makeThumbnail makes a missing folder thumbnail on request; nil until
+	// SetFolders.
+	makeThumbnail func(relPath string) error
+	mu            sync.Mutex
+	folderRoots   map[int64]*os.Root
 }
 
 // location is a checked library path.
@@ -48,12 +65,13 @@ type location struct {
 	name    string // path inside the root
 	abs     string // absolute path on disk
 	thumb   bool
+	folder  bool // in a local folder: read only
 }
 
 // New opens the library under dataDir and the fetched images under
 // fetchedDir. Both must contain images/ and thumbs/ directories.
 func New(dataDir, fetchedDir string) (*Server, error) {
-	s := &Server{dataDir: dataDir, fetchedDir: fetchedDir, roots: map[string]*os.Root{}}
+	s := &Server{dataDir: dataDir, fetchedDir: fetchedDir, roots: map[string]*os.Root{}, folderRoots: map[int64]*os.Root{}}
 	for key, dir := range map[string]string{
 		"images":  filepath.Join(dataDir, "images"),
 		"thumbs":  filepath.Join(dataDir, "thumbs"),
@@ -69,12 +87,58 @@ func New(dataDir, fetchedDir string) (*Server, error) {
 	return s, nil
 }
 
+// SetFolders lets the server reach local folders: path returns a folder's
+// absolute path by its ID, and makeThumbnail, if not nil, makes a missing
+// thumbnail under "thumbs/folders/" when the window asks for it.
+func (s *Server) SetFolders(path func(id int64) (string, error), makeThumbnail func(relPath string) error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.folderPath, s.makeThumbnail = path, makeThumbnail
+}
+
+// ForgetFolder closes a folder that was removed.
+func (s *Server) ForgetFolder(id int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if r := s.folderRoots[id]; r != nil {
+		r.Close()
+		delete(s.folderRoots, id)
+	}
+}
+
+// folderRoot opens a local folder once, with os.Root like the library.
+func (s *Server) folderRoot(id int64) (*os.Root, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.folderPath == nil {
+		return nil, "", fmt.Errorf("%w: no local folders", ErrOutsideLibrary)
+	}
+	dir, err := s.folderPath(id)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: folder %d: %v", ErrOutsideLibrary, id, err)
+	}
+	if r := s.folderRoots[id]; r != nil {
+		return r, dir, nil
+	}
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, "", err
+	}
+	s.folderRoots[id] = r
+	return r, dir, nil
+}
+
 // Close releases the directories.
 func (s *Server) Close() error {
 	var errs []error
 	for _, r := range s.roots {
 		errs = append(errs, r.Close())
 	}
+	s.mu.Lock()
+	for _, r := range s.folderRoots {
+		errs = append(errs, r.Close())
+	}
+	s.mu.Unlock()
 	return errors.Join(errs...)
 }
 
@@ -82,6 +146,9 @@ func (s *Server) Close() error {
 func (s *Server) resolve(relPath string) (location, error) {
 	rel := filepath.ToSlash(relPath)
 	key, name, ok := strings.Cut(rel, "/")
+	if key == "folders" {
+		return s.resolveFolder(relPath, name)
+	}
 	root := s.roots[key]
 	if !ok || root == nil || !fs.ValidPath(name) {
 		return location{}, fmt.Errorf("%w: %q", ErrOutsideLibrary, relPath)
@@ -99,6 +166,20 @@ func (s *Server) resolve(relPath string) (location, error) {
 		loc.abs = filepath.Join(s.dataDir, key, filepath.FromSlash(name))
 	}
 	return loc, nil
+}
+
+// resolveFolder checks "<folder id>/<file>" in a local folder.
+func (s *Server) resolveFolder(relPath, name string) (location, error) {
+	idText, inner, ok := strings.Cut(name, "/")
+	id, err := strconv.ParseInt(idText, 10, 64)
+	if !ok || err != nil || id <= 0 || !fs.ValidPath(inner) {
+		return location{}, fmt.Errorf("%w: %q", ErrOutsideLibrary, relPath)
+	}
+	root, dir, err := s.folderRoot(id)
+	if err != nil {
+		return location{}, err
+	}
+	return location{root: root, rootKey: "folders", name: inner, abs: filepath.Join(dir, filepath.FromSlash(inner)), folder: true}, nil
 }
 
 // regular checks that loc is a regular file (not a link or directory).
@@ -139,6 +220,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f, err := loc.root.Open(loc.name)
+	if errors.Is(err, fs.ErrNotExist) && loc.rootKey == "thumbs" && strings.HasPrefix(loc.name, "folders/") {
+		// A local folder's thumbnail is made when it is first shown.
+		s.mu.Lock()
+		makeThumb := s.makeThumbnail
+		s.mu.Unlock()
+		if makeThumb != nil && makeThumb(strings.TrimPrefix(r.URL.Path, URLPrefix)) == nil {
+			f, err = loc.root.Open(loc.name)
+		}
+	}
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -152,8 +242,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
-	// A library path always refers to the same file.
-	h.Set("Cache-Control", "private, max-age=86400")
+	if loc.folder {
+		// The user may replace a file in a folder under the same name:
+		// check with the modification time every time.
+		h.Set("Cache-Control", "private, no-cache")
+	} else {
+		// A library path always refers to the same file.
+		h.Set("Cache-Control", "private, max-age=86400")
+	}
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 }
 
@@ -165,6 +261,9 @@ func (s *Server) Remove(relPath string) error {
 	if err != nil {
 		return err
 	}
+	if loc.folder {
+		return fmt.Errorf("%w: %q", ErrReadOnly, relPath)
+	}
 	if err := loc.regular(); errors.Is(err, fs.ErrNotExist) {
 		return nil
 	} else if err != nil {
@@ -173,7 +272,8 @@ func (s *Server) Remove(relPath string) error {
 	return loc.root.Remove(loc.name)
 }
 
-// OriginalPath returns the absolute path of an image (library or fetched)
+// OriginalPath returns the absolute path of an image (library, fetched or
+// in a local folder)
 // after checking that it is a regular file. Thumbnails are refused, so
 // external programs only ever receive images.
 func (s *Server) OriginalPath(relPath string) (string, error) {

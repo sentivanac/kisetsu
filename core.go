@@ -16,6 +16,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/database"
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/fetched"
+	"github.com/sentivanac/kisetsu/internal/folders"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/logging"
@@ -124,6 +125,13 @@ func openCore(ctx context.Context, component string, logMirror io.Writer) (*core
 	c.closers = append(c.closers, files)
 	c.files = files
 	c.lib = library.NewStore(db)
+	// Local folders are read where they are (ADR 0053); their thumbnails
+	// are made when the window first shows them.
+	thumbs := &folders.Thumbnails{Store: c.lib, Original: files.OriginalPath, Dir: paths.Data}
+	files.SetFolders(func(id int64) (string, error) {
+		f, err := c.lib.Folder(context.Background(), id)
+		return f.Path, err
+	}, thumbs.Make)
 
 	ok = true
 	return c, nil
@@ -208,6 +216,9 @@ func imageSources(client *http.Client) []providers.Provider {
 
 // providerName returns a source's display name, or its ID if unknown.
 func providerName(id string) string {
+	if id == folders.Provider {
+		return "Local folder"
+	}
 	for _, p := range imageSources(nil) {
 		if p.ID() == id {
 			return p.Name()

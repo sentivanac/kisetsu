@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -211,5 +212,51 @@ func TestListByFolder(t *testing.T) {
 	ids, err := s.FolderIDs(ctx, f1.ID)
 	if err != nil || len(ids) != 1 {
 		t.Errorf("folder 1 IDs %v, %v", ids, err)
+	}
+}
+
+func TestThumbnails(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	dir := t.TempDir()
+	writeImage(t, filepath.Join(dir, "big.jpg"), 1200, 800, false)
+	f, _ := s.AddFolder(ctx, dir)
+	if _, err := Sync(ctx, s, f); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := s.List(ctx, library.ListOptions{Origin: library.FromFolder})
+	e := entries[0]
+	data := t.TempDir()
+	thumbs := &Thumbnails{Store: s, Dir: data, Original: func(rel string) (string, error) {
+		return filepath.Join(dir, strings.TrimPrefix(rel, FilePath(f.ID, ""))), nil
+	}}
+
+	rel := ThumbnailPath(e)
+	if err := thumbs.Make(rel); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(filepath.Join(data, filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := jpeg.DecodeConfig(file)
+	file.Close()
+	if err != nil || cfg.Width != 480 || cfg.Height != 320 {
+		t.Errorf("thumbnail %dx%d, %v; want 480x320", cfg.Width, cfg.Height, err)
+	}
+	if got, _ := s.Get(ctx, e.ID); got.ThumbnailPath != rel {
+		t.Errorf("recorded thumbnail %q, want %q", got.ThumbnailPath, rel)
+	}
+
+	// An old modification time in the name: refused.
+	old := e
+	old.FileModTime--
+	if err := thumbs.Make(ThumbnailPath(old)); err == nil {
+		t.Error("made a thumbnail for an out-of-date path")
+	}
+	for _, bad := range []string{"thumbs/folders/x/1-a.jpg", "thumbs/wallhaven/a.jpg", "thumbs/folders/1/2.jpg", "thumbs/folders/1/a/2-a.jpg"} {
+		if err := thumbs.Make(bad); err == nil {
+			t.Errorf("made %q", bad)
+		}
 	}
 }

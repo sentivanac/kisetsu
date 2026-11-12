@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
+	"github.com/sentivanac/kisetsu/internal/folders"
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/libfiles"
 	"github.com/sentivanac/kisetsu/internal/library"
@@ -62,7 +63,12 @@ func (a *App) ListLibrary(collectionID int64, offset, limit int) (page LibraryPa
 
 func libraryItem(e library.Entry) LibraryItem {
 	img := e.Image
-	thumb := libfiles.URL(e.ThumbnailPath)
+	thumbPath := e.ThumbnailPath
+	if thumbPath == "" && e.Origin == library.FromFolder {
+		// Made when the window first asks for it (ADR 0053).
+		thumbPath = folders.ThumbnailPath(e)
+	}
+	thumb := libfiles.URL(thumbPath)
 	img.ThumbnailURL, img.PreviewURL = thumb, thumb
 	return LibraryItem{
 		ID:      e.ID,

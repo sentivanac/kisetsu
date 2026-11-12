@@ -59,14 +59,26 @@ Kisetsu never writes, moves or deletes anything in a folder. Removing a
 folder forgets its rows (and their collection memberships and history);
 the files stay.
 
+### Showing folder files
+
+- `libfiles` serves `folders/<id>/…`: each folder is opened once with
+  `os.Root`, like the library, which refuses paths and symbolic links
+  that lead outside it. The folder's path comes from the database.
+- `Remove` refuses folder files (`ErrReadOnly`); `OriginalPath` gives
+  them to the wallpaper as any image.
+- Folder files are served with `no-cache`: the user may replace a file
+  under the same name, so the window checks the modification time.
+- Thumbnails are made when the window first asks for one
+  (`thumbs/folders/<folder>/<image>-<modification time>.jpg`, in
+  Kisetsu's data directory), at most two at a time, and recorded. The
+  modification time in the name means a changed file gets a new
+  thumbnail rather than a cached old one.
+
 ### Still to come in 0.7.0
 
-1. The window's file server shows folder files, each folder opened with
-   `os.Root` like the library, and refuses to delete them; thumbnails are
-   made on demand in Kisetsu's own directory.
-2. A "Folders" view in the Library tab: add (system dialog), browse,
+1. A "Folders" view in the Library tab: add (system dialog), browse,
    preview, set as wallpaper, collections, remove.
-3. A folder as a rotation source; the agent syncs it before each change.
+2. A folder as a rotation source; the agent syncs it before each change.
 
 ## Alternatives considered
 

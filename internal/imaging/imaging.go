@@ -155,6 +155,33 @@ func Process(r io.ReadSeeker, opts ...Options) (Result, error) {
 	return res, nil
 }
 
+// Thumbnail reads an image file and returns its thumbnail as a JPEG, with
+// the same checks as Process but without hashing the whole file: for
+// files in a local folder, which are shown where they are (ADR 0053).
+func Thumbnail(r io.ReadSeeker) ([]byte, error) {
+	cfg, format, err := image.DecodeConfig(r)
+	if errors.Is(err, image.ErrFormat) {
+		return nil, ErrUnsupportedFormat
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCorrupt, err)
+	}
+	if _, ok := formats[format]; !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedFormat, format)
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > MaxPixels {
+		return nil, fmt.Errorf("%w: %dx%d", ErrTooLarge, cfg.Width, cfg.Height)
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("read image: %w", err)
+	}
+	img, _, err := image.Decode(r)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCorrupt, err)
+	}
+	return jpegBytes(thumbnail(img, ThumbnailSize), thumbnailQuality)
+}
+
 func jpegBytes(img image.Image, quality int) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
