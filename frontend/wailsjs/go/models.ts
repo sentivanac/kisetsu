@@ -297,6 +297,7 @@ export namespace main {
 	    fileUrl: string;
 	    addedAt: string;
 	    hidden: boolean;
+	    favorite: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LibraryItem(source);
@@ -309,6 +310,7 @@ export namespace main {
 	        this.fileUrl = source["fileUrl"];
 	        this.addedAt = source["addedAt"];
 	        this.hidden = source["hidden"];
+	        this.favorite = source["favorite"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -445,6 +447,7 @@ export namespace main {
 	    trayHost: boolean;
 	    nextChange: string;
 	    lastImageId: number;
+	    currentFavorite: boolean;
 	    lastChange: string;
 	    varietyRunning: boolean;
 	    sourceImages: number;
@@ -463,6 +466,7 @@ export namespace main {
 	        this.trayHost = source["trayHost"];
 	        this.nextChange = source["nextChange"];
 	        this.lastImageId = source["lastImageId"];
+	        this.currentFavorite = source["currentFavorite"];
 	        this.lastChange = source["lastChange"];
 	        this.varietyRunning = source["varietyRunning"];
 	        this.sourceImages = source["sourceImages"];

@@ -11,6 +11,8 @@ export function AddFolder():Promise<main.FolderSync>;
 
 export function AddToCollection(arg1:number,arg2:number):Promise<void>;
 
+export function AddToFavorites(arg1:number):Promise<void>;
+
 export function CancelDownload(arg1:string):Promise<void>;
 
 export function CancelSearch():Promise<void>;
@@ -26,6 +28,8 @@ export function DeleteFromLibrary(arg1:number):Promise<void>;
 export function DeleteSavedSearch(arg1:number):Promise<void>;
 
 export function Download(arg1:images.Image):Promise<string>;
+
+export function FavoriteCurrentWallpaper():Promise<main.RotationState>;
 
 export function GetAbout():Promise<main.About>;
 
@@ -78,6 +82,8 @@ export function PreviousWallpaper():Promise<main.RotationState>;
 export function RemoveFolder(arg1:number):Promise<void>;
 
 export function RemoveFromCollection(arg1:number,arg2:number):Promise<void>;
+
+export function RemoveFromFavorites(arg1:number):Promise<void>;
 
 export function RenameCollection(arg1:number,arg2:string):Promise<void>;
 

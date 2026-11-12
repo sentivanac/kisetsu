@@ -1,6 +1,6 @@
 # ADR 0054: Actions for the current wallpaper
 
-- **Status:** accepted; being built for 0.8.0
+- **Status:** accepted, for 0.8.0
 - **Date:** 2026-11-12
 
 ## Context
@@ -53,9 +53,21 @@ to favorites, in the tray menu and in the window.
 - This is how a folder image leaves rotation: Kisetsu deletes nothing
   in a folder.
 
-### Still to come in 0.8.0
+### Add to favorites
 
-1. Add to favorites: an ordinary collection "Favorites".
+- Favorites is an ordinary collection, not a new kind of thing: it can
+  be renamed, browsed, put in rotation ("Images from") and deleted like
+  any other. It is made the first time an image is added; its ID is
+  remembered (setting `favorites_collection`), so renaming keeps it the
+  favorites. A collection the user already called "Favorites" or
+  "Favourites" is used instead of making a second one; if the favorites
+  collection is deleted, the next favorite makes a new one.
+- A fetched image is kept in the library first (as "Keep in my
+  library"), so a favorite never disappears when the cache is cleaned.
+- "Add to favorites" in the tray menu adds the wallpaper on screen. In
+  the Wallpaper tab the same button shows "In favorites" when the
+  wallpaper is one, and takes it out when clicked. In an image's
+  preview, a heart adds or removes that image.
 
 ## Verification
 
@@ -71,3 +83,9 @@ marking hidden items, listing them, hiding the current wallpaper and
 changing to the next. In the window: "Don't show this again" in the
 Wallpaper tab (hidden, next image shown, listed), "Show again", and the
 button in a folder image's preview.
+
+Unit tests for favorites: the collection made by the first favorite,
+renamed and still used, an existing "Favourites" reused, a fetched image
+kept in the library, the current wallpaper, removing. In the window: the
+Wallpaper tab button in both directions, and the heart in a folder
+image's preview (the collection's checkbox followed).

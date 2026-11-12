@@ -718,6 +718,10 @@
     font-size: 1.1rem;
 }
 
+.favorite.on span {
+    color: var(--accent);
+}
+
 .hidden-list {
     display: flex;
     flex-wrap: wrap;

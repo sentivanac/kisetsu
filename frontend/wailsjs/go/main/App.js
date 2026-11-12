@@ -10,6 +10,10 @@ export function AddToCollection(arg1, arg2) {
   return window['go']['main']['App']['AddToCollection'](arg1, arg2);
 }
 
+export function AddToFavorites(arg1) {
+  return window['go']['main']['App']['AddToFavorites'](arg1);
+}
+
 export function CancelDownload(arg1) {
   return window['go']['main']['App']['CancelDownload'](arg1);
 }
@@ -40,6 +44,10 @@ export function DeleteSavedSearch(arg1) {
 
 export function Download(arg1) {
   return window['go']['main']['App']['Download'](arg1);
+}
+
+export function FavoriteCurrentWallpaper() {
+  return window['go']['main']['App']['FavoriteCurrentWallpaper']();
 }
 
 export function GetAbout() {
@@ -144,6 +152,10 @@ export function RemoveFolder(arg1) {
 
 export function RemoveFromCollection(arg1, arg2) {
   return window['go']['main']['App']['RemoveFromCollection'](arg1, arg2);
+}
+
+export function RemoveFromFavorites(arg1) {
+  return window['go']['main']['App']['RemoveFromFavorites'](arg1);
 }
 
 export function RenameCollection(arg1, arg2) {

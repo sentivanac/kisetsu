@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {
     AddFolder,
+    AddToFavorites,
     AddToCollection,
     CreateCollection,
     DeleteCollection,
@@ -15,6 +16,7 @@ import {
     ListFolders,
     ListLibrary,
     RemoveFolder,
+    RemoveFromFavorites,
     RemoveFromCollection,
     RenameCollection,
     SetWallpaper,
@@ -308,6 +310,18 @@ export function LibraryView({active, sourceName}: Props) {
                             <LibraryActions
                                 key={selectedItem.id}
                                 imageID={selectedItem.id}
+                                favorite={selectedItem.favorite}
+                                onFavoriteChange={(favorite) => {
+                                    // A fetched favorite is kept in the library, so it leaves this view.
+                                    if (showingFetched && favorite) dropItem(selectedItem.id);
+                                    else
+                                        setItems((list) =>
+                                            list.map((it) =>
+                                                it.id === selectedItem.id ? new main.LibraryItem({...it, favorite}) : it,
+                                            ),
+                                        );
+                                    refreshCounts();
+                                }}
                                 hidden={selectedItem.hidden}
                                 onHiddenChange={(hidden) =>
                                     setItems((list) =>
@@ -333,6 +347,9 @@ export function LibraryView({active, sourceName}: Props) {
 interface ActionsProps {
     imageID: number;
     addedAt: string;
+    // favorite: in the Favorites collection.
+    favorite: boolean;
+    onFavoriteChange: (favorite: boolean) => void;
     // hidden: kept out of rotation ("Don't show again").
     hidden: boolean;
     onHiddenChange: (hidden: boolean) => void;
@@ -343,7 +360,15 @@ interface ActionsProps {
 // LibraryActions sets the image as wallpaper and deletes it. Deleting asks
 // for confirmation: the first click only reveals the buttons that delete
 // or keep the image.
-function LibraryActions({imageID, addedAt, hidden, onHiddenChange, onDelete}: ActionsProps) {
+function LibraryActions({
+    imageID,
+    addedAt,
+    favorite,
+    onFavoriteChange,
+    hidden,
+    onHiddenChange,
+    onDelete,
+}: ActionsProps) {
     const [confirming, setConfirming] = useState(false);
     const [settingWallpaper, setSettingWallpaper] = useState(false);
     const [wallpaperResult, setWallpaperResult] = useState<{ok: boolean; message: string} | null>(null);
@@ -363,6 +388,21 @@ function LibraryActions({imageID, addedAt, hidden, onHiddenChange, onDelete}: Ac
             {added && <p className="muted">Added {added}</p>}
             <button type="button" className="btn" onClick={setAsWallpaper} disabled={settingWallpaper}>
                 {settingWallpaper ? 'Setting wallpaper…' : 'Set as wallpaper'}
+            </button>
+            <button
+                type="button"
+                className={favorite ? 'btn secondary favorite on' : 'btn secondary favorite'}
+                aria-pressed={favorite}
+                onClick={() => {
+                    setWallpaperResult(null);
+                    (favorite ? RemoveFromFavorites(imageID) : AddToFavorites(imageID))
+                        .then(() => onFavoriteChange(!favorite))
+                        .catch((err: unknown) =>
+                            setWallpaperResult({ok: false, message: describeError(toBackendError(err))}),
+                        );
+                }}
+            >
+                <span aria-hidden="true">{favorite ? '♥' : '♡'}</span> {favorite ? 'In favorites' : 'Add to favorites'}
             </button>
             <button
                 type="button"

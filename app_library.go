@@ -24,6 +24,8 @@ type LibraryItem struct {
 	AddedAt string       `json:"addedAt"` // RFC 3339
 	// Hidden: kept out of rotation ("Don't show again", ADR 0054).
 	Hidden bool `json:"hidden"`
+	// Favorite: in the Favorites collection.
+	Favorite bool `json:"favorite"`
 }
 
 // LibraryPage is one page of the library.
@@ -81,16 +83,20 @@ func libraryItem(e library.Entry) LibraryItem {
 	}
 }
 
-// markHidden sets Hidden on the items kept out of rotation. A failure only
-// leaves them unmarked.
+// markHidden sets Hidden and Favorite on the items. A failure only leaves
+// them unmarked.
 func (a *App) markHidden(items []LibraryItem) {
 	hidden, err := a.library.HiddenIDs(a.ctx)
 	if err != nil {
 		a.log.Warn("hidden images not read", "err", err)
-		return
+	}
+	favs, err := a.favs.members(a.ctx)
+	if err != nil {
+		a.log.Warn("favorites not read", "err", err)
 	}
 	for i := range items {
 		items[i].Hidden = hidden[items[i].ID]
+		items[i].Favorite = favs[items[i].ID]
 	}
 }
 

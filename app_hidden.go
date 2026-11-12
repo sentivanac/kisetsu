@@ -97,3 +97,51 @@ func hideCurrentWallpaper(ctx context.Context, lib *library.Store, r *rotation.R
 	}
 	return last.ImageID, nil
 }
+
+// AddToFavorites puts an image in the Favorites collection, made the
+// first time; a fetched image is kept in the library first.
+func (a *App) AddToFavorites(id int64) (err error) {
+	defer a.recoverPanic("AddToFavorites", &err)
+	if err := a.favs.add(a.ctx, id); errors.Is(err, library.ErrNotFound) {
+		return apperr.New(apperr.InvalidInput, "This image is no longer in Kisetsu.", err)
+	} else if err != nil {
+		return apperr.New(apperr.Unavailable, "The image could not be added to your favorites.", err)
+	}
+	a.log.Info("image added to favorites", "entry", id)
+	return nil
+}
+
+// RemoveFromFavorites takes an image out of Favorites; it stays where it
+// is.
+func (a *App) RemoveFromFavorites(id int64) (err error) {
+	defer a.recoverPanic("RemoveFromFavorites", &err)
+	if err := a.favs.remove(a.ctx, id); err != nil {
+		return apperr.New(apperr.Unavailable, "The image could not be removed from your favorites.", err)
+	}
+	return nil
+}
+
+// FavoriteCurrentWallpaper adds the wallpaper on screen to Favorites.
+func (a *App) FavoriteCurrentWallpaper() (state RotationState, err error) {
+	defer a.recoverPanic("FavoriteCurrentWallpaper", &err)
+	switch err := favoriteCurrentWallpaper(a.ctx, a.favs, a.rotation.History); {
+	case errors.Is(err, errNoCurrent):
+		return RotationState{}, apperr.New(apperr.InvalidInput, "Kisetsu has not set a wallpaper yet.", err)
+	case err != nil:
+		return RotationState{}, apperr.New(apperr.Unavailable, "The wallpaper could not be added to your favorites.", err)
+	}
+	return a.GetRotation()
+}
+
+// favoriteCurrentWallpaper adds the image Kisetsu set last to Favorites;
+// shared by the window and the tray.
+func favoriteCurrentWallpaper(ctx context.Context, favs favorites, history *rotation.History) error {
+	last, changed, err := history.Last(ctx)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		return errNoCurrent
+	}
+	return favs.add(ctx, last.ImageID)
+}

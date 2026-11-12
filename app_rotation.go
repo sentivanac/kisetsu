@@ -55,10 +55,12 @@ type RotationState struct {
 	TrayHost bool `json:"trayHost"`
 	// NextChange is when rotation changes the wallpaper next (RFC 3339),
 	// "" when rotation is off.
-	NextChange     string `json:"nextChange"`
-	LastImageID    int64  `json:"lastImageId"`
-	LastChange     string `json:"lastChange"` // RFC 3339, "" if none
-	VarietyRunning bool   `json:"varietyRunning"`
+	NextChange  string `json:"nextChange"`
+	LastImageID int64  `json:"lastImageId"`
+	// CurrentFavorite: the wallpaper on screen is in Favorites.
+	CurrentFavorite bool   `json:"currentFavorite"`
+	LastChange      string `json:"lastChange"` // RFC 3339, "" if none
+	VarietyRunning  bool   `json:"varietyRunning"`
 	// SourceImages is how many images the chosen source has now.
 	SourceImages int `json:"sourceImages"`
 	// Text is what is drawn on the wallpaper.
@@ -111,6 +113,9 @@ func (a *App) GetRotation() (state RotationState, err error) {
 	if err == nil && changed {
 		state.LastImageID = last.ImageID
 		state.LastChange = last.At.Format(time.RFC3339)
+		if favs, ferr := a.favs.members(a.ctx); ferr == nil {
+			state.CurrentFavorite = favs[last.ImageID]
+		}
 	}
 	if due, on := agent.Due(cfg, last.At, err == nil && changed); on {
 		// The agent checks every half minute; an overdue change comes next.

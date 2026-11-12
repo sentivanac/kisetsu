@@ -115,6 +115,10 @@ func runAgent(args []string) int {
 			defer stop()
 			return a.ChangeNow(ctx)
 		},
+		favorite: func(ctx context.Context) error {
+			favs := favorites{settings: store, library: c.lib, fetched: c.fetchedService()}
+			return favoriteCurrentWallpaper(ctx, favs, rotation.NewHistory(c.db))
+		},
 		hide: func(ctx context.Context) error {
 			unlock, err := rotation.Lock(c.rotationLockPath())
 			if err != nil {

@@ -67,6 +67,8 @@ type App struct {
 	rotationLock string
 	// ownDirs are Kisetsu's own directories, never added as local folders.
 	ownDirs []string
+	// favs is the Favorites collection (ADR 0054).
+	favs favorites
 
 	// aboutRequested: the window was opened to show About (the tray's
 	// "About Kisetsu"); the frontend asks once, with TakeAboutRequest.
@@ -138,6 +140,7 @@ func NewApp(d Deps) *App {
 		emit:         func(string, any) {},
 	}
 	a.aboutRequested.Store(d.ShowAbout)
+	a.favs = favorites{settings: d.Settings, library: d.Library, fetched: d.Fetched}
 	return a
 }
 

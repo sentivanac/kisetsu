@@ -53,6 +53,7 @@ type trayActions struct {
 	next        func(ctx context.Context) error
 	previous    func(ctx context.Context) error
 	hide        func(ctx context.Context) error
+	favorite    func(ctx context.Context) error
 	rotating    func(ctx context.Context) (bool, error)
 	setRotating func(ctx context.Context, on bool) error
 	open        func() error
@@ -75,6 +76,7 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		previous := systray.AddMenuItem("Previous wallpaper", "Go back to the wallpaper before this one")
 		next := systray.AddMenuItem("Next wallpaper", "Change the wallpaper now")
 		systray.AddSeparator()
+		favorite := systray.AddMenuItem("Add to favorites", "Add this wallpaper to the Favorites collection")
 		hide := systray.AddMenuItem("Don't show again", "Never show this wallpaper again, and change to the next")
 		systray.AddSeparator()
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
@@ -124,6 +126,10 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 							log.Warn("previous wallpaper from the tray failed", "err", err)
 						}
 					}()
+				case <-favorite.ClickedCh:
+					if err := act.favorite(ctx); err != nil {
+						log.Warn("adding the wallpaper to favorites from the tray failed", "err", err)
+					}
 				case <-hide.ClickedCh:
 					hide.Disable()
 					go func() {

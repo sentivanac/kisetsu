@@ -4,6 +4,8 @@ import {
     ListCollections,
     ListFolders,
     ListSavedSearches,
+    FavoriteCurrentWallpaper,
+    RemoveFromFavorites,
     HideCurrentWallpaper,
     ListHidden,
     NextWallpaper,
@@ -45,7 +47,7 @@ export function WallpaperView({active}: Props) {
     const [collections, setCollections] = useState<main.CollectionInfo[]>([]);
     const [savedSearches, setSavedSearches] = useState<main.SavedSearch[]>([]);
     const [folders, setFolders] = useState<main.FolderInfo[]>([]);
-    const [busy, setBusy] = useState<'save' | 'next' | 'previous' | 'hide' | null>(null);
+    const [busy, setBusy] = useState<'save' | 'next' | 'previous' | 'hide' | 'favorite' | null>(null);
     // Images kept out of rotation ("Don't show again").
     const [hidden, setHidden] = useState<main.LibraryItem[]>([]);
     const [error, setError] = useState<BackendError | null>(null);
@@ -79,7 +81,7 @@ export function WallpaperView({active}: Props) {
         return () => window.clearInterval(timer);
     }, [active, refresh]);
 
-    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next' | 'previous' | 'hide') {
+    function apply(action: () => Promise<main.RotationState>, kind: 'save' | 'next' | 'previous' | 'hide' | 'favorite') {
         setBusy(kind);
         setError(null);
         action()
@@ -157,6 +159,28 @@ export function WallpaperView({active}: Props) {
                     aria-describedby="wallpaper-now-note"
                 >
                     {busy === 'next' ? 'Changing…' : 'Next wallpaper'}
+                </button>
+                <button
+                    type="button"
+                    className={state.currentFavorite ? 'btn secondary favorite on' : 'btn secondary favorite'}
+                    onClick={() =>
+                        apply(
+                            state.currentFavorite
+                                ? () => RemoveFromFavorites(state.lastImageId).then(() => GetRotation())
+                                : FavoriteCurrentWallpaper,
+                            'favorite',
+                        )
+                    }
+                    disabled={busy !== null || !state.lastChange}
+                    aria-pressed={state.currentFavorite}
+                    title={
+                        state.currentFavorite
+                            ? 'This wallpaper is in Favorites; click to take it out'
+                            : 'Add this wallpaper to the Favorites collection'
+                    }
+                >
+                    <span aria-hidden="true">{state.currentFavorite ? '♥' : '♡'}</span>{' '}
+                    {state.currentFavorite ? 'In favorites' : 'Add to favorites'}
                 </button>
                 <button
                     type="button"

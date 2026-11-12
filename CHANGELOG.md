@@ -15,6 +15,10 @@ follow [Semantic Versioning](https://semver.org/).
   image's preview: keeps an image out of rotation without deleting it
   (also the way out of rotation for images in your folders). The
   Wallpaper tab lists hidden images and can show them again.
+- **Add to favorites**, in the tray menu, the Wallpaper tab and an
+  image's preview (a heart): an ordinary "Favorites" collection, made
+  the first time, that you can rotate like any collection. A fetched
+  image is kept in your library when you add it.
 
 ## [0.7.1] - 2026-11-12
 
