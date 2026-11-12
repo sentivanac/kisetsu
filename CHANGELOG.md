@@ -4,7 +4,7 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [0.8.0] - Unreleased
+## [0.8.0] - 2026-11-12
 
 ### Wallpaper
 - **Previous wallpaper**, in the tray menu and next to "Next wallpaper":
@@ -23,6 +23,7 @@ follow [Semantic Versioning](https://semver.org/).
   and fetches new images afterwards, instead of waiting up to half a
   minute for them first. Only when nothing new is left does it wait;
   the tray menu then says "Fetching new images…".
+- Tested on Linux and in a Windows 10 virtual machine.
 
 ## [0.7.1] - 2026-11-12
 

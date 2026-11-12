@@ -108,3 +108,7 @@ image's preview (the collection's checkbox followed).
 Unit tests for the order of change and fetch: changing first with
 images left, waiting (and telling the tray) only with none left, and
 fetching in the background while Next returns.
+
+On Windows 10 (the release candidate in the VM, upgrading 0.7.x with
+migration 0010): the three tray items, the buttons of the Wallpaper tab
+and the list of hidden images.
