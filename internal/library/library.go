@@ -38,6 +38,9 @@ const (
 	// Fetched images were downloaded automatically from a saved search and
 	// live in the cache until kept (ADR 0028).
 	Fetched Origin = "fetched"
+	// FromFolder images are files in a local folder the user added, used
+	// where they are (ADR 0053).
+	FromFolder Origin = "folder"
 )
 
 // Entry is one image in the library.
@@ -46,17 +49,23 @@ type Entry struct {
 	// Image keeps the provider metadata and attribution exactly as found.
 	Image images.Image
 	// FilePath and ThumbnailPath are relative paths understood by
-	// libfiles ("images/…", "thumbs/…", or "fetched/…" for fetched images).
+	// libfiles ("images/…", "thumbs/…", "fetched/…" for fetched images,
+	// "folders/<folder id>/…" for a folder's files).
 	FilePath      string
 	ThumbnailPath string
 	// SHA256 is the hash of the file as downloaded; fetched images may be
-	// stored smaller than that.
+	// stored smaller than that. Folder images have none.
 	SHA256  string
 	DHash   uint64
 	AddedAt time.Time
 	// Origin is FromUser unless the image was fetched; empty means FromUser.
 	Origin        Origin
 	SavedSearchID int64 // the search a fetched image came from; 0 if none
+	// FolderID is the folder of a folder image; 0 for others.
+	FolderID int64
+	// FileModTime is a folder file's modification time (Unix nanoseconds)
+	// when it was read, so syncing notices a change.
+	FileModTime int64
 }
 
 // Store reads and writes library records.
@@ -71,8 +80,8 @@ func NewStore(db *sql.DB) *Store {
 
 const entryColumns = `id, provider, provider_id, page_url, download_url, source_url,
 	author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
-	width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, added_at,
-	origin, coalesce(saved_search_id, 0)`
+	width, height, mime_type, file_size, file_path, thumbnail_path, coalesce(sha256, ''), dhash, added_at,
+	origin, coalesce(saved_search_id, 0), coalesce(folder_id, 0), coalesce(file_mod_time, 0)`
 
 // Add stores a new entry and returns its ID. It fails with
 // ErrAlreadyInLibrary or ErrDuplicateFile instead of storing a duplicate.
@@ -92,36 +101,22 @@ func (s *Store) Add(ctx context.Context, e Entry) (int64, error) {
 	if n > 0 {
 		return 0, fmt.Errorf("%w: %s/%s", ErrAlreadyInLibrary, e.Image.Provider, e.Image.ProviderID)
 	}
-	err = tx.QueryRowContext(ctx, `SELECT count(*) FROM images WHERE sha256 = ?`, e.SHA256).Scan(&n)
-	if err != nil {
-		return 0, fmt.Errorf("add image: %w", err)
-	}
-	if n > 0 {
-		return 0, fmt.Errorf("%w: %s", ErrDuplicateFile, e.SHA256)
+	if e.SHA256 != "" {
+		err = tx.QueryRowContext(ctx, `SELECT count(*) FROM images WHERE sha256 = ?`, e.SHA256).Scan(&n)
+		if err != nil {
+			return 0, fmt.Errorf("add image: %w", err)
+		}
+		if n > 0 {
+			return 0, fmt.Errorf("%w: %s", ErrDuplicateFile, e.SHA256)
+		}
 	}
 
-	img := e.Image
 	origin := e.Origin
 	if origin == "" {
 		origin = FromUser
 	}
-	var savedSearch any // NULL unless the image came from a saved search
-	if e.SavedSearchID != 0 {
-		savedSearch = e.SavedSearchID
-	}
-	res, err := tx.ExecContext(ctx, `INSERT INTO images (
-			provider, provider_id, page_url, download_url, source_url,
-			author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
-			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, origin, saved_search_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		img.Provider, img.ProviderID, img.PageURL, img.DownloadURL, img.SourceURL,
-		img.Author.Name, img.Author.URL, img.Author.Credit, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
-		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, e.SHA256, int64(e.DHash),
-		string(origin), savedSearch)
-	if err != nil {
-		return 0, fmt.Errorf("add image: %w", err)
-	}
-	id, err := res.LastInsertId()
+	e.Origin = origin
+	id, err := insert(ctx, tx, e)
 	if err != nil {
 		return 0, fmt.Errorf("add image: %w", err)
 	}
@@ -129,6 +124,45 @@ func (s *Store) Add(ctx context.Context, e Entry) (int64, error) {
 		return 0, fmt.Errorf("add image: %w", err)
 	}
 	return id, nil
+}
+
+// execer is a *sql.DB or a *sql.Tx.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// insert writes e as a new row and returns its ID. Empty SHA-256, saved
+// search, folder and modification time are stored as NULL.
+func insert(ctx context.Context, x execer, e Entry) (int64, error) {
+	img := e.Image
+	res, err := x.ExecContext(ctx, `INSERT INTO images (
+			provider, provider_id, page_url, download_url, source_url,
+			author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
+			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, origin, saved_search_id,
+			folder_id, file_mod_time)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		img.Provider, img.ProviderID, img.PageURL, img.DownloadURL, img.SourceURL,
+		img.Author.Name, img.Author.URL, img.Author.Credit, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
+		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, nullString(e.SHA256), int64(e.DHash),
+		string(e.Origin), nullInt(e.SavedSearchID), nullInt(e.FolderID), nullInt(e.FileModTime))
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func nullString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func nullInt(v int64) any {
+	if v == 0 {
+		return nil
+	}
+	return v
 }
 
 // Get returns the entry with the given ID.
@@ -205,9 +239,11 @@ type ListOptions struct {
 	Origin Origin
 	// SavedSearchID limits fetched images to one saved search; 0 = all.
 	SavedSearchID int64
-	OldestFirst   bool
-	Limit         int // 0 means no limit
-	Offset        int
+	// FolderID limits folder images to one folder; 0 = all.
+	FolderID    int64
+	OldestFirst bool
+	Limit       int // 0 means no limit
+	Offset      int
 }
 
 // List returns entries, newest first unless OldestFirst is set.
@@ -225,6 +261,10 @@ func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
 	if opts.SavedSearchID != 0 {
 		query += ` AND saved_search_id = ?`
 		args = append(args, opts.SavedSearchID)
+	}
+	if opts.FolderID != 0 {
+		query += ` AND folder_id = ?`
+		args = append(args, opts.FolderID)
 	}
 	if opts.OldestFirst {
 		query += ` ORDER BY added_at, id`
@@ -375,7 +415,8 @@ type HashRef struct {
 // DHashes returns the perceptual hash of every entry, for finding visually
 // similar images.
 func (s *Store) DHashes(ctx context.Context) ([]HashRef, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, dhash FROM images`)
+	// Folder files are not hashed (ADR 0053).
+	rows, err := s.db.QueryContext(ctx, `SELECT id, dhash FROM images WHERE origin != 'folder'`)
 	if err != nil {
 		return nil, fmt.Errorf("list hashes: %w", err)
 	}
@@ -422,7 +463,7 @@ func scanEntry(row scanner) (Entry, error) {
 	err := row.Scan(&e.ID, &img.Provider, &img.ProviderID, &img.PageURL, &img.DownloadURL, &img.SourceURL,
 		&img.Author.Name, &img.Author.URL, &img.Author.Credit, &status, &img.License.Name, &img.License.URL, &img.License.Notice,
 		&img.Width, &img.Height, &img.MIMEType, &img.FileSize, &e.FilePath, &e.ThumbnailPath, &e.SHA256, &dhash, &added,
-		&e.Origin, &e.SavedSearchID)
+		&e.Origin, &e.SavedSearchID, &e.FolderID, &e.FileModTime)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Entry{}, err

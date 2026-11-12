@@ -1,0 +1,80 @@
+# ADR 0053: Local folders
+
+- **Status:** accepted; being built for 0.7.0
+- **Date:** 2026-11-12
+
+## Context
+
+A wallpaper manager is expected to use images the user already has, as
+Variety does with its folders. Kisetsu's library only knew images it had
+downloaded itself, stored in its own directory, and the window can show
+files only from there (a guard of `libfiles`).
+
+The user chose (2026-11-12): folders are used **in place**, never copied,
+with **subfolders**.
+
+## Decision
+
+### The data
+
+- Table `folders`: the absolute path of every folder the user added.
+- A folder's images are rows of `images` with origin `folder`, the
+  folder's ID and the file's modification time. Collections, history,
+  "Set as wallpaper", rotation and the text on the wallpaper treat them
+  as any image. The user's library and the fetched images exclude them,
+  as they exclude each other.
+- Stored path: `folders/<folder id>/<path in the folder>`; provider
+  `folder`. No author, license unknown, with a notice that the file is
+  from the user's own folder.
+- **No SHA-256.** Hashing a large folder would read gigabytes the first
+  time, and a picture may be in the library and in a folder. Folder
+  images also have no difference hash, and duplicate detection leaves
+  them out.
+
+Migration 0009 rebuilds `images`, because SQLite cannot change a CHECK
+(the origins) or make a `UNIQUE NOT NULL` column optional in place. The
+runner gained migrations marked `-- kisetsu: foreign keys off`: they run
+on one connection with foreign keys off (otherwise dropping the old
+table would delete collection memberships and history through
+`ON DELETE CASCADE`), and are committed only if `PRAGMA
+foreign_key_check` finds no broken link. Tried on a copy of a real
+database: 118 images identical in every column, 186 history entries, no
+broken link, `integrity_check` ok.
+
+### Syncing
+
+`folders.Sync` walks the folder and its subfolders and compares with the
+stored rows:
+
+- new files are added, changed ones (size or modification time) are read
+  again, and the rows of removed ones are deleted, in one transaction;
+- only JPEG, PNG and WebP, recognized by content; only the header is
+  read (size and format), so a large folder syncs fast;
+- hidden folders and files, symbolic links, damaged files, images over
+  `imaging.MaxPixels` and files past 50 000 are skipped;
+- a folder that does not exist or cannot be read (a drive that is not
+  connected) is left as it is: its images are not forgotten.
+
+Kisetsu never writes, moves or deletes anything in a folder. Removing a
+folder forgets its rows (and their collection memberships and history);
+the files stay.
+
+### Still to come in 0.7.0
+
+1. The window's file server shows folder files, each folder opened with
+   `os.Root` like the library, and refuses to delete them; thumbnails are
+   made on demand in Kisetsu's own directory.
+2. A "Folders" view in the Library tab: add (system dialog), browse,
+   preview, set as wallpaper, collections, remove.
+3. A folder as a rotation source; the agent syncs it before each change.
+
+## Alternatives considered
+
+- **Importing (copying) into the library:** simpler, but every image
+  twice on disk, and new files in the folder not picked up.
+- **Keeping origin `library` and marking folder images with a column:**
+  no table rebuild, but every library query would have to exclude them;
+  one forgotten condition would mix them into the library.
+- **Watching folders for changes (inotify):** instant, but a second
+  mechanism on every platform; syncing when the folder is opened and
+  before a wallpaper change is enough.
