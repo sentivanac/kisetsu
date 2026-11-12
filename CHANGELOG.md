@@ -4,7 +4,7 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-11-12
 
 ### Library
 - **Your own folders**: add a folder of images you already have
@@ -14,6 +14,8 @@ follow [Semantic Versioning](https://semver.org/).
   each wallpaper change. Folder images can be set as the wallpaper, put
   in collections, and a folder can be the source of rotation. A folder
   on a drive that is not connected keeps its images until it is back.
+- Tested on Linux and in a Windows 10 virtual machine, including the
+  upgrade of an existing library.
 
 ## [0.6.1] - 2026-11-09
 

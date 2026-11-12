@@ -113,7 +113,10 @@ setting as wallpaper, removing) and rotation (reading before the first
 change, a new file, a missing and a removed folder). In the window on
 Linux: adding a folder in the system dialog, thumbnails, preview, set as
 wallpaper, removing (the files stayed), and a folder as the rotation
-source.
+source. On Windows 10 (the release candidate in the VM): upgrading
+from 0.6.1 with migration 0009 (library, collections and history kept),
+adding a folder, rotation from it with a new file picked up, renaming a
+subfolder and moving a file while Kisetsu ran, and removing the folder.
 
 ## Alternatives considered
 
