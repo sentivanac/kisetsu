@@ -247,16 +247,29 @@ type ListOptions struct {
 }
 
 // List returns entries, newest first unless OldestFirst is set.
+//
+// A collection lists all its members, whatever their origin: images from
+// the user's folders can be in collections too (ADR 0053). Without a
+// collection, only the chosen origin is listed (the user's library by
+// default).
 func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
-	origin := opts.Origin
-	if origin == "" {
-		origin = FromUser
-	}
-	query := `SELECT ` + entryColumns + ` FROM images WHERE origin = ?`
-	args := []any{string(origin)}
-	if opts.CollectionID != 0 {
-		query += ` AND id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)`
+	var query string
+	var args []any
+	if opts.CollectionID != 0 && opts.Origin == "" {
+		query = `SELECT ` + entryColumns + ` FROM images
+			WHERE id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)`
 		args = append(args, opts.CollectionID)
+	} else {
+		origin := opts.Origin
+		if origin == "" {
+			origin = FromUser
+		}
+		query = `SELECT ` + entryColumns + ` FROM images WHERE origin = ?`
+		args = append(args, string(origin))
+		if opts.CollectionID != 0 {
+			query += ` AND id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)`
+			args = append(args, opts.CollectionID)
+		}
 	}
 	if opts.SavedSearchID != 0 {
 		query += ` AND saved_search_id = ?`
@@ -296,15 +309,15 @@ func (s *Store) List(ctx context.Context, opts ListOptions) ([]Entry, error) {
 	return out, nil
 }
 
-// IDs returns the IDs of the user's library (collectionID 0) or of one
-// collection, oldest first. Fetched images are not included.
+// IDs returns the IDs of the user's library (collectionID 0) or of all the
+// members of one collection, folder images included, oldest first.
+// Fetched images are not part of the library.
 func (s *Store) IDs(ctx context.Context, collectionID int64) ([]int64, error) {
 	query := `SELECT id FROM images WHERE origin = 'library' ORDER BY added_at, id`
 	var args []any
 	if collectionID != 0 {
 		query = `SELECT id FROM images
-			WHERE origin = 'library'
-			AND id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)
+			WHERE id IN (SELECT image_id FROM collection_images WHERE collection_id = ?)
 			ORDER BY added_at, id`
 		args = append(args, collectionID)
 	}

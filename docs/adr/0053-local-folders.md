@@ -102,6 +102,16 @@ the files stay.
   deleted collection. A folder that cannot be read now changes nothing:
   none of its files could be shown.
 
+### Collections (0.7.1)
+
+A collection is its members, whatever their origin: images from folders
+can be added to collections, and a collection's view and rotation now
+include them. 0.7.0 still filtered collections by origin `library`, so a
+folder image added to a collection was counted but neither shown nor
+rotated, the forgotten condition the rejected alternative below warns
+about, in the other direction. Without a collection, the library still
+lists only its own images.
+
 ## Verification
 
 Unit tests for the migration (on test data and on a copy of a real

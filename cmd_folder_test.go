@@ -77,3 +77,30 @@ func TestRotationSettingsTakeOneSource(t *testing.T) {
 		}
 	}
 }
+
+func TestRotationFromACollectionWithAFolderImage(t *testing.T) {
+	c, r, fake := testCore(t, 0)
+	ctx := context.Background()
+	dir := filepath.Join(t.TempDir(), "Pictures")
+	writeTestJPEG(t, filepath.Join(dir, "a.jpg"))
+	f, _ := c.lib.AddFolder(ctx, dir)
+	if _, err := syncFolder(ctx, c.lib, c.files, f, nil, c.log); err != nil {
+		t.Fatal(err)
+	}
+	ids, _ := c.lib.FolderIDs(ctx, f.ID)
+	col, err := c.lib.CreateCollection(ctx, "Favourites")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.lib.AddToCollection(ctx, col.ID, ids[0])
+
+	cfg := rotation.DefaultSettings
+	cfg.CollectionID = col.ID
+	rotation.SaveSettings(ctx, r.Settings, cfg)
+	if _, err := r.Next(ctx); err != nil {
+		t.Fatalf("rotation from a collection with only a folder image: %v", err)
+	}
+	if fake.path != filepath.Join(dir, "a.jpg") {
+		t.Errorf("set %q, want the folder image", fake.path)
+	}
+}

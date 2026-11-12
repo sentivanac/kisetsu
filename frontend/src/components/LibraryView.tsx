@@ -30,6 +30,10 @@ import {PreviewDialog} from './PreviewDialog';
 
 const pageSize = 60;
 
+// fromFolder: the image is a file in one of the user's folders, which
+// Kisetsu never deletes; a collection can hold such images too.
+const fromFolder = (item: main.LibraryItem) => item.image.provider === 'folder';
+
 interface Props {
     // The view reloads when it becomes visible, to show new downloads.
     active: boolean;
@@ -302,8 +306,8 @@ export function LibraryView({active, sourceName}: Props) {
                             <LibraryActions
                                 key={selectedItem.id}
                                 imageID={selectedItem.id}
-                                addedAt={folder ? '' : selectedItem.addedAt}
-                                onDelete={folder ? undefined : () => deleteItem(selectedItem.id)}
+                                addedAt={fromFolder(selectedItem) ? '' : selectedItem.addedAt}
+                                onDelete={fromFolder(selectedItem) ? undefined : () => deleteItem(selectedItem.id)}
                             />
                         </>
                     }

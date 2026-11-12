@@ -303,3 +303,37 @@ func TestSyncSkipsKisetsusOwnDirectory(t *testing.T) {
 		t.Errorf("sync: %+v, %v; want only mine.jpg", res, err)
 	}
 }
+
+func TestFolderImagesInACollection(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	dir := t.TempDir()
+	writeImage(t, filepath.Join(dir, "a.jpg"), 40, 30, false)
+	writeImage(t, filepath.Join(dir, "b.jpg"), 40, 30, false)
+	f, _ := s.AddFolder(ctx, dir)
+	Sync(ctx, s, f)
+	ids, _ := s.FolderIDs(ctx, f.ID)
+	c, err := s.CreateCollection(ctx, "Favourites")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddToCollection(ctx, c.ID, ids[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	// The collection shows and rotates its folder image.
+	listed, err := s.List(ctx, library.ListOptions{CollectionID: c.ID})
+	if err != nil || len(listed) != 1 || listed[0].ID != ids[0] {
+		t.Errorf("collection lists %d images, %v; want the folder image", len(listed), err)
+	}
+	if got, err := s.IDs(ctx, c.ID); err != nil || !slices.Equal(got, ids[:1]) {
+		t.Errorf("collection IDs %v, %v; want %v", got, err, ids[:1])
+	}
+	// The whole library still leaves folder images out.
+	if got, _ := s.IDs(ctx, 0); len(got) != 0 {
+		t.Errorf("library IDs %v, want none", got)
+	}
+	if got, _ := s.List(ctx, library.ListOptions{}); len(got) != 0 {
+		t.Errorf("library lists %d images, want none", len(got))
+	}
+}
