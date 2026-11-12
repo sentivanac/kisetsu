@@ -181,7 +181,6 @@ func (a *App) RemoveFolder(id int64) (err error) {
 	if err != nil {
 		return apperr.New(apperr.Unavailable, "The folder could not be removed.", err)
 	}
-	a.files.ForgetFolder(id)
 	for _, thumb := range thumbs {
 		if err := a.files.Remove(thumb); err != nil {
 			a.log.Warn("folder thumbnail not removed", "path", thumb, "err", err)

@@ -15,7 +15,10 @@
 // Only these places are reachable, for every operation; the database,
 // temporary files and anything else are not. Each directory is opened with
 // os.Root, which refuses paths and symbolic links that lead outside it.
-// A local folder's files are only ever read: Remove refuses them.
+// A local folder's files are only ever read: Remove refuses them. A local
+// folder is opened for one operation at a time and closed again: on
+// Windows an open folder cannot be renamed or deleted, and the user must
+// stay free to do both while Kisetsu runs.
 package libfiles
 
 import (
@@ -55,7 +58,6 @@ type Server struct {
 	// SetFolders.
 	makeThumbnail func(relPath string) error
 	mu            sync.Mutex
-	folderRoots   map[int64]*os.Root
 }
 
 // location is a checked library path.
@@ -65,13 +67,21 @@ type location struct {
 	name    string // path inside the root
 	abs     string // absolute path on disk
 	thumb   bool
-	folder  bool // in a local folder: read only
+	folder  bool // in a local folder: read only, and root is closed by close
+}
+
+// close releases a local folder opened for this location; the library's
+// own directories stay open.
+func (loc location) close() {
+	if loc.folder && loc.root != nil {
+		loc.root.Close()
+	}
 }
 
 // New opens the library under dataDir and the fetched images under
 // fetchedDir. Both must contain images/ and thumbs/ directories.
 func New(dataDir, fetchedDir string) (*Server, error) {
-	s := &Server{dataDir: dataDir, fetchedDir: fetchedDir, roots: map[string]*os.Root{}, folderRoots: map[int64]*os.Root{}}
+	s := &Server{dataDir: dataDir, fetchedDir: fetchedDir, roots: map[string]*os.Root{}}
 	for key, dir := range map[string]string{
 		"images":  filepath.Join(dataDir, "images"),
 		"thumbs":  filepath.Join(dataDir, "thumbs"),
@@ -96,35 +106,23 @@ func (s *Server) SetFolders(path func(id int64) (string, error), makeThumbnail f
 	s.folderPath, s.makeThumbnail = path, makeThumbnail
 }
 
-// ForgetFolder closes a folder that was removed.
-func (s *Server) ForgetFolder(id int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if r := s.folderRoots[id]; r != nil {
-		r.Close()
-		delete(s.folderRoots, id)
-	}
-}
-
-// folderRoot opens a local folder once, with os.Root like the library.
+// folderRoot opens a local folder with os.Root, like the library. The
+// caller closes it.
 func (s *Server) folderRoot(id int64) (*os.Root, string, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.folderPath == nil {
+	lookup := s.folderPath
+	s.mu.Unlock()
+	if lookup == nil {
 		return nil, "", fmt.Errorf("%w: no local folders", ErrOutsideLibrary)
 	}
-	dir, err := s.folderPath(id)
+	dir, err := lookup(id)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: folder %d: %v", ErrOutsideLibrary, id, err)
-	}
-	if r := s.folderRoots[id]; r != nil {
-		return r, dir, nil
 	}
 	r, err := os.OpenRoot(dir)
 	if err != nil {
 		return nil, "", err
 	}
-	s.folderRoots[id] = r
 	return r, dir, nil
 }
 
@@ -134,11 +132,6 @@ func (s *Server) Close() error {
 	for _, r := range s.roots {
 		errs = append(errs, r.Close())
 	}
-	s.mu.Lock()
-	for _, r := range s.folderRoots {
-		errs = append(errs, r.Close())
-	}
-	s.mu.Unlock()
 	return errors.Join(errs...)
 }
 
@@ -219,6 +212,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	defer loc.close()
 	f, err := loc.root.Open(loc.name)
 	if errors.Is(err, fs.ErrNotExist) && loc.rootKey == "thumbs" && strings.HasPrefix(loc.name, "folders/") {
 		// A local folder's thumbnail is made when it is first shown.
@@ -261,6 +255,7 @@ func (s *Server) Remove(relPath string) error {
 	if err != nil {
 		return err
 	}
+	defer loc.close()
 	if loc.folder {
 		return fmt.Errorf("%w: %q", ErrReadOnly, relPath)
 	}
@@ -281,6 +276,7 @@ func (s *Server) OriginalPath(relPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer loc.close()
 	if loc.thumb {
 		return "", fmt.Errorf("%w: %q is a thumbnail", ErrOutsideLibrary, relPath)
 	}
@@ -302,6 +298,7 @@ func (s *Server) CopyFetched(relPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer src.close()
 	if src.rootKey != "fetched" {
 		return "", fmt.Errorf("%w: %q is not a fetched file", ErrOutsideLibrary, relPath)
 	}

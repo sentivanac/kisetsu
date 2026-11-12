@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/jpeg"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -60,7 +61,7 @@ func TestFolderInTheWindow(t *testing.T) {
 		t.Fatalf("folder page: %d items, %v", len(page.Items), err)
 	}
 	// The thumbnail is made on request, under thumbs/folders/.
-	if thumb := page.Items[0].Image.ThumbnailURL; filepath.Dir(filepath.Dir(thumb)) != "/library/thumbs/folders" {
+	if thumb := page.Items[0].Image.ThumbnailURL; path.Dir(path.Dir(thumb)) != "/library/thumbs/folders" {
 		t.Errorf("thumbnail URL %q", thumb)
 	}
 	// Folder images are not in the user's library.

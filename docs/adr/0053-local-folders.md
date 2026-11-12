@@ -61,9 +61,15 @@ the files stay.
 
 ### Showing folder files
 
-- `libfiles` serves `folders/<id>/…`: each folder is opened once with
+- `libfiles` serves `folders/<id>/…`: the folder is opened with
   `os.Root`, like the library, which refuses paths and symbolic links
   that lead outside it. The folder's path comes from the database.
+- A folder is opened for one operation and closed again, unlike the
+  library's own directories. On Windows an open folder cannot be renamed
+  or deleted, and the agent runs all session: keeping folders open made
+  the user's own folders immovable (found by CI on Windows, where a test
+  could not remove its temporary folder). A Linux test checks through
+  `/proc/self/fd` that nothing in a folder stays open.
 - `Remove` refuses folder files (`ErrReadOnly`); `OriginalPath` gives
   them to the wallpaper as any image.
 - Folder files are served with `no-cache`: the user may replace a file
