@@ -266,3 +266,16 @@ func TestRunRefreshesBetweenChecks(t *testing.T) {
 		t.Errorf("rotated %d times, want 1", f.rotated)
 	}
 }
+
+// A last change in the future means the clock went back (a laptop whose
+// clock starts in the past until NTP corrects it): one change is due,
+// instead of waiting until the clock catches up.
+func TestChangesAfterTheClockWentBack(t *testing.T) {
+	f := &fake{cfg: hourly(), last: start, changed: true, now: start.Add(-30 * 24 * time.Hour)}
+	a := newAgent(f)
+	a.Check(context.Background())
+	a.Check(context.Background())
+	if f.rotated != 1 {
+		t.Errorf("rotated %d times with the clock set back, want 1", f.rotated)
+	}
+}

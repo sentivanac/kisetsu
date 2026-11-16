@@ -581,3 +581,33 @@ func TestShowWithoutLiveDropsTheTextFile(t *testing.T) {
 		t.Errorf("set %q, want the original without the text file", e.setter.paths[0])
 	}
 }
+
+// After a boot with the clock set back, the copies of the last session
+// have larger numbers than the time now. The new image must still be the
+// newest, or prune removes the picture just set (MATE then drew its
+// gradient).
+func TestNewestNameSurvivesAClockSetBack(t *testing.T) {
+	e := newEnv(t)
+	e.turnOn(t)
+	if err := os.MkdirAll(e.s.Dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"wallpaper-8000000000000000000.jpg", "wallpaper-9000000000000000000.jpg"} {
+		if err := os.WriteFile(filepath.Join(e.s.Dir, n), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.s.Show(context.Background(), commonsEntry(), e.image); err != nil {
+		t.Fatal(err)
+	}
+	set := e.setter.paths[len(e.setter.paths)-1]
+	if filepath.Base(set) != "wallpaper-9000000000000000001.jpg" {
+		t.Errorf("set %q, want the name after the newest", filepath.Base(set))
+	}
+	if _, err := os.Stat(set); err != nil {
+		t.Errorf("the image just set was removed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(e.s.Dir, "wallpaper-8000000000000000000.jpg")); !os.IsNotExist(err) {
+		t.Errorf("the oldest copy was kept: %v", err)
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,8 @@ type Setter interface {
 // desktops keep pictures by path, and GNOME showed an earlier picture
 // (with an old time) when the same names were written again. The newest
 // keepComposed are kept, since a desktop may still read the previous one.
+// A new name is always above the existing ones, even when the clock went
+// back, so the image just set is never the one removed.
 const (
 	composedPrefix = "wallpaper-"
 	composedSuffix = ".jpg"
@@ -377,8 +380,10 @@ func (s *Service) write(img image.Image) (string, error) {
 		return "", err
 	}
 	// The name sorts by time; the window and the agent both write here, so
-	// a taken name is skipped.
-	n := time.Now().UnixNano()
+	// a taken name is skipped. It is never below the newest name: after a
+	// boot with the clock set back, a smaller name would be pruned at once
+	// and the desktop left without a picture (MATE drew its gradient).
+	n := max(time.Now().UnixNano(), s.newestComposed()+1)
 	target := ""
 	for ; ; n++ {
 		target = filepath.Join(s.Dir, fmt.Sprintf("%s%019d%s", composedPrefix, n, composedSuffix))
@@ -410,6 +415,26 @@ func isComposed(name string) bool {
 		}
 	}
 	return true
+}
+
+// newestComposed returns the number in the newest composed image's name,
+// or 0 when there is none or the directory cannot be read.
+func (s *Service) newestComposed() int64 {
+	entries, err := os.ReadDir(s.Dir)
+	if err != nil {
+		return 0
+	}
+	var newest int64
+	for _, e := range entries {
+		if !isComposed(e.Name()) {
+			continue
+		}
+		digits := strings.TrimSuffix(strings.TrimPrefix(e.Name(), composedPrefix), composedSuffix)
+		if n, err := strconv.ParseInt(digits, 10, 64); err == nil && n > newest {
+			newest = n
+		}
+	}
+	return newest
 }
 
 // prune removes all but the newest keepComposed composed images. Other

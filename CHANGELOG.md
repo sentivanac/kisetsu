@@ -4,6 +4,16 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- With the clock or text on the wallpaper, a computer whose clock starts
+  in the past after a restart (until it is corrected from the network)
+  showed the desktop's plain background instead of the wallpaper: the
+  new picture was removed as soon as it was set.
+- Rotation no longer waits while the clock is behind the last change; it
+  changes once and counts from there.
+
 ## [0.8.0] - 2026-11-12
 
 ### Wallpaper

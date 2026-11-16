@@ -68,7 +68,11 @@ then showed pictures it had kept under those names, with old times on
 the clock (seen in an Ubuntu 26.04.1 live session). The two newest copies
 are kept, since a desktop may still read the previous one; older ones are
 removed. Each is written to a temporary file and renamed, so a desktop
-never reads half of it.
+never reads half of it. A new number is never below the newest existing
+one: on a laptop whose clock started in the past after a reboot (an empty
+CMOS battery, until NTP corrected it), the new copy had a smaller number
+than those of the last session and was removed as soon as it was set;
+MATE showed its fallback gradient until the clock was right.
 
 Changing the text settings in the window shows the wallpaper Kisetsu set
 last again at once, with or without the text. This is skipped while

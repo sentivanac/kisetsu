@@ -178,7 +178,10 @@ func (a *Agent) due(ctx context.Context, now time.Time) (bool, error) {
 		return false, err
 	}
 	at, on := Due(cfg, last, changed)
-	return on && !now.Before(at), nil
+	// A last change after now means the clock went back (a laptop whose
+	// clock starts in the past until NTP corrects it); waiting for the
+	// clock to catch up could take weeks, so one change is due now.
+	return on && (!now.Before(at) || last.After(now)), nil
 }
 
 func (a *Agent) now() time.Time {
