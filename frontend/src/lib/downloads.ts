@@ -106,6 +106,7 @@ export function screenCopySize(img: Size, screen: Size): Size | null {
 export interface DownloadChoice {
     size: DownloadSize;
     label: string; // "Original · 7360 × 4912"
+    menuLabel: string; // "As original · 7360 × 4912"
 }
 
 // downloadChoices returns the versions to offer, the preferred one first.
@@ -120,8 +121,13 @@ export function downloadChoices(
     const first: DownloadChoice = {
         size: 'original',
         label: original ? `Original · ${text(original)}` : 'Original',
+        menuLabel: original ? `As original · ${text(original)}` : 'As original',
     };
     if (!screenCopy) return [first];
-    const second: DownloadChoice = {size: 'screen', label: `Screen size · ${text(screenCopy)}`};
+    const second: DownloadChoice = {
+        size: 'screen',
+        label: `Screen copy · ${text(screenCopy)}`,
+        menuLabel: `As screen copy · ${text(screenCopy)}`,
+    };
     return preferred === 'screen' ? [second, first] : [first, second];
 }

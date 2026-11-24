@@ -100,18 +100,21 @@ func (a *App) DownloadAs(img images.Image, size string) (key string, err error) 
 }
 
 func (a *App) download(img images.Image, size settings.DownloadSize) (key string, err error) {
-	if size == settings.DownloadScreen {
+	if size == settings.DownloadOriginal {
+		if key, ok := a.keepFetched(img, imaging.Size{}); ok {
+			return key, nil
+		}
+		key, err = a.downloads.Enqueue(a.ctx, img)
+	} else {
 		screen, serr := a.settings.Display(a.ctx)
 		if serr != nil {
 			return "", apperr.New(apperr.Unavailable, "The download could not be started.", serr)
 		}
 		fit := imaging.Size{Width: screen.Width, Height: screen.Height}
-		if key, ok := a.keepFitting(img, fit); ok {
+		if key, ok := a.keepFetched(img, fit); ok {
 			return key, nil
 		}
 		key, err = a.downloads.EnqueueFitted(a.ctx, img, fit)
-	} else {
-		key, err = a.downloads.Enqueue(a.ctx, img)
 	}
 	switch {
 	case errors.Is(err, library.ErrAlreadyInLibrary):
@@ -146,9 +149,9 @@ func (a *App) DownloadFetched(id int64, size string) (key string, err error) {
 			return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
 		}
 		fit = imaging.Size{Width: screen.Width, Height: screen.Height}
-		if key, ok := a.keepFitting(e.Image, fit); ok {
-			return key, nil
-		}
+	}
+	if key, ok := a.keepFetched(e.Image, fit); ok {
+		return key, nil
 	}
 	key, err = a.downloads.EnqueueEntry(a.ctx, id, fit)
 	if errors.Is(err, library.ErrAlreadyInLibrary) {
@@ -160,16 +163,17 @@ func (a *App) DownloadFetched(id int64, size string) (key string, err error) {
 	return key, nil
 }
 
-// keepFitting keeps the fetched copy of img if it is as good as a download
-// reduced to fit would be, so nothing is downloaded again. It reports false
-// when there is none, or keeping it failed.
-func (a *App) keepFitting(img images.Image, fit imaging.Size) (string, bool) {
+// keepFetched keeps the fetched copy of img if it is as good as the
+// download would be, so nothing is downloaded again: the original, or with
+// fit a copy that covers it. It reports false when there is none, or
+// keeping it failed.
+func (a *App) keepFetched(img images.Image, fit imaging.Size) (string, bool) {
 	e, found, err := a.library.FindBySource(a.ctx, img.Provider, img.ProviderID)
 	if err != nil || !found || e.Origin != library.Fetched {
 		return "", false
 	}
-	covers := e.Image.Width >= fit.Width && e.Image.Height >= fit.Height
-	if !covers && e.Stored() != library.StoredOriginal {
+	covers := fit != (imaging.Size{}) && e.Image.Width >= fit.Width && e.Image.Height >= fit.Height
+	if !covers && a.resolveStored(&e) != library.StoredOriginal {
 		return "", false
 	}
 	if _, err := a.fetched.Keep(a.ctx, e.ID); err != nil {
@@ -179,6 +183,47 @@ func (a *App) keepFitting(img images.Image, fit imaging.Size) (string, bool) {
 	key := downloads.Key(img)
 	a.notifyDownload(downloads.Progress{Key: key, State: downloads.Done, EntryID: e.ID})
 	return key, true
+}
+
+// resolveStored returns which version e's file is. For an image stored
+// before 0.9.0 it reads the file; an original is then recorded, also in e.
+// A reduced one is not: the size of its original is not known.
+func (a *App) resolveStored(e *library.Entry) library.Stored {
+	if e.Stored() != library.StoredUnknown {
+		return e.Stored()
+	}
+	original, err := a.isOriginal(*e)
+	if err != nil {
+		a.log.Warn("cannot tell whether the file is the original", "entry", e.ID, "err", err)
+		return library.StoredUnknown
+	}
+	if !original {
+		return library.StoredReduced
+	}
+	if err := a.library.MarkOriginal(a.ctx, e.ID); err != nil {
+		a.log.Warn("original not recorded", "entry", e.ID, "err", err)
+	}
+	e.OriginalWidth, e.OriginalHeight = e.Image.Width, e.Image.Height
+	return library.StoredOriginal
+}
+
+// CheckOriginal returns a stored image after finding out, if that is not
+// known yet, whether its file is the original.
+func (a *App) CheckOriginal(id int64) (item LibraryItem, err error) {
+	defer a.recoverPanic("CheckOriginal", &err)
+
+	e, err := a.library.Get(a.ctx, id)
+	if errors.Is(err, library.ErrNotFound) {
+		return LibraryItem{}, apperr.New(apperr.InvalidInput, "This image no longer exists.", err)
+	}
+	if err != nil {
+		return LibraryItem{}, apperr.New(apperr.Unavailable, "The image could not be loaded.", err)
+	}
+	stored := a.resolveStored(&e)
+	items := []LibraryItem{libraryItem(e)}
+	items[0].Stored = string(stored)
+	a.markHidden(items)
+	return items[0], nil
 }
 
 // GetOriginal replaces the stored copy of a library image by its original.
@@ -197,13 +242,7 @@ func (a *App) GetOriginal(id int64) (key string, err error) {
 	if e.Origin == library.FromFolder {
 		return "", apperr.New(apperr.InvalidInput, "This image is in one of your folders; it has no other original.", nil)
 	}
-	if e.Stored() == library.StoredUnknown && a.isOriginal(e) {
-		if err := a.library.MarkOriginal(a.ctx, id); err != nil {
-			a.log.Warn("original not recorded", "entry", id, "err", err)
-		}
-		return "", nil
-	}
-	if e.Stored() == library.StoredOriginal {
+	if a.resolveStored(&e) == library.StoredOriginal {
 		return "", nil
 	}
 	key, err = a.downloads.EnqueueOriginal(a.ctx, id)
@@ -215,21 +254,21 @@ func (a *App) GetOriginal(id int64) (key string, err error) {
 
 // isOriginal reports whether the stored file is the downloaded one: its
 // SHA-256 is that of the original, also when a reduced copy is stored.
-func (a *App) isOriginal(e library.Entry) bool {
+func (a *App) isOriginal(e library.Entry) (bool, error) {
 	path, err := a.files.OriginalPath(e.FilePath)
 	if err != nil {
-		return false
+		return false, err
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return false
+		return false, err
 	}
 	defer f.Close()
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return false
+		return false, err
 	}
-	return hex.EncodeToString(h.Sum(nil)) == e.SHA256
+	return hex.EncodeToString(h.Sum(nil)) == e.SHA256, nil
 }
 
 // LibraryStatus returns, for each key ("provider/providerId") of an image

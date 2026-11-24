@@ -8,6 +8,7 @@ import {
     isActive,
     percent,
 } from '../lib/downloads';
+import {SplitButton} from './SplitButton';
 
 interface Props {
     progress?: DownloadProgress;
@@ -40,22 +41,24 @@ export function DownloadButton({
     const pct = progress && active ? percent(progress) : null;
     const failed = !inLibrary && (Boolean(startError) || progress?.state === 'failed');
     const message = startError && failed ? describeError(startError) : downloadMessage(progress);
-    const [preferred, other] = choices;
+    const [preferred] = choices;
     const idle = !progress || progress.state === 'canceled';
     const fetchedId = failed ? progress?.fetchedId : undefined;
 
     return (
         <div className="download">
             <div className="download-row">
-                <button
-                    type="button"
-                    className="btn"
-                    onClick={() => onDownload(preferred.size)}
+                <SplitButton
+                    label={
+                        (saved ? '✓ ' : '') +
+                        (idle && !saved && idleLabel ? idleLabel : downloadLabel(progress, inLibrary))
+                    }
                     disabled={active || saved || !preferred}
-                >
-                    {saved ? '✓ ' : ''}
-                    {idle && !saved && idleLabel ? idleLabel : downloadLabel(progress, inLibrary)}
-                </button>
+                    onClick={() => onDownload(preferred.size)}
+                    menuLabel="Choose the download size"
+                    options={choices.map((c) => ({id: c.size, label: c.menuLabel}))}
+                    onSelect={(size) => onDownload(size as DownloadSize)}
+                />
                 {active && (
                     <button type="button" className="btn secondary" onClick={onCancel}>
                         Cancel
@@ -63,11 +66,6 @@ export function DownloadButton({
                 )}
             </div>
             {!active && !saved && preferred && <p className="notice">{preferred.label}</p>}
-            {!active && !saved && other && (
-                <button type="button" className="link download-other" onClick={() => onDownload(other.size)}>
-                    Download as: {other.label}
-                </button>
-            )}
             {active && (
                 <progress
                     className="download-progress"
@@ -83,7 +81,7 @@ export function DownloadButton({
             )}
             {fetchedId && onKeepCopy ? (
                 <button type="button" className="btn secondary" onClick={() => onKeepCopy(fetchedId)}>
-                    Save the screen-size copy instead
+                    Save the screen copy instead
                 </button>
             ) : null}
         </div>

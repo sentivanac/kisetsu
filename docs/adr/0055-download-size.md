@@ -13,7 +13,9 @@ image" were confusing, and a 17 MB original is more than a wallpaper needs.
 
 - One action, **Download**, with a setting: the original (default) or screen
   size. `DownloadAs` overrides it for one image.
-- Screen size uses the fetched copy when there is one that covers the
+- The reduced version is called **screen copy**: it covers the screen and is
+  not cropped, so it is rarely exactly the screen's size.
+- It uses the fetched copy when there is one that covers the
   present screen; otherwise the image is downloaded and reduced.
 - When a download fails and a fetched copy exists, it can be kept instead
   (`Progress.FetchedID`). Favorites keep the fetched copy, as before.
@@ -25,7 +27,10 @@ image" were confusing, and a 17 MB original is more than a wallpaper needs.
 `images.original_width` and `original_height`; equal to the stored size for
 an original, NULL for images stored before 0.9.0. For those, Get original
 first compares the file's SHA-256 with the recorded one (always that of the
-original), and downloads only if they differ.
+original), and downloads only if they differ. The preview of such an image
+does the same check (`CheckOriginal`); an original is recorded, a reduced
+file is checked again next time, because its original's size is not known.
+A fetched file that is the original is kept without a download.
 
 ### Safety
 
@@ -36,6 +41,6 @@ wallpaper on screen.
 
 ## Limitations
 
-- "Screen size" is the largest screen when the image is downloaded.
+- A screen copy covers the largest screen when the image is downloaded.
 - Reduced images are JPEG, so a PNG loses its transparency.
 - A database opened by 0.9.0 cannot be opened by earlier versions.

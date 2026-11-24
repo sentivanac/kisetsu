@@ -4,6 +4,7 @@ import {
     AddToFavorites,
     AddToCollection,
     CancelDownload,
+    CheckOriginal,
     CreateCollection,
     DeleteCollection,
     DeleteFromLibrary,
@@ -277,6 +278,8 @@ export function LibraryView({active, sourceName}: Props) {
 
     function fetchedChoices(item: main.LibraryItem) {
         if (!downloadSettings) return [];
+        // An original: the stored file is all there is.
+        if (item.stored === 'original') return downloadChoices(item.image, null, 'original');
         const known = item.originalWidth > 0 && item.originalHeight > 0;
         const original = known ? {width: item.originalWidth, height: item.originalHeight} : null;
         const screen = {width: downloadSettings.screenWidth, height: downloadSettings.screenHeight};
@@ -287,6 +290,16 @@ export function LibraryView({active, sourceName}: Props) {
     }
 
     const selectedItem = selected === null ? null : items[selected];
+    const uncheckedID = selectedItem?.stored === 'unknown' ? selectedItem.id : null;
+
+    // Whether an image stored before 0.9.0 is the original is found out when
+    // it is opened. Failing that, it stays unknown and can be downloaded.
+    useEffect(() => {
+        if (uncheckedID === null) return;
+        CheckOriginal(uncheckedID)
+            .then((item) => setItems((list) => list.map((it) => (it.id === item.id ? item : it))))
+            .catch(() => {});
+    }, [uncheckedID]);
     const current = collections.find((c) => c.id === collection);
     const showingFetched = collection === FetchedView;
     const folder = isFolderView(collection) ? folders.find((f) => f.id === folderOf(collection)) : undefined;
@@ -306,12 +319,10 @@ export function LibraryView({active, sourceName}: Props) {
                         <select
                             value={downloadSettings.size}
                             onChange={(e) => chooseDownloadSize(e.target.value)}
-                            title="Images already in your library do not change."
+                            title="Screen copy: reduced to cover your screen, not cropped. Images already in your library do not change."
                         >
                             <option value="original">Original</option>
-                            <option value="screen">
-                                Screen size ({downloadSettings.screenWidth} × {downloadSettings.screenHeight})
-                            </option>
+                            <option value="screen">Screen copy</option>
                         </select>
                     </label>
                 )}
@@ -395,6 +406,7 @@ export function LibraryView({active, sourceName}: Props) {
                         <>
                             {showingFetched ? (
                                 <DownloadButton
+                                    key={selectedItem.id}
                                     progress={shownProgress(selectedItem)}
                                     inLibrary={false}
                                     startError={startErrors[selectedItem.id]}
@@ -410,6 +422,7 @@ export function LibraryView({active, sourceName}: Props) {
                                     {selectedItem.stored !== 'original' && (
                                         <div className="library-actions">
                                             <DownloadButton
+                                                key={selectedItem.id}
                                                 progress={shownProgress(selectedItem)}
                                                 inLibrary={false}
                                                 startError={startErrors[selectedItem.id]}
@@ -431,7 +444,7 @@ export function LibraryView({active, sourceName}: Props) {
                                             />
                                             <p className="muted small">
                                                 {selectedItem.stored === 'reduced'
-                                                    ? 'Stored at screen size.'
+                                                    ? 'This is a screen copy: reduced to cover your screen, not cropped.'
                                                     : 'It is not known yet whether this file is the original.'}
                                             </p>
                                         </div>

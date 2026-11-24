@@ -22,6 +22,10 @@ export function CancelSearch() {
   return window['go']['main']['App']['CancelSearch']();
 }
 
+export function CheckOriginal(arg1) {
+  return window['go']['main']['App']['CheckOriginal'](arg1);
+}
+
 export function ChooseTextFile() {
   return window['go']['main']['App']['ChooseTextFile']();
 }

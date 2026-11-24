@@ -104,7 +104,11 @@ describe('downloadChoices', () => {
     it('puts the preferred size first', () => {
         expect(downloadChoices(big, copy, 'original').map((c) => c.label)).toEqual([
             'Original · 7360 × 4912',
-            'Screen size · 1920 × 1282',
+            'Screen copy · 1920 × 1282',
+        ]);
+        expect(downloadChoices(big, copy, 'original').map((c) => c.menuLabel)).toEqual([
+            'As original · 7360 × 4912',
+            'As screen copy · 1920 × 1282',
         ]);
         expect(downloadChoices(big, copy, 'screen').map((c) => c.size)).toEqual(['screen', 'original']);
     });

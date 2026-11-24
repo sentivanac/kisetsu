@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sentivanac/kisetsu/internal/downloads"
+	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/imaging"
 	"github.com/sentivanac/kisetsu/internal/library"
 	"github.com/sentivanac/kisetsu/internal/searches"
@@ -164,6 +165,92 @@ func TestDownloadFetched(t *testing.T) {
 		}
 		if _, err := app.DownloadFetched(p.EntryID, c.size); err == nil {
 			t.Errorf("%s: downloaded a library image again", c.size)
+		}
+	}
+}
+
+// forgetOriginalSizes makes every image look as stored before 0.9.0.
+func forgetOriginalSizes(t *testing.T, app *App) {
+	t.Helper()
+	if _, err := app.db.Exec(`UPDATE images SET original_width = NULL, original_height = NULL`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// fetchOld fetches one image covering fit, as stored before 0.9.0.
+func fetchOld(t *testing.T, app *App, img images.Image, fit imaging.Size) int64 {
+	t.Helper()
+	saved, err := app.SaveSearch("Test", searches.Query{ProviderIDs: []string{"stub"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := app.downloads.FetchNow(app.ctx, img, downloads.FetchOptions{SavedSearchID: saved.ID, Fit: fit})
+	if p.State != downloads.Done {
+		t.Fatalf("fetch = %+v", p)
+	}
+	forgetOriginalSizes(t, app)
+	return p.EntryID
+}
+
+func TestCheckOriginal(t *testing.T) {
+	for name, c := range map[string]struct {
+		fit      imaging.Size
+		missing  bool
+		want     string
+		recorded library.Stored
+	}{
+		"original": {imaging.Size{Width: 1920, Height: 1080}, false, "original", library.StoredOriginal},
+		"reduced":  {imaging.Size{Width: 160, Height: 90}, false, "reduced", library.StoredUnknown},
+		"missing":  {imaging.Size{Width: 1920, Height: 1080}, true, "unknown", library.StoredUnknown},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv, _ := countingServer(t)
+			app := newTestApp(t, &stubProvider{})
+			id := fetchOld(t, app, downloadable(srv, "a", "/a.jpg"), c.fit)
+			if c.missing {
+				e, _ := app.library.Get(app.ctx, id)
+				if err := app.files.Remove(e.FilePath); err != nil {
+					t.Fatal(err)
+				}
+			}
+			item, err := app.CheckOriginal(id)
+			if err != nil || item.ID != id || item.Stored != c.want {
+				t.Errorf("CheckOriginal = %+v, %v", item, err)
+			}
+			if e, _ := app.library.Get(app.ctx, id); e.Stored() != c.recorded {
+				t.Errorf("recorded %q, want %q", e.Stored(), c.recorded)
+			}
+		})
+	}
+	if _, err := newTestApp(t, &stubProvider{}).CheckOriginal(999); err == nil {
+		t.Error("missing image accepted")
+	}
+}
+
+// A fetched file that is the original is not downloaded again.
+func TestDownloadKeepsAFetchedOriginal(t *testing.T) {
+	for _, size := range []string{"original", "screen"} {
+		for _, fromSearch := range []bool{true, false} {
+			srv, n := countingServer(t)
+			app := newTestApp(t, &stubProvider{})
+			ev := captureEvents(app)
+			img := downloadable(srv, "a", "/a.jpg")
+			id := fetchOld(t, app, img, imaging.Size{Width: 1920, Height: 1080})
+			var err error
+			if fromSearch {
+				_, err = app.DownloadAs(img, size)
+			} else {
+				_, err = app.DownloadFetched(id, size)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if done := ev.wait(t); done.State != "done" || done.EntryID != id || n.Load() != 1 {
+				t.Errorf("%s, from search %v: %+v, %d requests", size, fromSearch, done, n.Load())
+			}
+			if e, _ := app.library.Get(app.ctx, id); e.Origin != library.FromUser || e.Stored() != library.StoredOriginal {
+				t.Errorf("entry = %+v", e)
+			}
 		}
 	}
 }

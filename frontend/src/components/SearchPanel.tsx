@@ -540,6 +540,7 @@ export function SearchPanel({active}: Props) {
                     actions={
                         <>
                             <DownloadButton
+                                key={imageKey(selectedImage)}
                                 progress={downloads[imageKey(selectedImage)]}
                                 inLibrary={imageKey(selectedImage) in inLibrary}
                                 startError={startErrors[imageKey(selectedImage)]}

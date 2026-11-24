@@ -17,6 +17,8 @@ export function CancelDownload(arg1:string):Promise<void>;
 
 export function CancelSearch():Promise<void>;
 
+export function CheckOriginal(arg1:number):Promise<main.LibraryItem>;
+
 export function ChooseTextFile():Promise<string>;
 
 export function CreateCollection(arg1:string):Promise<main.CollectionInfo>;

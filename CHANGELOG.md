@@ -7,13 +7,14 @@ follow [Semantic Versioning](https://semver.org/).
 ## [0.9.0] - Unreleased
 
 ### Library
-- **Save downloads as:** the original (as before) or a copy at screen size.
-  The other size stays one click away for each image.
-- **Get original** replaces a screen-size copy in your library by its
+- **Save downloads as:** the original (as before) or a screen copy, which is
+  reduced to cover the screen, not cropped.
+  The arrow next to Download offers the other size for one image.
+- **Get original** replaces a screen copy in your library by its
   original.
 - Images that Kisetsu fetched automatically can be downloaded, from Search
   and from Library → Fetched. This replaces "Keep in my library"; when the
-  download fails, the screen-size copy can be saved instead.
+  download fails, the screen copy can be saved instead.
 - The library database changes: earlier versions cannot open it afterwards.
 - An image from a saved search that you download or add to favorites
   stays in that search's rotation. Before, it left it.
