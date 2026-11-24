@@ -1,7 +1,8 @@
-import {KeyboardEvent, useEffect, useState} from 'react';
+import {KeyboardEvent, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import './App.css';
 import {GetStatus, ListProviders, SaveDisplaySize, TakeAboutRequest} from '../wailsjs/go/main/App';
 import {EventsOn, ScreenGetAll} from '../wailsjs/runtime/runtime';
+import {keyScrollTarget} from './lib/scroll';
 import {largestScreen, WailsScreen} from './lib/screen';
 import {main, search} from '../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from './lib/backend';
@@ -52,12 +53,49 @@ function App() {
     const sourceName = (id: string) =>
         id === 'folder' ? 'Local folder' : (sources.find((p) => p.id === id)?.name ?? id);
 
+    // Every tab keeps its own scroll position. It is stored when leaving the
+    // tab, because an element that is not shown may lose it.
+    const scrollTops = useRef<Partial<Record<Tab, number>>>({});
+    function showTab(next: Tab) {
+        scrollTops.current[tab] = document.getElementById(`panel-${tab}`)?.scrollTop ?? 0;
+        setTab(next);
+    }
+    useLayoutEffect(() => {
+        const panel = document.getElementById(`panel-${tab}`);
+        if (panel) panel.scrollTop = scrollTops.current[tab] ?? 0;
+    }, [tab]);
+
+    // With the focus outside the panel (on a tab, or nowhere yet), the
+    // browser would not know what to scroll.
+    useEffect(() => {
+        function onKey(event: globalThis.KeyboardEvent) {
+            if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+            const panel = document.getElementById(`panel-${tab}`);
+            if (!panel || panel.contains(event.target as Node) || document.querySelector('dialog[open]')) return;
+            const top = keyScrollTarget(event.key, panel);
+            if (top === null) return;
+            event.preventDefault();
+            panel.scrollTop = top;
+        }
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [tab]);
+
+    const panelProps = (id: Tab) => ({
+        id: `panel-${id}`,
+        className: 'tab-panel',
+        role: 'tabpanel',
+        tabIndex: 0,
+        'aria-labelledby': `tab-${id}`,
+        hidden: tab !== id,
+    });
+
     // Arrow keys move between tabs, as in the WAI-ARIA tabs pattern.
     function onTabKey(event: KeyboardEvent) {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         const index = tabs.findIndex((t) => t.id === tab);
         const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
-        setTab(next.id);
+        showTab(next.id);
         document.getElementById(`tab-${next.id}`)?.focus();
     }
 
@@ -78,7 +116,7 @@ function App() {
                             aria-controls={`panel-${t.id}`}
                             tabIndex={tab === t.id ? 0 : -1}
                             className="tab"
-                            onClick={() => setTab(t.id)}
+                            onClick={() => t.id !== tab && showTab(t.id)}
                         >
                             {t.label}
                         </button>
@@ -88,13 +126,13 @@ function App() {
 
             {/* Both views stay mounted, so switching keeps search results. */}
             <main className="app-main">
-                <div id="panel-search" role="tabpanel" aria-labelledby="tab-search" hidden={tab !== 'search'}>
+                <div {...panelProps('search')}>
                     <SearchPanel active={tab === 'search'}/>
                 </div>
-                <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" hidden={tab !== 'library'}>
+                <div {...panelProps('library')}>
                     <LibraryView active={tab === 'library'} sourceName={sourceName}/>
                 </div>
-                <div id="panel-wallpaper" role="tabpanel" aria-labelledby="tab-wallpaper" hidden={tab !== 'wallpaper'}>
+                <div {...panelProps('wallpaper')}>
                     <WallpaperView active={tab === 'wallpaper'}/>
                 </div>
             </main>
