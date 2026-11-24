@@ -217,6 +217,22 @@ export namespace main {
 	        this.schemaVersion = source["schemaVersion"];
 	    }
 	}
+	export class DownloadSettings {
+	    size: string;
+	    screenWidth: number;
+	    screenHeight: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DownloadSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.size = source["size"];
+	        this.screenWidth = source["screenWidth"];
+	        this.screenHeight = source["screenHeight"];
+	    }
+	}
 	export class FetchedStats {
 	    images: number;
 	    bytes: number;
@@ -298,6 +314,9 @@ export namespace main {
 	    addedAt: string;
 	    hidden: boolean;
 	    favorite: boolean;
+	    stored: string;
+	    originalWidth: number;
+	    originalHeight: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new LibraryItem(source);
@@ -311,6 +330,9 @@ export namespace main {
 	        this.addedAt = source["addedAt"];
 	        this.hidden = source["hidden"];
 	        this.favorite = source["favorite"];
+	        this.stored = source["stored"];
+	        this.originalWidth = source["originalWidth"];
+	        this.originalHeight = source["originalHeight"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

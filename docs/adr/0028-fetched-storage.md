@@ -57,7 +57,7 @@ the fetched root with `origin = fetched`.
 
 A manual download of a fetched image (the same source, or the same file)
 downloads the original into the library and moves the entry there with
-`library.Store.ReplaceFetched`: the ID stays, so history, hiding and
+`library.Store.ReplaceFile`: the ID stays, so history, hiding and
 rotation follow it. The fetched files are removed only afterwards; if the
 download fails, the image stays fetched. (Until
 0.8.1 the download was refused and pointed to Keep.)

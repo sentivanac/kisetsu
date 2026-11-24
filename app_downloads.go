@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/sentivanac/kisetsu/internal/apperr"
@@ -11,6 +15,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/images"
 	"github.com/sentivanac/kisetsu/internal/imaging"
 	"github.com/sentivanac/kisetsu/internal/library"
+	"github.com/sentivanac/kisetsu/internal/settings"
 )
 
 // DownloadProgressEvent is the Wails event that carries DownloadProgress.
@@ -21,21 +26,93 @@ const AlreadyInLibrary apperr.Code = "already_in_library"
 
 // DownloadProgress is sent to the frontend for every download update.
 type DownloadProgress struct {
-	Key        string              `json:"key"` // provider "/" provider ID
-	State      string              `json:"state"`
-	Received   int64               `json:"received"`
-	Total      int64               `json:"total"`
-	EntryID    int64               `json:"entryId,omitempty"`
-	SimilarIDs []int64             `json:"similarIds,omitempty"`
-	Error      *apperr.PublicError `json:"error,omitempty"`
+	Key        string  `json:"key"` // provider "/" provider ID
+	State      string  `json:"state"`
+	Received   int64   `json:"received"`
+	Total      int64   `json:"total"`
+	EntryID    int64   `json:"entryId,omitempty"`
+	SimilarIDs []int64 `json:"similarIds,omitempty"`
+	// FetchedID is a fetched copy that KeepFetched can keep instead.
+	FetchedID int64               `json:"fetchedId,omitempty"`
+	Error     *apperr.PublicError `json:"error,omitempty"`
 }
 
-// Download starts downloading an image into the library and returns its
-// key. Progress arrives as DownloadProgressEvent events.
+// DownloadSettings is what downloads store.
+type DownloadSettings struct {
+	Size string `json:"size"` // "original" or "screen"
+	// ScreenWidth and ScreenHeight are what "screen" covers.
+	ScreenWidth  int `json:"screenWidth"`
+	ScreenHeight int `json:"screenHeight"`
+}
+
+// GetDownloadSettings returns what downloads store.
+func (a *App) GetDownloadSettings() (s DownloadSettings, err error) {
+	defer a.recoverPanic("GetDownloadSettings", &err)
+
+	size, err := a.settings.DownloadSize(a.ctx)
+	if err != nil {
+		return DownloadSettings{}, apperr.New(apperr.Unavailable, "The download settings could not be loaded.", err)
+	}
+	screen, err := a.settings.Display(a.ctx)
+	if err != nil {
+		return DownloadSettings{}, apperr.New(apperr.Unavailable, "The download settings could not be loaded.", err)
+	}
+	return DownloadSettings{Size: string(size), ScreenWidth: screen.Width, ScreenHeight: screen.Height}, nil
+}
+
+// SaveDownloadSize chooses what downloads store. Stored images do not change.
+func (a *App) SaveDownloadSize(size string) (err error) {
+	defer a.recoverPanic("SaveDownloadSize", &err)
+
+	d := settings.DownloadSize(size)
+	if !d.Valid() {
+		return apperr.New(apperr.InvalidInput, "This download size is not known.", nil)
+	}
+	if err := a.settings.SaveDownloadSize(a.ctx, d); err != nil {
+		return apperr.New(apperr.Unavailable, "The download size could not be saved.", err)
+	}
+	return nil
+}
+
+// Download starts downloading an image into the library, in the chosen
+// size, and returns its key. Progress arrives as DownloadProgressEvent
+// events.
 func (a *App) Download(img images.Image) (key string, err error) {
 	defer a.recoverPanic("Download", &err)
 
-	key, err = a.downloads.Enqueue(a.ctx, img)
+	size, err := a.settings.DownloadSize(a.ctx)
+	if err != nil {
+		a.log.Warn("download size not read; storing the original", "err", err)
+		size = settings.DownloadOriginal
+	}
+	return a.download(img, size)
+}
+
+// DownloadAs is Download in the given size, for this image only.
+func (a *App) DownloadAs(img images.Image, size string) (key string, err error) {
+	defer a.recoverPanic("DownloadAs", &err)
+
+	d := settings.DownloadSize(size)
+	if !d.Valid() {
+		return "", apperr.New(apperr.InvalidInput, "This download size is not known.", nil)
+	}
+	return a.download(img, d)
+}
+
+func (a *App) download(img images.Image, size settings.DownloadSize) (key string, err error) {
+	if size == settings.DownloadScreen {
+		screen, serr := a.settings.Display(a.ctx)
+		if serr != nil {
+			return "", apperr.New(apperr.Unavailable, "The download could not be started.", serr)
+		}
+		fit := imaging.Size{Width: screen.Width, Height: screen.Height}
+		if key, ok := a.keepFitting(img, fit); ok {
+			return key, nil
+		}
+		key, err = a.downloads.EnqueueFitted(a.ctx, img, fit)
+	} else {
+		key, err = a.downloads.Enqueue(a.ctx, img)
+	}
 	switch {
 	case errors.Is(err, library.ErrAlreadyInLibrary):
 		return "", apperr.New(AlreadyInLibrary, "This image is already in your library.", err)
@@ -45,6 +122,78 @@ func (a *App) Download(img images.Image) (key string, err error) {
 		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
 	}
 	return key, nil
+}
+
+// keepFitting keeps the fetched copy of img if it is as good as a download
+// reduced to fit would be, so nothing is downloaded again. It reports false
+// when there is none, or keeping it failed.
+func (a *App) keepFitting(img images.Image, fit imaging.Size) (string, bool) {
+	e, found, err := a.library.FindBySource(a.ctx, img.Provider, img.ProviderID)
+	if err != nil || !found || e.Origin != library.Fetched {
+		return "", false
+	}
+	covers := e.Image.Width >= fit.Width && e.Image.Height >= fit.Height
+	if !covers && e.Stored() != library.StoredOriginal {
+		return "", false
+	}
+	if _, err := a.fetched.Keep(a.ctx, e.ID); err != nil {
+		a.log.Warn("fetched copy not kept; downloading instead", "entry", e.ID, "err", err)
+		return "", false
+	}
+	key := downloads.Key(img)
+	a.notifyDownload(downloads.Progress{Key: key, State: downloads.Done, EntryID: e.ID})
+	return key, true
+}
+
+// GetOriginal replaces the stored copy of a library image by its original.
+// It returns the download's key, or "" when the file already is the
+// original.
+func (a *App) GetOriginal(id int64) (key string, err error) {
+	defer a.recoverPanic("GetOriginal", &err)
+
+	e, err := a.library.Get(a.ctx, id)
+	if errors.Is(err, library.ErrNotFound) {
+		return "", apperr.New(apperr.InvalidInput, "This image is no longer in your library.", err)
+	}
+	if err != nil {
+		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
+	}
+	if e.Origin == library.FromFolder {
+		return "", apperr.New(apperr.InvalidInput, "This image is in one of your folders; it has no other original.", nil)
+	}
+	if e.Stored() == library.StoredUnknown && a.isOriginal(e) {
+		if err := a.library.MarkOriginal(a.ctx, id); err != nil {
+			a.log.Warn("original not recorded", "entry", id, "err", err)
+		}
+		return "", nil
+	}
+	if e.Stored() == library.StoredOriginal {
+		return "", nil
+	}
+	key, err = a.downloads.EnqueueOriginal(a.ctx, id)
+	if err != nil {
+		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
+	}
+	return key, nil
+}
+
+// isOriginal reports whether the stored file is the downloaded one: its
+// SHA-256 is that of the original, also when a reduced copy is stored.
+func (a *App) isOriginal(e library.Entry) bool {
+	path, err := a.files.OriginalPath(e.FilePath)
+	if err != nil {
+		return false
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return false
+	}
+	return hex.EncodeToString(h.Sum(nil)) == e.SHA256
 }
 
 // LibraryStatus returns, for each key ("provider/providerId") of an image
@@ -88,6 +237,7 @@ func (a *App) notifyDownload(p downloads.Progress) {
 		Total:      p.Total,
 		EntryID:    p.EntryID,
 		SimilarIDs: p.SimilarIDs,
+		FetchedID:  p.FetchedID,
 	}
 	if p.Err != nil {
 		public := apperr.ToPublic(downloadError(p.Err))
@@ -100,6 +250,9 @@ func (a *App) notifyDownload(p downloads.Progress) {
 func downloadError(err error) error {
 	var netErr net.Error
 	switch {
+	case errors.Is(err, downloads.ErrChanged):
+		return apperr.New(apperr.Unavailable,
+			"The source now has a different or smaller image, so your copy was kept.", err)
 	case errors.Is(err, downloads.ErrFileTooLarge):
 		return apperr.New(apperr.InvalidInput, "The file is larger than 100 MB.", err)
 	case errors.Is(err, imaging.ErrUnsupportedFormat):

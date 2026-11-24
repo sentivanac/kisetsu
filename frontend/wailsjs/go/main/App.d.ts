@@ -29,15 +29,21 @@ export function DeleteSavedSearch(arg1:number):Promise<void>;
 
 export function Download(arg1:images.Image):Promise<string>;
 
+export function DownloadAs(arg1:images.Image,arg2:string):Promise<string>;
+
 export function FavoriteCurrentWallpaper():Promise<main.RotationState>;
 
 export function GetAbout():Promise<main.About>;
+
+export function GetDownloadSettings():Promise<main.DownloadSettings>;
 
 export function GetFetchedStats():Promise<main.FetchedStats>;
 
 export function GetHiddenTags():Promise<Array<string>>;
 
 export function GetLibraryStats():Promise<main.LibraryStats>;
+
+export function GetOriginal(arg1:number):Promise<string>;
 
 export function GetRotation():Promise<main.RotationState>;
 
@@ -92,6 +98,8 @@ export function RenameSavedSearch(arg1:number,arg2:string):Promise<void>;
 export function RepairAgent():Promise<main.RotationState>;
 
 export function SaveDisplaySize(arg1:number,arg2:number):Promise<void>;
+
+export function SaveDownloadSize(arg1:string):Promise<void>;
 
 export function SaveRotation(arg1:main.RotationSettings):Promise<main.RotationState>;
 

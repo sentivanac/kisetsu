@@ -26,6 +26,11 @@ type LibraryItem struct {
 	Hidden bool `json:"hidden"`
 	// Favorite: in the Favorites collection.
 	Favorite bool `json:"favorite"`
+	// Stored is "original", "reduced" or "unknown"; the original's size is
+	// 0 when unknown.
+	Stored         string `json:"stored"`
+	OriginalWidth  int    `json:"originalWidth"`
+	OriginalHeight int    `json:"originalHeight"`
 }
 
 // LibraryPage is one page of the library.
@@ -80,6 +85,7 @@ func libraryItem(e library.Entry) LibraryItem {
 		Image:   img,
 		FileURL: libfiles.URL(e.FilePath),
 		AddedAt: e.AddedAt.Format(time.RFC3339),
+		Stored:  string(e.Stored()), OriginalWidth: e.OriginalWidth, OriginalHeight: e.OriginalHeight,
 	}
 }
 

@@ -66,6 +66,32 @@ type Entry struct {
 	// FileModTime is a folder file's modification time (Unix nanoseconds)
 	// when it was read, so syncing notices a change.
 	FileModTime int64
+	// OriginalWidth and OriginalHeight are the size of the original; 0 when
+	// unknown (images stored before 0.9.0). See Stored.
+	OriginalWidth, OriginalHeight int
+}
+
+// Stored says which version of an image the file is.
+type Stored string
+
+const (
+	StoredOriginal Stored = "original"
+	StoredReduced  Stored = "reduced" // a copy reduced to screen size
+	StoredUnknown  Stored = "unknown"
+)
+
+// Stored returns which version the entry's file is. A folder's files are
+// the user's own originals.
+func (e Entry) Stored() Stored {
+	switch {
+	case e.Origin == FromFolder:
+		return StoredOriginal
+	case e.OriginalWidth == 0 || e.OriginalHeight == 0:
+		return StoredUnknown
+	case e.OriginalWidth == e.Image.Width && e.OriginalHeight == e.Image.Height:
+		return StoredOriginal
+	}
+	return StoredReduced
 }
 
 // Store reads and writes library records.
@@ -81,7 +107,8 @@ func NewStore(db *sql.DB) *Store {
 const entryColumns = `id, provider, provider_id, page_url, download_url, source_url,
 	author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
 	width, height, mime_type, file_size, file_path, thumbnail_path, coalesce(sha256, ''), dhash, added_at,
-	origin, coalesce(saved_search_id, 0), coalesce(folder_id, 0), coalesce(file_mod_time, 0)`
+	origin, coalesce(saved_search_id, 0), coalesce(folder_id, 0), coalesce(file_mod_time, 0),
+	coalesce(original_width, 0), coalesce(original_height, 0)`
 
 // Add stores a new entry and returns its ID. It fails with
 // ErrAlreadyInLibrary or ErrDuplicateFile instead of storing a duplicate.
@@ -139,12 +166,13 @@ func insert(ctx context.Context, x execer, e Entry) (int64, error) {
 			provider, provider_id, page_url, download_url, source_url,
 			author_name, author_url, author_credit, license_status, license_name, license_url, license_notice,
 			width, height, mime_type, file_size, file_path, thumbnail_path, sha256, dhash, origin, saved_search_id,
-			folder_id, file_mod_time)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			folder_id, file_mod_time, original_width, original_height)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		img.Provider, img.ProviderID, img.PageURL, img.DownloadURL, img.SourceURL,
 		img.Author.Name, img.Author.URL, img.Author.Credit, string(img.License.Status), img.License.Name, img.License.URL, img.License.Notice,
 		img.Width, img.Height, img.MIMEType, img.FileSize, e.FilePath, e.ThumbnailPath, nullString(e.SHA256), int64(e.DHash),
-		string(e.Origin), nullInt(e.SavedSearchID), nullInt(e.FolderID), nullInt(e.FileModTime))
+		string(e.Origin), nullInt(e.SavedSearchID), nullInt(e.FolderID), nullInt(e.FileModTime),
+		nullInt(int64(e.OriginalWidth)), nullInt(int64(e.OriginalHeight)))
 	if err != nil {
 		return 0, err
 	}
@@ -420,23 +448,36 @@ func (s *Store) Keep(ctx context.Context, id int64, filePath, thumbPath string) 
 	return nil
 }
 
-// ReplaceFetched turns a fetched image into a library image stored as e
-// describes: its files, size, format and hashes. The entry keeps its ID, so
-// history, hiding and rotation follow it, and its source, attribution and
-// saved search.
-func (s *Store) ReplaceFetched(ctx context.Context, id int64, e Entry) error {
+// ReplaceFile points the entry old at another file of the same image, stored
+// as e describes: files, size, format and hashes. A fetched image becomes a
+// library image, added now. The entry keeps its ID, so history, hiding and
+// rotation follow it, and its source, attribution and saved search. It fails
+// with ErrNotFound if the entry is gone or has changed since old was read.
+func (s *Store) ReplaceFile(ctx context.Context, old, e Entry) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE images
-		SET origin = 'library', file_path = ?, thumbnail_path = ?,
+		SET added_at = CASE origin WHEN 'fetched' THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE added_at END,
+			origin = 'library', file_path = ?, thumbnail_path = ?,
 			width = ?, height = ?, mime_type = ?, file_size = ?, sha256 = ?, dhash = ?,
-			added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-		WHERE id = ? AND origin = 'fetched'`,
+			original_width = ?, original_height = ?
+		WHERE id = ? AND origin = ? AND origin != 'folder' AND file_path = ?`,
 		e.FilePath, e.ThumbnailPath, e.Image.Width, e.Image.Height, e.Image.MIMEType, e.Image.FileSize,
-		e.SHA256, int64(e.DHash), id)
+		e.SHA256, int64(e.DHash), nullInt(int64(e.OriginalWidth)), nullInt(int64(e.OriginalHeight)),
+		old.ID, string(old.Origin), old.FilePath)
 	if err != nil {
-		return fmt.Errorf("replace fetched image %d: %w", id, err)
+		return fmt.Errorf("replace file of image %d: %w", old.ID, err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return fmt.Errorf("%w: fetched image %d", ErrNotFound, id)
+		return fmt.Errorf("%w: image %d as read before", ErrNotFound, old.ID)
+	}
+	return nil
+}
+
+// MarkOriginal records that the entry's file is the original.
+func (s *Store) MarkOriginal(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE images SET original_width = width, original_height = height WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("mark image %d as original: %w", id, err)
 	}
 	return nil
 }
@@ -498,7 +539,8 @@ func scanEntry(row scanner) (Entry, error) {
 	err := row.Scan(&e.ID, &img.Provider, &img.ProviderID, &img.PageURL, &img.DownloadURL, &img.SourceURL,
 		&img.Author.Name, &img.Author.URL, &img.Author.Credit, &status, &img.License.Name, &img.License.URL, &img.License.Notice,
 		&img.Width, &img.Height, &img.MIMEType, &img.FileSize, &e.FilePath, &e.ThumbnailPath, &e.SHA256, &dhash, &added,
-		&e.Origin, &e.SavedSearchID, &e.FolderID, &e.FileModTime)
+		&e.Origin, &e.SavedSearchID, &e.FolderID, &e.FileModTime,
+		&e.OriginalWidth, &e.OriginalHeight)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Entry{}, err

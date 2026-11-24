@@ -679,6 +679,9 @@ func TestFailedDownloadKeepsTheFetchedCopy(t *testing.T) {
 	if p.State != Failed {
 		t.Fatalf("progress = %+v", p)
 	}
+	if p.FetchedID != old.ID {
+		t.Errorf("FetchedID = %d, want the copy to keep instead (%d)", p.FetchedID, old.ID)
+	}
 	if got, _ := e.store.Get(context.Background(), old.ID); got.Origin != library.Fetched || got.FilePath != old.FilePath {
 		t.Errorf("entry changed: %+v", got)
 	}
@@ -713,5 +716,113 @@ func TestDownloadAddsWhenTheFetchedEntryIsGone(t *testing.T) {
 	}
 	if got, err := e.store.Get(ctx, id); err != nil || got.Origin != library.FromUser {
 		t.Errorf("entry = %+v, %v", got, err)
+	}
+}
+
+func TestFittedDownloadIsReducedInTheLibrary(t *testing.T) {
+	data := picture(t, 0, 90)
+	e := newEnv(t, serve(map[string][]byte{"/a.jpg": data}))
+	if _, err := e.mgr.EnqueueFitted(context.Background(), e.image("a", "/a.jpg"), imaging.Size{Width: 320, Height: 180}); err != nil {
+		t.Fatal(err)
+	}
+	p := e.rec.wait(t)
+	got, err := e.store.Get(context.Background(), p.EntryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Origin != library.FromUser || got.Image.Width != 320 || got.OriginalWidth != 640 || got.OriginalHeight != 400 || got.Stored() != library.StoredReduced {
+		t.Errorf("entry = %+v", got)
+	}
+	if sum := sha256.Sum256(data); got.SHA256 != hex.EncodeToString(sum[:]) {
+		t.Error("SHA-256 must be that of the original")
+	}
+}
+
+// reducedCopy downloads /a.jpg reduced, then points its entry at path.
+func reducedCopy(t *testing.T, e *env, path string) library.Entry {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := e.mgr.EnqueueFitted(ctx, e.image("a", "/a.jpg"), imaging.Size{Width: 320, Height: 180}); err != nil {
+		t.Fatal(err)
+	}
+	id := e.rec.wait(t).EntryID
+	db, err := database.Open(ctx, filepath.Join(e.root, database.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`UPDATE images SET download_url = ? WHERE id = ?`, e.srv.URL+path, id); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.store.Get(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+func TestOriginalReplacesTheReducedCopy(t *testing.T) {
+	data := picture(t, 0, 90)
+	for name, path := range map[string]string{"same file": "/a.jpg", "encoded again": "/b.jpg"} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t, serve(map[string][]byte{"/a.jpg": data, "/b.jpg": picture(t, 0, 70)}))
+			old := reducedCopy(t, e, path)
+			var replaced []string
+			e.mgr.cfg.Replaced = func(_ context.Context, o library.Entry) { replaced = append(replaced, o.FilePath) }
+			if _, err := e.mgr.EnqueueOriginal(context.Background(), old.ID); err != nil {
+				t.Fatal(err)
+			}
+			p := e.rec.wait(t)
+			got, _ := e.store.Get(context.Background(), old.ID)
+			if p.State != Done || p.EntryID != old.ID || got.Image.Width != 640 || got.Stored() != library.StoredOriginal {
+				t.Fatalf("progress %+v, entry %+v", p, got)
+			}
+			if !got.AddedAt.Equal(old.AddedAt) || !slices.Equal(replaced, []string{old.FilePath}) {
+				t.Errorf("added %v (was %v), replaced %q", got.AddedAt, old.AddedAt, replaced)
+			}
+		})
+	}
+}
+
+// The user's copy is never replaced by another image or a smaller one.
+func TestOriginalThatChangedLeavesTheCopy(t *testing.T) {
+	var small bytes.Buffer
+	img, err := jpeg.Decode(bytes.NewReader(picture(t, 0, 90)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tiny := image.NewRGBA(image.Rect(0, 0, 160, 100))
+	for y := range 100 {
+		for x := range 160 {
+			tiny.Set(x, y, img.At(x*4, y*4))
+		}
+	}
+	if err := jpeg.Encode(&small, tiny, nil); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]struct {
+		path    string
+		changed bool
+	}{"different": {"/other.jpg", true}, "smaller": {"/small.jpg", true}, "gone": {"/gone.jpg", false}} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t, serve(map[string][]byte{
+				"/a.jpg": picture(t, 0, 90), "/other.jpg": picture(t, 7, 90), "/small.jpg": small.Bytes(),
+			}))
+			old := reducedCopy(t, e, c.path)
+			e.mgr.cfg.Replaced = func(context.Context, library.Entry) { t.Error("replaced") }
+			if _, err := e.mgr.EnqueueOriginal(context.Background(), old.ID); err != nil {
+				t.Fatal(err)
+			}
+			p := e.rec.wait(t)
+			if p.State != Failed || errors.Is(p.Err, ErrChanged) != c.changed {
+				t.Errorf("progress = %+v", p)
+			}
+			if got, _ := e.store.Get(context.Background(), old.ID); got.FilePath != old.FilePath || got.Image.Width != 320 {
+				t.Errorf("entry changed: %+v", got)
+			}
+			if _, err := os.Stat(filepath.Join(e.root, old.FilePath)); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }

@@ -46,12 +46,20 @@ export function Download(arg1) {
   return window['go']['main']['App']['Download'](arg1);
 }
 
+export function DownloadAs(arg1, arg2) {
+  return window['go']['main']['App']['DownloadAs'](arg1, arg2);
+}
+
 export function FavoriteCurrentWallpaper() {
   return window['go']['main']['App']['FavoriteCurrentWallpaper']();
 }
 
 export function GetAbout() {
   return window['go']['main']['App']['GetAbout']();
+}
+
+export function GetDownloadSettings() {
+  return window['go']['main']['App']['GetDownloadSettings']();
 }
 
 export function GetFetchedStats() {
@@ -64,6 +72,10 @@ export function GetHiddenTags() {
 
 export function GetLibraryStats() {
   return window['go']['main']['App']['GetLibraryStats']();
+}
+
+export function GetOriginal(arg1) {
+  return window['go']['main']['App']['GetOriginal'](arg1);
 }
 
 export function GetRotation() {
@@ -172,6 +184,10 @@ export function RepairAgent() {
 
 export function SaveDisplaySize(arg1, arg2) {
   return window['go']['main']['App']['SaveDisplaySize'](arg1, arg2);
+}
+
+export function SaveDownloadSize(arg1) {
+  return window['go']['main']['App']['SaveDownloadSize'](arg1);
 }
 
 export function SaveRotation(arg1) {

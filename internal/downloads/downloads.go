@@ -52,6 +52,9 @@ var (
 	ErrFileTooLarge = errors.New("file is too large")
 	// ErrHTTP means the server did not return the file.
 	ErrHTTP = errors.New("download failed")
+	// ErrChanged means the source no longer has the original of a stored
+	// image: what it has now looks different or is smaller.
+	ErrChanged = errors.New("the image at the source has changed")
 )
 
 // FetchOptions make a download a fetched image (ADR 0028): stored in the
@@ -62,6 +65,16 @@ type FetchOptions struct {
 	// Fit is the size the stored image must cover; larger images are
 	// reduced, smaller ones kept as they are.
 	Fit imaging.Size
+}
+
+// job says what a download stores.
+type job struct {
+	// fetch makes it a fetched image; nil for the user's downloads.
+	fetch *FetchOptions
+	// fit reduces a user's download to cover this size; zero: the original.
+	fit imaging.Size
+	// original is the library entry whose file the original replaces.
+	original *library.Entry
 }
 
 // State is the stage of a download.
@@ -94,6 +107,9 @@ type Progress struct {
 	EntryID int64
 	// SimilarIDs lists library entries that look the same (Done only).
 	SimilarIDs []int64
+	// FetchedID is the fetched copy that can be kept instead when a user's
+	// download failed; 0 for none.
+	FetchedID int64
 	// Err is set when State is Failed.
 	Err error
 }
@@ -108,9 +124,9 @@ type Config struct {
 	FetchedRoot string
 	Store       *library.Store
 	Log         *slog.Logger
-	// Replaced is called with the earlier entry after a download turned a
-	// fetched image into a library image; its fetched files are no longer
-	// used. Nil leaves the files.
+	// Replaced is called with the earlier entry after a download gave a
+	// stored image another file (a fetched copy, or a copy replaced by its
+	// original); the earlier files are no longer used. Nil leaves them.
 	Replaced func(ctx context.Context, old library.Entry)
 	// Notify receives progress updates. It is called from download
 	// goroutines and must not block for long.
@@ -190,7 +206,26 @@ func Key(img images.Image) string {
 // One that was fetched automatically becomes a library image: the original
 // replaces the fetched copy under the same entry.
 func (m *Manager) Enqueue(ctx context.Context, img images.Image) (string, error) {
-	return m.enqueue(ctx, img, nil)
+	return m.enqueue(ctx, img, job{})
+}
+
+// EnqueueFitted is Enqueue, storing a copy reduced to cover fit.
+func (m *Manager) EnqueueFitted(ctx context.Context, img images.Image, fit imaging.Size) (string, error) {
+	return m.enqueue(ctx, img, job{fit: fit})
+}
+
+// EnqueueOriginal starts downloading the original of a library image; it
+// replaces the stored copy, under the same entry. The copy stays if the
+// source now has another or a smaller image (ErrChanged).
+func (m *Manager) EnqueueOriginal(ctx context.Context, id int64) (string, error) {
+	e, err := m.cfg.Store.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if e.Origin != library.FromUser {
+		return "", fmt.Errorf("%w: library image %d", library.ErrNotFound, id)
+	}
+	return m.start(e.Image, job{original: &e})
 }
 
 // EnqueueFetched starts downloading img as a fetched image.
@@ -198,7 +233,7 @@ func (m *Manager) EnqueueFetched(ctx context.Context, img images.Image, opts Fet
 	if m.cfg.FetchedRoot == "" {
 		return "", errors.New("downloads: no fetched root configured")
 	}
-	return m.enqueue(ctx, img, &opts)
+	return m.enqueue(ctx, img, job{fetch: &opts})
 }
 
 // FetchNow downloads img as a fetched image and waits for the result. The
@@ -217,20 +252,24 @@ func (m *Manager) FetchNow(ctx context.Context, img images.Image, opts FetchOpti
 	} else if found {
 		return Progress{Key: key, State: Duplicate, EntryID: e.ID}
 	}
-	return m.run(ctx, key, img, &opts)
+	return m.run(ctx, key, img, job{fetch: &opts})
 }
 
-func (m *Manager) enqueue(ctx context.Context, img images.Image, fetch *FetchOptions) (string, error) {
+func (m *Manager) enqueue(ctx context.Context, img images.Image, j job) (string, error) {
 	if err := img.Validate(); err != nil {
 		return "", err
 	}
-	key := Key(img)
 	if e, found, err := m.cfg.Store.FindBySource(ctx, img.Provider, img.ProviderID); err != nil {
 		return "", err
-	} else if found && !(e.Origin == library.Fetched && fetch == nil) {
+	} else if found && !(e.Origin == library.Fetched && j.fetch == nil) {
 		return "", fmt.Errorf("%w: entry %d", library.ErrAlreadyInLibrary, e.ID)
 	}
+	return m.start(img, j)
+}
 
+// start runs j in the background, unless img is already being downloaded.
+func (m *Manager) start(img images.Image, j job) (string, error) {
+	key := Key(img)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.ctx.Err() != nil {
@@ -245,7 +284,7 @@ func (m *Manager) enqueue(ctx context.Context, img images.Image, fetch *FetchOpt
 	m.notify(Progress{Key: key, State: Queued, Total: img.FileSize})
 	m.wg.Go(func() {
 		defer cancel()
-		p := m.run(jobCtx, key, img, fetch)
+		p := m.run(jobCtx, key, img, j)
 		m.mu.Lock()
 		delete(m.jobs, key)
 		m.mu.Unlock()
@@ -279,7 +318,8 @@ func (m *Manager) notify(p Progress) {
 }
 
 // run performs one download and returns its final progress.
-func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *FetchOptions) Progress {
+func (m *Manager) run(ctx context.Context, key string, img images.Image, j job) Progress {
+	fetch := j.fetch
 	final := func(state State, err error) Progress {
 		if errors.Is(err, context.Canceled) {
 			state, err = Canceled, nil
@@ -287,7 +327,14 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *
 		if err != nil {
 			m.cfg.Log.Warn("download failed", "key", key, "err", err)
 		}
-		return Progress{Key: key, State: state, Err: err}
+		p := Progress{Key: key, State: state, Err: err}
+		if state == Failed && fetch == nil && j.original == nil {
+			e, found, err := m.cfg.Store.FindBySource(ctx, img.Provider, img.ProviderID)
+			if err == nil && found && e.Origin == library.Fetched {
+				p.FetchedID = e.ID
+			}
+		}
+		return p
 	}
 
 	select {
@@ -298,7 +345,7 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *
 	}
 
 	root := m.cfg.Root
-	var opts imaging.Options
+	opts := imaging.Options{Fit: j.fit}
 	if fetch != nil {
 		root, opts.Fit = m.cfg.FetchedRoot, fetch.Fit
 	}
@@ -318,12 +365,21 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *
 		return final(Canceled, err)
 	}
 
+	if o := j.original; o != nil {
+		same := result.SHA256 == o.SHA256 || imaging.Similar(result.DHash, o.DHash)
+		if !same || result.Width < o.Image.Width || result.Height < o.Image.Height {
+			return final(Failed, fmt.Errorf("%w: entry %d", ErrChanged, o.ID))
+		}
+	}
+
 	// A fetched entry keeps the hash of its original, so it is found here
 	// too; for a manual download it is replaced, not a duplicate.
-	var replace *library.Entry
+	replace := j.original
 	if existing, found, err := m.cfg.Store.FindBySHA256(ctx, result.SHA256); err != nil {
 		return final(Failed, err)
-	} else if found && fetch == nil && existing.Origin == library.Fetched {
+	} else if found && replace != nil && existing.ID == replace.ID {
+		// The same file as when its reduced copy was made.
+	} else if found && fetch == nil && replace == nil && existing.Origin == library.Fetched {
 		replace = &existing
 	} else if found {
 		m.cfg.Log.Info("download is an exact duplicate", "key", key, "entry", existing.ID)
@@ -363,7 +419,7 @@ func (m *Manager) run(ctx context.Context, key string, img images.Image, fetch *
 	}
 	m.cfg.Log.Info("download done", "key", key, "entry", id, "bytes", file.size,
 		"fetched", fetch != nil, "fitted", result.Fitted != nil,
-		"replaced_fetched", replace != nil && id == replace.ID, "similar", len(similar))
+		"replaced", replace != nil && id == replace.ID, "similar", len(similar))
 	if replace != nil && id == replace.ID && m.cfg.Replaced != nil {
 		m.cfg.Replaced(ctx, *replace)
 	}
@@ -477,7 +533,7 @@ func writeTemp(root string, data []byte) (string, error) {
 }
 
 // store moves the file and thumbnail into root and records them, in the
-// fetched entry replace if it is not nil, otherwise in a new one. On
+// existing entry replace if it is not nil, otherwise in a new one. On
 // failure it removes only the files it created.
 func (m *Manager) store(ctx context.Context, img images.Image, file stored, res imaging.Result,
 	root string, fetch *FetchOptions, replace *library.Entry) (int64, error) {
@@ -527,6 +583,7 @@ func (m *Manager) store(ctx context.Context, img images.Image, file stored, res 
 		ThumbnailPath: thumbPath,
 		SHA256:        res.SHA256,
 		DHash:         res.DHash,
+		OriginalWidth: res.Width, OriginalHeight: res.Height,
 	}
 	if fetch != nil {
 		entry.Origin, entry.SavedSearchID = library.Fetched, fetch.SavedSearchID
@@ -534,13 +591,14 @@ func (m *Manager) store(ctx context.Context, img images.Image, file stored, res 
 		entry.ThumbnailPath = path.Join("fetched", thumbPath)
 	}
 	if replace != nil {
-		err := m.cfg.Store.ReplaceFetched(ctx, replace.ID, entry)
+		err := m.cfg.Store.ReplaceFile(ctx, *replace, entry)
 		if err == nil {
 			return replace.ID, nil
 		}
 		// The fetched image may have been removed meanwhile to make room;
-		// then this is an ordinary new image.
-		if !errors.Is(err, library.ErrNotFound) {
+		// then this is an ordinary new image. A library image is only gone
+		// because the user deleted it.
+		if replace.Origin != library.Fetched || !errors.Is(err, library.ErrNotFound) {
 			cleanup()
 			return 0, err
 		}
