@@ -65,7 +65,10 @@ export function DownloadButton({
                     </button>
                 )}
             </div>
-            {!active && !saved && preferred && <p className="notice">{preferred.label}</p>}
+            {/* "Get original" without a known size says it all. */}
+            {!active && !saved && preferred && !(idleLabel && preferred.label === 'Original') && (
+                <p className="notice">{preferred.label}</p>
+            )}
             {active && (
                 <progress
                     className="download-progress"
