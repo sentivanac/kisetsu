@@ -12,7 +12,7 @@ sets or rotates your desktop wallpaper. It is free and open source (MIT).
 <sub>Photographs from Wikimedia Commons by their authors, under CC BY-SA
 and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
-> **Status:** version 0.8.1, for Linux and Windows.
+> **Status:** version 0.9.0, for Linux and Windows.
 
 ## Features
 
@@ -37,8 +37,8 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
   collection, or a saved search.
 - **Fresh images from a saved search:** when rotating from a saved
   search, Kisetsu downloads a few new images when it runs low. They live
-  in a size-limited cache (200 MB, reduced to your screen size); press
-  **Keep** to move one into your library.
+  in a size-limited cache (200 MB, reduced to your screen size);
+  **Download** one to keep it in your library.
 
 ## Install
 
@@ -48,11 +48,11 @@ Both files are on the
 ### Linux
 
 Packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer and Debian
-12 or newer** (64-bit). Download `kisetsu_0.8.1_amd64.deb` and install it
+12 or newer** (64-bit). Download `kisetsu_0.9.0_amd64.deb` and install it
 with (an older version is replaced):
 
 ```sh
-sudo apt install ./kisetsu_0.8.1_amd64.deb
+sudo apt install ./kisetsu_0.9.0_amd64.deb
 ```
 
 `apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). If it
@@ -64,7 +64,7 @@ again. Then start **Kisetsu** from the applications menu, or run
 ### Windows
 
 For **Windows 10 and 11** (64-bit). Download
-`kisetsu-0.8.1-windows-amd64-setup.exe` and run it. It installs for your
+`kisetsu-0.9.0-windows-amd64-setup.exe` and run it. It installs for your
 user only, without administrator rights, and replaces an older version.
 
 The installer is not signed yet, so Windows may warn before starting it
