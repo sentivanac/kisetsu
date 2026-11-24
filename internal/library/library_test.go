@@ -324,8 +324,18 @@ func TestFetchedImagesAreSeparateFromTheLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	kept, _ := s.Get(ctx, fid)
-	if kept.Origin != FromUser || kept.SavedSearchID != 0 || kept.FilePath != "images/w/2.jpg" {
+	if kept.Origin != FromUser || kept.SavedSearchID != 1 || kept.FilePath != "images/w/2.jpg" {
 		t.Errorf("after Keep: %+v", kept)
+	}
+	// It is in the library, and still among its search's images.
+	if ids, _ := s.IDs(ctx, 0); !slices.Equal(ids, []int64{mine, fid}) {
+		t.Errorf("library after Keep = %v", ids)
+	}
+	if ids, _ := s.SavedSearchIDs(ctx, 1); !slices.Equal(ids, []int64{fid}) {
+		t.Errorf("saved search after Keep = %v", ids)
+	}
+	if fet, _ := s.List(ctx, ListOptions{Origin: Fetched}); len(fet) != 0 {
+		t.Errorf("still listed as fetched: %v", fet)
 	}
 	if err := s.Keep(ctx, fid, "x", "y"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("keeping a library image: %v", err)
@@ -338,5 +348,8 @@ func TestFetchedImagesAreSeparateFromTheLibrary(t *testing.T) {
 	s.db.Exec(`DELETE FROM saved_searches WHERE id = 1`)
 	if e, _ := s.Get(ctx, gid); e.Origin != Fetched || e.SavedSearchID != 0 {
 		t.Errorf("after deleting the search: %+v", e)
+	}
+	if e, err := s.Get(ctx, fid); err != nil || e.Origin != FromUser || e.SavedSearchID != 0 {
+		t.Errorf("kept image after deleting the search: %+v, %v", e, err)
 	}
 }

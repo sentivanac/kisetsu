@@ -60,7 +60,7 @@ type Entry struct {
 	AddedAt time.Time
 	// Origin is FromUser unless the image was fetched; empty means FromUser.
 	Origin        Origin
-	SavedSearchID int64 // the search a fetched image came from; 0 if none
+	SavedSearchID int64 // the search the image was fetched for, also once kept; 0 if none
 	// FolderID is the folder of a folder image; 0 for others.
 	FolderID int64
 	// FileModTime is a folder file's modification time (Unix nanoseconds)
@@ -337,11 +337,11 @@ func (s *Store) IDs(ctx context.Context, collectionID int64) ([]int64, error) {
 	return ids, rows.Err()
 }
 
-// FetchedIDs returns the IDs of the images fetched for a saved search,
-// oldest first.
-func (s *Store) FetchedIDs(ctx context.Context, savedSearchID int64) ([]int64, error) {
+// SavedSearchIDs returns the IDs of the images fetched for a saved search,
+// also those since moved to the library, oldest first.
+func (s *Store) SavedSearchIDs(ctx context.Context, savedSearchID int64) ([]int64, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id FROM images WHERE origin = 'fetched' AND saved_search_id = ? ORDER BY added_at, id`, savedSearchID)
+		`SELECT id FROM images WHERE saved_search_id = ? ORDER BY added_at, id`, savedSearchID)
 	if err != nil {
 		return nil, fmt.Errorf("list fetched image IDs: %w", err)
 	}
@@ -404,10 +404,11 @@ func (s *Store) stats(ctx context.Context, origin Origin) (Stats, error) {
 }
 
 // Keep moves a fetched image into the user's library: its files now live
-// at filePath and thumbPath, and it counts as added now.
+// at filePath and thumbPath, and it counts as added now. It stays among its
+// saved search's images.
 func (s *Store) Keep(ctx context.Context, id int64, filePath, thumbPath string) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE images
-		SET origin = 'library', saved_search_id = NULL, file_path = ?, thumbnail_path = ?,
+		SET origin = 'library', file_path = ?, thumbnail_path = ?,
 			added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND origin = 'fetched'`, filePath, thumbPath, id)
 	if err != nil {
@@ -421,10 +422,11 @@ func (s *Store) Keep(ctx context.Context, id int64, filePath, thumbPath string) 
 
 // ReplaceFetched turns a fetched image into a library image stored as e
 // describes: its files, size, format and hashes. The entry keeps its ID, so
-// history, hiding and rotation follow it, and its source and attribution.
+// history, hiding and rotation follow it, and its source, attribution and
+// saved search.
 func (s *Store) ReplaceFetched(ctx context.Context, id int64, e Entry) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE images
-		SET origin = 'library', saved_search_id = NULL, file_path = ?, thumbnail_path = ?,
+		SET origin = 'library', file_path = ?, thumbnail_path = ?,
 			width = ?, height = ?, mime_type = ?, file_size = ?, sha256 = ?, dhash = ?,
 			added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND origin = 'fetched'`,

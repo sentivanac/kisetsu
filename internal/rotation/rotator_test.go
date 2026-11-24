@@ -420,3 +420,17 @@ func TestSavedSearchFetchesInTheBackground(t *testing.T) {
 		t.Fatal("the background fetch never ran")
 	}
 }
+
+// Keeping an image must not take it out of the rotation it was liked in.
+func TestKeptImageStaysInItsSavedSearch(t *testing.T) {
+	e, _ := newEnv(t, 1)
+	useSavedSearch(t, e)
+	ids := addFetched(t, e, 0, 1)
+	if err := e.lib.Keep(context.Background(), ids[0], "images/w/kept.jpg", ""); err != nil {
+		t.Fatal(err)
+	}
+	res, err := e.r.Next(context.Background())
+	if err != nil || res.ImageID != ids[0] {
+		t.Errorf("Next = %+v, %v; want the kept image %d", res, err, ids[0])
+	}
+}

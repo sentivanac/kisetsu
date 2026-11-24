@@ -652,7 +652,7 @@ func TestDownloadReplacesTheFetchedCopy(t *testing.T) {
 				t.Fatalf("progress = %+v, want entry %d, not similar to itself", p, old.ID)
 			}
 			got, _ := e.store.Get(context.Background(), old.ID)
-			if got.Origin != library.FromUser || got.SavedSearchID != 0 || got.Image.Width != 640 {
+			if got.Origin != library.FromUser || got.SavedSearchID != 1 || got.Image.Width != 640 {
 				t.Errorf("entry = %+v, want the original in the library", got)
 			}
 			if got.Image.ProviderID != "auto" {

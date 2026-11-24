@@ -60,3 +60,8 @@ change while at least one fetched image is unshown. The wallpaper
 changes at once, and new images are fetched after it (in the
 background in the window and the agent). Only with nothing new left
 does the change wait for them.
+
+**Changed in 0.9.0:** a fetched image that is kept, added to favorites or
+downloaded stays in the rotation of its saved search, besides being in the
+library; before, it left it. Images moved to the library earlier lost the
+link and stay out. `Store.FetchedIDs` became `SavedSearchIDs`.

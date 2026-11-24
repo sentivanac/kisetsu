@@ -84,7 +84,7 @@ func (a *App) GetRotation() (state RotationState, err error) {
 	case cfg.FolderID != 0:
 		ids, err = a.library.FolderIDs(a.ctx, cfg.FolderID)
 	case cfg.SavedSearchID != 0:
-		ids, err = a.library.FetchedIDs(a.ctx, cfg.SavedSearchID)
+		ids, err = a.library.SavedSearchIDs(a.ctx, cfg.SavedSearchID)
 	default:
 		ids, err = a.library.IDs(a.ctx, cfg.CollectionID)
 	}

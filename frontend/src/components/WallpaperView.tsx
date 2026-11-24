@@ -277,7 +277,7 @@ export function WallpaperView({active}: Props) {
                 </label>
                 <p className="muted small">
                     {fromSearch
-                        ? `${collectionCount(state.sourceImages)} fetched so far. When fewer than 3 are left unshown, ` +
+                        ? `${collectionCount(state.sourceImages)} from this search so far. When fewer than 3 are left unshown, ` +
                           'Kisetsu downloads new ones at screen size before changing the wallpaper.'
                         : s.folderId !== 0 && !folderMissing
                           ? `${collectionCount(state.sourceImages)} to choose from. Kisetsu reads the folder again ` +

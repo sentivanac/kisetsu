@@ -19,7 +19,8 @@
 
 `images.origin` (`library` | `fetched`) and `images.saved_search_id`
 (`ON DELETE SET NULL`: deleting a saved search keeps its images,
-unassigned). The user's library stays the user's: rotation from the
+unassigned). An image moved to the library keeps its saved search (since
+0.9.0). The user's library stays the user's: rotation from the
 library, library statistics, collections and the search ✓ only look at
 `origin = 'library'`.
 

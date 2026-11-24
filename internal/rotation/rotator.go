@@ -151,7 +151,7 @@ func (r *Rotator) RecordManual(ctx context.Context, imageID int64) error {
 }
 
 // candidates returns the images to choose from. For a saved search they
-// are its fetched images, topped up first when few are left unshown.
+// are the images fetched for it (kept ones too), topped up first when few are left unshown.
 func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int64, error) {
 	if cfg.FolderID != 0 {
 		return r.folderCandidates(ctx, cfg.FolderID)
@@ -168,7 +168,7 @@ func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int
 		return r.libraryCandidates(ctx, 0)
 	}
 
-	ids, err := r.Library.FetchedIDs(ctx, cfg.SavedSearchID)
+	ids, err := r.Library.SavedSearchIDs(ctx, cfg.SavedSearchID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int
 			defer r.Fetching(false)
 		}
 		if n := r.topUp(ctx, cfg.SavedSearchID, st.Current); n > 0 {
-			if ids, err = r.Library.FetchedIDs(ctx, cfg.SavedSearchID); err != nil {
+			if ids, err = r.Library.SavedSearchIDs(ctx, cfg.SavedSearchID); err != nil {
 				return nil, err
 			}
 		}
@@ -191,7 +191,7 @@ func (r *Rotator) candidates(ctx context.Context, cfg Settings, st State) ([]int
 // topUpIfLow fetches new images for a saved search when fewer than
 // lowWater are left unshown, keeping the image on screen.
 func (r *Rotator) topUpIfLow(ctx context.Context, savedSearchID, current int64) {
-	ids, err := r.Library.FetchedIDs(ctx, savedSearchID)
+	ids, err := r.Library.SavedSearchIDs(ctx, savedSearchID)
 	if err != nil {
 		r.Log.Warn("fetched images not read", "saved_search", savedSearchID, "err", err)
 		return

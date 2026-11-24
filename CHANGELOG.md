@@ -10,6 +10,8 @@ follow [Semantic Versioning](https://semver.org/).
 - Images that Kisetsu fetched automatically can be downloaded from Search:
   the original replaces the screen-sized copy, and the image moves to your
   library. Before, the download was refused.
+- An image from a saved search that you keep, download or add to favorites
+  stays in that search's rotation. Before, it left it.
 
 ### Fixed
 - Keeping the current wallpaper or adding it to favorites removed the file
