@@ -53,6 +53,11 @@ func main() {
 
 // run opens the Kisetsu window, with About shown if showAbout.
 func run(showAbout bool) error {
+	cleanup, err := isolateBindings()
+	if err != nil {
+		return err
+	}
+	defer cleanup()
 	c, err := openCore(context.Background(), "app", os.Stderr)
 	if err != nil {
 		return err
