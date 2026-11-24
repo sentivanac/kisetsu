@@ -107,7 +107,8 @@ ends by itself. Linux desktops that do not start programs from
 **Tray icon** (optional, in the Wallpaper tab): its menu goes back to
 the previous wallpaper or on to the next, adds the current one to your
 favorites or hides it ("Don't show again"), turns rotation on or off, opens the window or About
-Kisetsu, or quits until the next login.
+Kisetsu, or quits: the window closes and the background process stops until
+you open Kisetsu or log in again.
 
 **Favorites** is an ordinary collection, made the first time you add an
 image (from the tray, the Wallpaper tab or the heart in an image's
@@ -244,6 +245,7 @@ rm ~/.config/autostart/io.github.sentivanac.Kisetsu.Agent.desktop
 ```sh
 kisetsu                              # open the window
 kisetsu --about                      # open the window showing About Kisetsu
+kisetsu --close-window               # close the window, if it is open
 kisetsu agent                        # run the background process (normally started at login)
 kisetsu rotate                       # change to the next wallpaper now
 kisetsu fetch "Mountains" --count 5  # new images for the saved search "Mountains"

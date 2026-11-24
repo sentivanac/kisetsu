@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
-	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -83,6 +83,9 @@ type App struct {
 	searchMu     sync.Mutex
 	searchSeq    uint64
 	cancelSearch context.CancelFunc
+
+	// closing: the window is about to close for the tray's Quit.
+	closing atomic.Bool
 }
 
 // Deps are the dependencies of App, created in main.go.
@@ -107,6 +110,8 @@ type Deps struct {
 	RotationLock  string
 	// ShowAbout opens the window with About shown (`kisetsu --about`).
 	ShowAbout bool
+	// Closing: this process only closes the open window.
+	Closing bool
 	// OwnDirs are Kisetsu's own directories (data, cache, configuration,
 	// state), refused as local folders.
 	OwnDirs []string
@@ -140,6 +145,7 @@ func NewApp(d Deps) *App {
 		emit:         func(string, any) {},
 	}
 	a.aboutRequested.Store(d.ShowAbout)
+	a.closing.Store(d.Closing)
 	a.favs = favorites{settings: d.Settings, library: d.Library, fetched: d.Fetched}
 	return a
 }
@@ -150,15 +156,28 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.emit = func(name string, data any) { runtime.EventsEmit(ctx, name, data) }
 	a.retireTimer()
+	go func() {
+		a.ensureAgent()
+		time.Sleep(agentRecheck)
+		a.ensureAgent()
+	}()
 }
 
 // onSecondInstance brings the window to the front when Kisetsu is started
-// again while it runs, and shows About when that was asked for.
+// again while it runs, and shows About when that was asked for. The tray's
+// Quit closes the window this way.
 func (a *App) onSecondInstance(data options.SecondInstanceData) {
+	closing, about := secondInstanceAction(data.Args)
+	if closing {
+		a.log.Info("closing the window: Quit in the tray")
+		a.closing.Store(true)
+		runtime.Quit(a.ctx)
+		return
+	}
 	a.log.Info("Kisetsu started again; showing the open window")
 	runtime.WindowUnminimise(a.ctx)
 	runtime.WindowShow(a.ctx)
-	if slices.Contains(data.Args, aboutArg) {
+	if about {
 		a.emit(aboutEvent, nil)
 	}
 }

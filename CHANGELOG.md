@@ -19,6 +19,14 @@ follow [Semantic Versioning](https://semver.org/).
 - An image from a saved search that you download or add to favorites
   stays in that search's rotation. Before, it left it.
 
+### Window
+- The tabs and the status line stay visible while the page scrolls, and each
+  tab keeps its place.
+
+### Tray
+- **Quit** closes the window too, and opening Kisetsu starts the background
+  process again when rotation, the clock, the text or the tray icon is on.
+
 ### Fixed
 - Keeping the current wallpaper or adding it to favorites removed the file
   the desktop was showing, so the desktop could show a plain background.

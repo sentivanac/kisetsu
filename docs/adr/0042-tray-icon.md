@@ -72,3 +72,11 @@ over D-Bus (`com.canonical.dbusmenu.Event`) changed the wallpaper (a fake
 the agent; closing the session ended it as well. A second window process
 exited and the first one logged it. Seeing the icon on a real panel is
 left to the user's desktop.
+
+**Changed in 0.9.0:** Quit also closes the window, and opening Kisetsu starts
+the agent again when it has something to do (before, only the next login or
+the Wallpaper tab did). The window holds `window.lock` while it is open; Quit
+runs `kisetsu --close-window`, which reaches it through the single-instance
+mechanism and does nothing without a window. The window is told first, so it
+cannot start the agent again. A download in progress is canceled, as when the
+window is closed by hand. Closing the window still leaves the agent running.

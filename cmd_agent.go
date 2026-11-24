@@ -173,6 +173,10 @@ func runAgent(args []string) int {
 		about: func() error { return openWindow(aboutArg) },
 	}, func() {
 		quit.Store(true)
+		// The window closes first: while it is open, it may start the agent.
+		if err := closeWindow(ctx, c.windowLockPath()); err != nil {
+			c.log.Warn("window not closed", "err", err)
+		}
 		cancel()
 	})
 	cancel()

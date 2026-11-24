@@ -96,7 +96,7 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		open := systray.AddMenuItem("Open Kisetsu", "Open the Kisetsu window")
 		about := systray.AddMenuItem("About Kisetsu", "Version, author and licenses")
 		systray.AddSeparator()
-		quitItem := systray.AddMenuItem("Quit", "Hide the icon and stop changing the wallpaper until the next login")
+		quitItem := systray.AddMenuItem("Quit", "Close Kisetsu and stop changing the wallpaper until you open it or log in again")
 
 		sync := func() {
 			on, err := act.rotating(ctx)

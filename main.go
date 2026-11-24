@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,11 +13,13 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/sentivanac/kisetsu/internal/appinfo"
 	"github.com/sentivanac/kisetsu/internal/autostart"
 	"github.com/sentivanac/kisetsu/internal/downloads"
 	"github.com/sentivanac/kisetsu/internal/fetched"
+	"github.com/sentivanac/kisetsu/internal/filelock"
 	"github.com/sentivanac/kisetsu/internal/legacytimer"
 	"github.com/sentivanac/kisetsu/internal/rotation"
 	"github.com/sentivanac/kisetsu/internal/searches"
@@ -41,18 +44,20 @@ var windowIcon []byte
 func main() {
 	showAbout := len(os.Args) == 2 && os.Args[1] == aboutArg
 	// A command (for example `kisetsu rotate`) runs without a window.
-	if len(os.Args) > 1 && !showAbout {
+	closing := len(os.Args) == 2 && os.Args[1] == closeArg
+	if len(os.Args) > 1 && !showAbout && !closing {
 		attachConsole()
 		os.Exit(runCommand(os.Args[1], os.Args[2:]))
 	}
-	if err := run(showAbout); err != nil {
+	if err := run(showAbout, closing); err != nil {
 		fmt.Fprintln(os.Stderr, "kisetsu:", err)
 		os.Exit(1)
 	}
 }
 
-// run opens the Kisetsu window, with About shown if showAbout.
-func run(showAbout bool) error {
+// run opens the Kisetsu window, with About shown if showAbout; with closing
+// it closes the open window instead.
+func run(showAbout, closing bool) error {
 	cleanup, err := isolateBindings()
 	if err != nil {
 		return err
@@ -64,6 +69,21 @@ func run(showAbout bool) error {
 	}
 	defer c.Close()
 	log := c.log
+
+	// Tells the agent that a window is open. A second instance does not get
+	// the lock; it only passes its arguments on and ends.
+	releaseWindow, err := filelock.Lock(c.windowLockPath())
+	if err == nil {
+		defer releaseWindow()
+		if closing {
+			return nil // no window to close
+		}
+	} else if !errors.Is(err, filelock.ErrLocked) {
+		log.Warn("window lock", "err", err)
+		if closing {
+			return err
+		}
+	}
 
 	client := httpClient()
 	searcher, err := c.searchService(client)
@@ -119,6 +139,7 @@ func run(showAbout bool) error {
 		Executable:    entry.Executable,
 		RotationLock:  c.rotationLockPath(),
 		ShowAbout:     showAbout,
+		Closing:       closing,
 		OwnDirs:       c.ownDirs(),
 	})
 
@@ -147,6 +168,14 @@ func run(showAbout bool) error {
 			WebviewUserDataPath: filepath.Join(c.paths.Cache, "webview"),
 		},
 		OnStartup: app.startup,
+		// Only when the open window could not be reached: without it, asking
+		// to close a window must not leave a new one.
+		StartHidden: closing,
+		OnDomReady: func(ctx context.Context) {
+			if closing {
+				runtime.Quit(ctx)
+			}
+		},
 		// One window per user: starting Kisetsu again (from the menu or the
 		// tray) brings the open window to the front.
 		SingleInstanceLock: &options.SingleInstanceLock{
