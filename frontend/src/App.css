@@ -54,6 +54,7 @@
 
 .library-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 1rem;
     margin-bottom: 1rem;
@@ -399,6 +400,20 @@
 .download-row {
     display: flex;
     gap: 0.5rem;
+}
+
+.download-other {
+    align-self: flex-start;
+    font-size: 0.85rem;
+    text-align: left;
+}
+
+.download-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    font-size: 0.85rem;
 }
 
 .download-progress {

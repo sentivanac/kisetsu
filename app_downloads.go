@@ -124,6 +124,42 @@ func (a *App) download(img images.Image, size settings.DownloadSize) (key string
 	return key, nil
 }
 
+// DownloadFetched is DownloadAs for a fetched image.
+func (a *App) DownloadFetched(id int64, size string) (key string, err error) {
+	defer a.recoverPanic("DownloadFetched", &err)
+
+	d := settings.DownloadSize(size)
+	if !d.Valid() {
+		return "", apperr.New(apperr.InvalidInput, "This download size is not known.", nil)
+	}
+	e, err := a.library.Get(a.ctx, id)
+	if errors.Is(err, library.ErrNotFound) {
+		return "", apperr.New(apperr.InvalidInput, "This image no longer exists.", err)
+	}
+	if err != nil {
+		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
+	}
+	var fit imaging.Size
+	if d == settings.DownloadScreen {
+		screen, err := a.settings.Display(a.ctx)
+		if err != nil {
+			return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
+		}
+		fit = imaging.Size{Width: screen.Width, Height: screen.Height}
+		if key, ok := a.keepFitting(e.Image, fit); ok {
+			return key, nil
+		}
+	}
+	key, err = a.downloads.EnqueueEntry(a.ctx, id, fit)
+	if errors.Is(err, library.ErrAlreadyInLibrary) {
+		return "", apperr.New(AlreadyInLibrary, "This image is already in your library.", err)
+	}
+	if err != nil {
+		return "", apperr.New(apperr.Unavailable, "The download could not be started.", err)
+	}
+	return key, nil
+}
+
 // keepFitting keeps the fetched copy of img if it is as good as a download
 // reduced to fit would be, so nothing is downloaded again. It reports false
 // when there is none, or keeping it failed.

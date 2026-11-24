@@ -1,5 +1,14 @@
 import {describe, expect, it} from 'vitest';
-import {applyProgress, DownloadProgress, downloadLabel, downloadMessage, isActive, percent} from './downloads';
+import {
+    applyProgress,
+    downloadChoices,
+    DownloadProgress,
+    downloadLabel,
+    downloadMessage,
+    isActive,
+    percent,
+    screenCopySize,
+} from './downloads';
 
 const progress = (over: Partial<DownloadProgress>): DownloadProgress => ({
     key: 'wallhaven/abc',
@@ -73,5 +82,36 @@ describe('downloadMessage', () => {
         );
         expect(downloadMessage(progress({state: 'downloading'}))).toBeNull();
         expect(downloadMessage(undefined)).toBeNull();
+    });
+});
+
+describe('screenCopySize', () => {
+    const screen = {width: 1920, height: 1080};
+    it('covers the screen with the image’s aspect ratio', () => {
+        expect(screenCopySize({width: 7360, height: 4912}, screen)).toEqual({width: 1920, height: 1282});
+        expect(screenCopySize({width: 3000, height: 2000}, screen)).toEqual({width: 1920, height: 1280});
+    });
+    it('never enlarges', () => {
+        expect(screenCopySize({width: 1920, height: 1080}, screen)).toBeNull();
+        expect(screenCopySize({width: 4000, height: 900}, screen)).toBeNull();
+        expect(screenCopySize({width: 0, height: 0}, screen)).toBeNull();
+    });
+});
+
+describe('downloadChoices', () => {
+    const big = {width: 7360, height: 4912};
+    const copy = {width: 1920, height: 1282};
+    it('puts the preferred size first', () => {
+        expect(downloadChoices(big, copy, 'original').map((c) => c.label)).toEqual([
+            'Original · 7360 × 4912',
+            'Screen size · 1920 × 1282',
+        ]);
+        expect(downloadChoices(big, copy, 'screen').map((c) => c.size)).toEqual(['screen', 'original']);
+    });
+    it('offers only the original of an image that fits the screen', () => {
+        expect(downloadChoices(copy, null, 'screen').map((c) => c.size)).toEqual(['original']);
+    });
+    it('names no size when the original’s is unknown', () => {
+        expect(downloadChoices(null, copy, 'original')[0].label).toBe('Original');
     });
 });

@@ -50,6 +50,10 @@ export function DownloadAs(arg1, arg2) {
   return window['go']['main']['App']['DownloadAs'](arg1, arg2);
 }
 
+export function DownloadFetched(arg1, arg2) {
+  return window['go']['main']['App']['DownloadFetched'](arg1, arg2);
+}
+
 export function FavoriteCurrentWallpaper() {
   return window['go']['main']['App']['FavoriteCurrentWallpaper']();
 }
@@ -68,6 +72,10 @@ export function GetFetchedStats() {
 
 export function GetHiddenTags() {
   return window['go']['main']['App']['GetHiddenTags']();
+}
+
+export function GetLibraryItem(arg1) {
+  return window['go']['main']['App']['GetLibraryItem'](arg1);
 }
 
 export function GetLibraryStats() {

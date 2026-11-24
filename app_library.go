@@ -71,6 +71,22 @@ func (a *App) ListLibrary(collectionID int64, offset, limit int) (page LibraryPa
 	return page, nil
 }
 
+// GetLibraryItem returns one stored image, for showing a changed one again.
+func (a *App) GetLibraryItem(id int64) (item LibraryItem, err error) {
+	defer a.recoverPanic("GetLibraryItem", &err)
+
+	e, err := a.library.Get(a.ctx, id)
+	if errors.Is(err, library.ErrNotFound) {
+		return LibraryItem{}, apperr.New(apperr.InvalidInput, "This image no longer exists.", err)
+	}
+	if err != nil {
+		return LibraryItem{}, apperr.New(apperr.Unavailable, "The image could not be loaded.", err)
+	}
+	items := []LibraryItem{libraryItem(e)}
+	a.markHidden(items)
+	return items[0], nil
+}
+
 func libraryItem(e library.Entry) LibraryItem {
 	img := e.Image
 	thumbPath := e.ThumbnailPath

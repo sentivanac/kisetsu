@@ -112,7 +112,12 @@ Kisetsu, or quits until the next login.
 **Favorites** is an ordinary collection, made the first time you add an
 image (from the tray, the Wallpaper tab or the heart in an image's
 preview); choose it under "Images from" to rotate your favorites. A
-fetched image is kept in your library when you add it.
+fetched image is kept in your library when you add it, at screen size; **Get
+original** in its preview downloads the original.
+
+**Save downloads as** (Library tab) chooses between originals and copies at
+screen size, which take much less space. Images already in your library do
+not change.
 
 **Don't show again** keeps an image out of rotation without deleting
 it, from the tray, the Wallpaper tab or an image's preview. The

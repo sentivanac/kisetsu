@@ -3,11 +3,16 @@ import {
     AddFolder,
     AddToFavorites,
     AddToCollection,
+    CancelDownload,
     CreateCollection,
     DeleteCollection,
     DeleteFromLibrary,
+    DownloadFetched,
+    GetDownloadSettings,
     GetFetchedStats,
+    GetLibraryItem,
     GetLibraryStats,
+    GetOriginal,
     HideImage,
     KeepFetched,
     ListCollections,
@@ -19,16 +24,20 @@ import {
     RemoveFromFavorites,
     RemoveFromCollection,
     RenameCollection,
+    SaveDownloadSize,
     SetWallpaper,
     ShowImageAgain,
     SyncFolder,
 } from '../../wailsjs/go/main/App';
 import {main} from '../../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from '../lib/backend';
-import {formatFileSize} from '../lib/images';
+import {downloadChoices, DownloadProgress, DownloadSize, isActive, screenCopySize} from '../lib/downloads';
+import {formatFileSize, imageKey} from '../lib/images';
 import {fetchedStatsLabel, folderSyncLabel, formatAddedDate, libraryStatsLabel, removeItem} from '../lib/library';
+import {useDownloads} from '../lib/useDownloads';
 import {CollectionBar, FetchedView, folderOf, folderView, isFolderView} from './CollectionBar';
 import {CollectionPicker} from './CollectionPicker';
+import {DownloadButton} from './DownloadButton';
 import {Gallery} from './Gallery';
 import {PreviewDialog} from './PreviewDialog';
 
@@ -60,6 +69,14 @@ export function LibraryView({active, sourceName}: Props) {
     const [error, setError] = useState<BackendError | null>(null);
     const [loading, setLoading] = useState(false);
     const latestRequest = useRef(0);
+    const downloads = useDownloads();
+    const [downloadSettings, setDownloadSettings] = useState<main.DownloadSettings | null>(null);
+    // Errors from starting a download, and other notes, by entry ID.
+    const [startErrors, setStartErrors] = useState<Record<number, BackendError>>({});
+    const [originalNotes, setOriginalNotes] = useState<Record<number, string>>({});
+    // Downloads started here that have not finished, by key; before is the
+    // state of an earlier download of the same image.
+    const pending = useRef(new Map<string, {id: number; before?: DownloadProgress}>());
 
     const refreshCounts = useCallback(() => {
         GetLibraryStats().then(setStats).catch(() => {});
@@ -118,7 +135,9 @@ export function LibraryView({active, sourceName}: Props) {
     }, []);
 
     useEffect(() => {
-        if (active) refreshCounts();
+        if (!active) return;
+        refreshCounts();
+        GetDownloadSettings().then(setDownloadSettings).catch(() => {});
     }, [active, refreshCounts]);
 
     useEffect(() => {
@@ -150,11 +169,62 @@ export function LibraryView({active, sourceName}: Props) {
             .catch((err: unknown) => setError(toBackendError(err)));
     }
 
-    // dropItem removes an item from the shown list and moves the preview on.
+    // dropItem removes an item from the shown list. Its preview moves on to
+    // the next image; the preview of another image stays.
     function dropItem(id: number) {
         const {items: rest, next} = removeItem(items, id);
+        const open = selected === null ? undefined : items[selected]?.id;
         setItems(rest);
-        setSelected(next);
+        if (open === undefined) return;
+        setSelected(open === id ? next : rest.findIndex((it) => it.id === open));
+    }
+
+    function refreshItem(id: number) {
+        GetLibraryItem(id)
+            .then((item) => setItems((list) => list.map((it) => (it.id === id ? item : it))))
+            .catch((err: unknown) => setError(toBackendError(err)));
+    }
+
+    function startDownload(item: main.LibraryItem, size: DownloadSize) {
+        const key = imageKey(item.image);
+        const {id} = item;
+        setStartErrors(({[id]: _, ...rest}) => rest);
+        pending.current.set(key, {id, before: downloads[key]});
+        const started = showingFetched ? DownloadFetched(id, size) : GetOriginal(id);
+        started
+            .then((startedKey) => {
+                if (startedKey !== '') return;
+                pending.current.delete(key);
+                setOriginalNotes((notes) => ({...notes, [id]: 'This file is already the original.'}));
+                refreshItem(id);
+            })
+            .catch((err: unknown) => {
+                pending.current.delete(key);
+                setStartErrors((current) => ({...current, [id]: toBackendError(err)}));
+            });
+    }
+
+    useEffect(() => {
+        for (const [key, {id, before}] of pending.current) {
+            const p = downloads[key];
+            if (!p || p === before || isActive(p)) continue;
+            pending.current.delete(key);
+            if (p.state !== 'done') continue;
+            refreshCounts();
+            if (showingFetched) dropItem(id);
+            else {
+                setOriginalNotes((notes) => ({...notes, [id]: 'Replaced by the original.'}));
+                refreshItem(id);
+            }
+        }
+        // Only download events matter; the rest is current when they arrive.
+    }, [downloads]);
+
+    function chooseDownloadSize(size: string) {
+        SaveDownloadSize(size)
+            .then(() => GetDownloadSettings())
+            .then(setDownloadSettings)
+            .catch((err: unknown) => setError(toBackendError(err)));
     }
 
     function deleteItem(id: number) {
@@ -197,6 +267,25 @@ export function LibraryView({active, sourceName}: Props) {
             .catch((err: unknown) => setError(toBackendError(err)));
     }
 
+    // Downloads shown for an item: a finished one says nothing about the
+    // file that is stored now.
+    function shownProgress(item: main.LibraryItem): DownloadProgress | undefined {
+        const p = downloads[imageKey(item.image)];
+        if (p?.state === 'done' || (p?.state === 'duplicate' && !showingFetched)) return undefined;
+        return p;
+    }
+
+    function fetchedChoices(item: main.LibraryItem) {
+        if (!downloadSettings) return [];
+        const known = item.originalWidth > 0 && item.originalHeight > 0;
+        const original = known ? {width: item.originalWidth, height: item.originalHeight} : null;
+        const screen = {width: downloadSettings.screenWidth, height: downloadSettings.screenHeight};
+        const copy = original
+            ? screenCopySize(original, screen)
+            : {width: item.image.width, height: item.image.height};
+        return downloadChoices(original, copy, downloadSettings.size as DownloadSize);
+    }
+
     const selectedItem = selected === null ? null : items[selected];
     const current = collections.find((c) => c.id === collection);
     const showingFetched = collection === FetchedView;
@@ -211,6 +300,21 @@ export function LibraryView({active, sourceName}: Props) {
                     : folder
                       ? <p className="muted">{folder.path}</p>
                       : stats && <p className="muted">{libraryStatsLabel(stats)}</p>}
+                {downloadSettings && !folder && (
+                    <label className="download-size">
+                        Save downloads as
+                        <select
+                            value={downloadSettings.size}
+                            onChange={(e) => chooseDownloadSize(e.target.value)}
+                            title="Images already in your library do not change."
+                        >
+                            <option value="original">Original</option>
+                            <option value="screen">
+                                Screen size ({downloadSettings.screenWidth} × {downloadSettings.screenHeight})
+                            </option>
+                        </select>
+                    </label>
+                )}
             </div>
 
             <CollectionBar
@@ -244,7 +348,7 @@ export function LibraryView({active, sourceName}: Props) {
                 <p className="muted small">
                     Images fetched automatically from saved searches. They are kept to{' '}
                     {fetchedStats ? formatFileSize(fetchedStats.maxBytes) : '200 MB'}, stored at your screen
-                    size; the oldest are removed when that is full. Keep an image to move it into your library.
+                    size; the oldest are removed when that is full. Download an image to keep it in your library.
                 </p>
             )}
             {folder && (
@@ -290,22 +394,60 @@ export function LibraryView({active, sourceName}: Props) {
                     actions={
                         <>
                             {showingFetched ? (
-                                <div className="library-actions">
-                                    <button type="button" className="btn" onClick={() => keepItem(selectedItem.id)}>
-                                        Keep in my library
-                                    </button>
-                                    <p className="muted small">
-                                        Stored at {selectedItem.image.width} × {selectedItem.image.height} for your
-                                        screen. Download the image in Search to get the original.
-                                    </p>
-                                </div>
-                            ) : (
-                                <CollectionPicker
-                                    imageID={selectedItem.id}
-                                    collections={collections}
-                                    onToggle={(id, member) => toggleMembership(id, selectedItem.id, member)}
-                                    onCreateWith={(name) => createAndAdd(name, selectedItem.id)}
+                                <DownloadButton
+                                    progress={shownProgress(selectedItem)}
+                                    inLibrary={false}
+                                    startError={startErrors[selectedItem.id]}
+                                    choices={fetchedChoices(selectedItem)}
+                                    onDownload={(size) => startDownload(selectedItem, size)}
+                                    onCancel={() => {
+                                        CancelDownload(imageKey(selectedItem.image)).catch(() => {});
+                                    }}
+                                    onKeepCopy={keepItem}
                                 />
+                            ) : (
+                                <>
+                                    {selectedItem.stored !== 'original' && (
+                                        <div className="library-actions">
+                                            <DownloadButton
+                                                progress={shownProgress(selectedItem)}
+                                                inLibrary={false}
+                                                startError={startErrors[selectedItem.id]}
+                                                choices={downloadChoices(
+                                                    selectedItem.originalWidth > 0
+                                                        ? {
+                                                              width: selectedItem.originalWidth,
+                                                              height: selectedItem.originalHeight,
+                                                          }
+                                                        : null,
+                                                    null,
+                                                    'original',
+                                                )}
+                                                idleLabel="Get original"
+                                                onDownload={(size) => startDownload(selectedItem, size)}
+                                                onCancel={() => {
+                                                    CancelDownload(imageKey(selectedItem.image)).catch(() => {});
+                                                }}
+                                            />
+                                            <p className="muted small">
+                                                {selectedItem.stored === 'reduced'
+                                                    ? 'Stored at screen size.'
+                                                    : 'It is not known yet whether this file is the original.'}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {originalNotes[selectedItem.id] && (
+                                        <p className="notice" role="status">
+                                            {originalNotes[selectedItem.id]}
+                                        </p>
+                                    )}
+                                    <CollectionPicker
+                                        imageID={selectedItem.id}
+                                        collections={collections}
+                                        onToggle={(id, member) => toggleMembership(id, selectedItem.id, member)}
+                                        onCreateWith={(name) => createAndAdd(name, selectedItem.id)}
+                                    />
+                                </>
                             )}
                             <LibraryActions
                                 key={selectedItem.id}

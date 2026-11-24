@@ -3,9 +3,11 @@ import {
     CancelDownload,
     CancelSearch,
     DeleteSavedSearch,
-    Download,
+    DownloadAs,
+    GetDownloadSettings,
     GetHiddenTags,
     GetSearchFilters,
+    KeepFetched,
     LibraryStatus,
     ListProviders,
     ListSavedSearches,
@@ -31,7 +33,7 @@ import {
     resolutionOptions,
     toggleCategory,
 } from '../lib/filters';
-import {isActive, percent} from '../lib/downloads';
+import {downloadChoices, DownloadSize, isActive, percent, screenCopySize} from '../lib/downloads';
 import {appendUnique, imageKey} from '../lib/images';
 import {screenFilters, screenPixels, WailsScreen} from '../lib/screen';
 import {useDownloads} from '../lib/useDownloads';
@@ -90,6 +92,7 @@ export function SearchPanel({active}: Props) {
     const downloads = useDownloads();
     // Library entry IDs of shown images that are already downloaded.
     const [inLibrary, setInLibrary] = useState<Record<string, number>>({});
+    const [downloadSettings, setDownloadSettings] = useState<main.DownloadSettings | null>(null);
     // Errors from starting a download, by image key.
     const [startErrors, setStartErrors] = useState<Record<string, BackendError>>({});
 
@@ -274,10 +277,10 @@ export function SearchPanel({active}: Props) {
             .catch(() => {});
     }
 
-    function startDownload(img: images.Image) {
+    function startDownload(img: images.Image, size: DownloadSize) {
         const key = imageKey(img);
         setStartErrors(({[key]: _, ...rest}) => rest);
-        Download(img).catch((err: unknown) => {
+        DownloadAs(img, size).catch((err: unknown) => {
             const backendError = toBackendError(err);
             if (backendError.code === 'already_in_library') {
                 checkLibrary([key]);
@@ -285,6 +288,31 @@ export function SearchPanel({active}: Props) {
                 setStartErrors((current) => ({...current, [key]: backendError}));
             }
         });
+    }
+
+    function keepCopy(img: images.Image, fetchedId: number) {
+        const key = imageKey(img);
+        KeepFetched(fetchedId)
+            .then(() => {
+                setStartErrors(({[key]: _, ...rest}) => rest);
+                checkLibrary([key]);
+            })
+            .catch((err: unknown) => setStartErrors((current) => ({...current, [key]: toBackendError(err)})));
+    }
+
+    // Read again whenever the tab is shown: the Library tab changes it.
+    useEffect(() => {
+        if (!active) return;
+        GetDownloadSettings().then(setDownloadSettings).catch(() => {
+            // Originals can be downloaded without it.
+            setDownloadSettings((current) => current ?? new main.DownloadSettings({size: 'original'}));
+        });
+    }, [active]);
+
+    function choicesFor(img: images.Image) {
+        if (!downloadSettings) return [];
+        const screen = {width: downloadSettings.screenWidth ?? 0, height: downloadSettings.screenHeight ?? 0};
+        return downloadChoices(img, screenCopySize(img, screen), downloadSettings.size as DownloadSize);
     }
 
     useEffect(() => {
@@ -515,7 +543,9 @@ export function SearchPanel({active}: Props) {
                                 progress={downloads[imageKey(selectedImage)]}
                                 inLibrary={imageKey(selectedImage) in inLibrary}
                                 startError={startErrors[imageKey(selectedImage)]}
-                                onDownload={() => startDownload(selectedImage)}
+                                choices={choicesFor(selectedImage)}
+                                onDownload={(size) => startDownload(selectedImage, size)}
+                                onKeepCopy={(id) => keepCopy(selectedImage, id)}
                                 onCancel={() => {
                                     CancelDownload(imageKey(selectedImage)).catch(() => {});
                                 }}

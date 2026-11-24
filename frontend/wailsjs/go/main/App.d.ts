@@ -31,6 +31,8 @@ export function Download(arg1:images.Image):Promise<string>;
 
 export function DownloadAs(arg1:images.Image,arg2:string):Promise<string>;
 
+export function DownloadFetched(arg1:number,arg2:string):Promise<string>;
+
 export function FavoriteCurrentWallpaper():Promise<main.RotationState>;
 
 export function GetAbout():Promise<main.About>;
@@ -40,6 +42,8 @@ export function GetDownloadSettings():Promise<main.DownloadSettings>;
 export function GetFetchedStats():Promise<main.FetchedStats>;
 
 export function GetHiddenTags():Promise<Array<string>>;
+
+export function GetLibraryItem(arg1:number):Promise<main.LibraryItem>;
 
 export function GetLibraryStats():Promise<main.LibraryStats>;
 

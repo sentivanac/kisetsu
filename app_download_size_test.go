@@ -134,3 +134,36 @@ func TestGetOriginal(t *testing.T) {
 		t.Error("missing image accepted")
 	}
 }
+
+func TestDownloadFetched(t *testing.T) {
+	for _, c := range []struct {
+		size     string
+		requests int32
+		want     library.Stored
+	}{{"original", 2, library.StoredOriginal}, {"screen", 1, library.StoredReduced}} {
+		srv, n := countingServer(t)
+		app := newTestApp(t, &stubProvider{})
+		ev := captureEvents(app)
+		useScreen(t, app, 160, 90)
+		saved, err := app.SaveSearch("Test", searches.Query{ProviderIDs: []string{"stub"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := app.downloads.FetchNow(app.ctx, downloadable(srv, "auto", "/a.jpg"), downloads.FetchOptions{
+			SavedSearchID: saved.ID, Fit: imaging.Size{Width: 160, Height: 90},
+		})
+		if _, err := app.DownloadFetched(p.EntryID, c.size); err != nil {
+			t.Fatal(err)
+		}
+		if done := ev.wait(t); done.State != "done" || done.EntryID != p.EntryID {
+			t.Errorf("%s: %+v", c.size, done)
+		}
+		item, err := app.GetLibraryItem(p.EntryID)
+		if err != nil || item.Stored != string(c.want) || item.OriginalWidth != 320 || n.Load() != c.requests {
+			t.Errorf("%s: item %+v, %v, %d requests", c.size, item, err, n.Load())
+		}
+		if _, err := app.DownloadFetched(p.EntryID, c.size); err == nil {
+			t.Errorf("%s: downloaded a library image again", c.size)
+		}
+	}
+}

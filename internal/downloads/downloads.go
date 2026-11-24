@@ -214,6 +214,20 @@ func (m *Manager) EnqueueFitted(ctx context.Context, img images.Image, fit imagi
 	return m.enqueue(ctx, img, job{fit: fit})
 }
 
+// EnqueueEntry starts downloading the image of a fetched entry into the
+// library, reduced to cover fit if it is set. The entry's own metadata is
+// used: it has no thumbnail URL, so Enqueue would refuse it.
+func (m *Manager) EnqueueEntry(ctx context.Context, id int64, fit imaging.Size) (string, error) {
+	e, err := m.cfg.Store.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if e.Origin != library.Fetched {
+		return "", fmt.Errorf("%w: entry %d", library.ErrAlreadyInLibrary, id)
+	}
+	return m.start(e.Image, job{fit: fit})
+}
+
 // EnqueueOriginal starts downloading the original of a library image; it
 // replaces the stored copy, under the same entry. The copy stays if the
 // source now has another or a smaller image (ErrChanged).
