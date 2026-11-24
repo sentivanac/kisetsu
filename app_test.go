@@ -128,7 +128,7 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		},
 		Agent:         &fakeAgent{}, // never a real process or autostart entry
 		SavedSearches: searches.NewStore(db),
-		Fetched:       &fetched.Service{Library: lib, Files: files, Log: log},
+		Fetched:       &fetched.Service{Library: lib, Files: files, Log: log, OnScreen: onScreen(rotation.NewHistory(db))},
 		Executable:    "/opt/kisetsu/kisetsu",
 		RotationLock:  filepath.Join(filepath.Dir(path), "rotate.lock"),
 	})

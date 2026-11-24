@@ -419,6 +419,26 @@ func (s *Store) Keep(ctx context.Context, id int64, filePath, thumbPath string) 
 	return nil
 }
 
+// ReplaceFetched turns a fetched image into a library image stored as e
+// describes: its files, size, format and hashes. The entry keeps its ID, so
+// history, hiding and rotation follow it, and its source and attribution.
+func (s *Store) ReplaceFetched(ctx context.Context, id int64, e Entry) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE images
+		SET origin = 'library', saved_search_id = NULL, file_path = ?, thumbnail_path = ?,
+			width = ?, height = ?, mime_type = ?, file_size = ?, sha256 = ?, dhash = ?,
+			added_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		WHERE id = ? AND origin = 'fetched'`,
+		e.FilePath, e.ThumbnailPath, e.Image.Width, e.Image.Height, e.Image.MIMEType, e.Image.FileSize,
+		e.SHA256, int64(e.DHash), id)
+	if err != nil {
+		return fmt.Errorf("replace fetched image %d: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("%w: fetched image %d", ErrNotFound, id)
+	}
+	return nil
+}
+
 // HashRef pairs an entry with its perceptual hash.
 type HashRef struct {
 	ID    int64

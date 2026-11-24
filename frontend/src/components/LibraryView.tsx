@@ -296,7 +296,7 @@ export function LibraryView({active, sourceName}: Props) {
                                     </button>
                                     <p className="muted small">
                                         Stored at {selectedItem.image.width} × {selectedItem.image.height} for your
-                                        screen. The original stays available on its source page.
+                                        screen. Download the image in Search to get the original.
                                     </p>
                                 </div>
                             ) : (

@@ -201,6 +201,14 @@ func currentWallpaper(ctx context.Context, history *rotation.History, lib *libra
 	return e, path, true, nil
 }
 
+// onScreen returns a function that tells which image was set last.
+func onScreen(history *rotation.History) func(context.Context) (int64, bool, error) {
+	return func(ctx context.Context) (int64, bool, error) {
+		last, set, err := history.Last(ctx)
+		return last.ImageID, set, err
+	}
+}
+
 // screen builds the service that shows library images through setter,
 // drawing text on them when the user turned that on (ADR 0047).
 func (c *core) screen(setter onscreen.Setter) *onscreen.Service {
@@ -247,7 +255,8 @@ func (c *core) rotationLockPath() string {
 
 // fetchedService builds the service that keeps and prunes fetched images.
 func (c *core) fetchedService() *fetched.Service {
-	return &fetched.Service{Library: c.lib, Files: c.files, Log: c.log}
+	return &fetched.Service{Library: c.lib, Files: c.files, Log: c.log,
+		OnScreen: onScreen(rotation.NewHistory(c.db))}
 }
 
 // searchService registers the providers. Every search leaves out the tags the user hid.
@@ -271,6 +280,7 @@ func (c *core) downloader(client *http.Client, notify func(downloads.Progress)) 
 		Store:       c.lib,
 		Log:         c.log,
 		Notify:      notify,
+		Replaced:    c.fetchedService().Discard,
 	})
 }
 

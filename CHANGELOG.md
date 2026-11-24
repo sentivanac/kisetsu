@@ -4,6 +4,17 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - Unreleased
+
+### Library
+- Images that Kisetsu fetched automatically can be downloaded from Search:
+  the original replaces the screen-sized copy, and the image moves to your
+  library. Before, the download was refused.
+
+### Fixed
+- Keeping the current wallpaper or adding it to favorites removed the file
+  the desktop was showing, so the desktop could show a plain background.
+
 ## [0.8.1] - 2026-11-23
 
 ### Fixed

@@ -51,11 +51,6 @@ func TestFetchedImagesWorkflow(t *testing.T) {
 		t.Errorf("fetched image shown in the library: %+v", lib.Items)
 	}
 
-	_, err = app.Download(img)
-	if msg := apperr.ToPublic(err).Message; !strings.Contains(msg, "Fetched") || !strings.Contains(msg, "Keep") {
-		t.Errorf("manual download message = %q", msg)
-	}
-
 	kept, err := app.KeepFetched(item.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -82,5 +77,37 @@ func TestSaveDisplaySize(t *testing.T) {
 	}
 	if err := app.SaveDisplaySize(0, 0); apperr.ToPublic(err).Code != apperr.InvalidInput {
 		t.Errorf("invalid size: %v", err)
+	}
+}
+
+// The desktop reads the wallpaper by path, so the file on screen stays.
+func TestKeepLeavesTheWallpaperOnScreen(t *testing.T) {
+	data := jpegBytes(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(data) }))
+	defer srv.Close()
+	for _, onScreen := range []bool{false, true} {
+		app := newTestApp(t, &stubProvider{})
+		saved, err := app.SaveSearch("Test", searches.Query{ProviderIDs: []string{"stub"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := app.downloads.FetchNow(app.ctx, downloadable(srv, "auto", "/a.jpg"), downloads.FetchOptions{
+			SavedSearchID: saved.ID, Fit: imaging.Size{Width: 160, Height: 90},
+		})
+		old, err := app.library.Get(app.ctx, p.EntryID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if onScreen {
+			if _, err := app.SetWallpaper(old.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := app.KeepFetched(old.ID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := app.files.OriginalPath(old.FilePath); (err == nil) != onScreen {
+			t.Errorf("on screen %v: file: %v", onScreen, err)
+		}
 	}
 }

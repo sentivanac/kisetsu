@@ -43,7 +43,8 @@ func newEnv(t *testing.T) *env {
 	}
 	t.Cleanup(func() { files.Close() })
 	lib := library.NewStore(db)
-	return &env{root: root, db: db, lib: lib, svc: &Service{Library: lib, Files: files, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}}
+	return &env{root: root, db: db, lib: lib, svc: &Service{Library: lib, Files: files, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		OnScreen: func(context.Context) (int64, bool, error) { return 0, false, nil }}}
 }
 
 // add stores an image with files on disk; fetched images go to the cache.
@@ -131,5 +132,33 @@ func TestPruneKeepsWithinTheLimit(t *testing.T) {
 
 	if removed, _, _ := e.svc.Prune(ctx, onScreen); removed != 0 {
 		t.Errorf("second prune removed %d", removed)
+	}
+}
+
+// The desktop reads the wallpaper by path, so its file stays, also when it
+// is not known what is on screen.
+func TestKeepLeavesTheFileOnScreen(t *testing.T) {
+	for name, c := range map[string]struct {
+		onScreen bool
+		err      error
+	}{
+		"on screen": {onScreen: true},
+		"unknown":   {err: errors.New("no history")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			id := e.add(t, 1, library.Fetched, 100)
+			e.svc.OnScreen = func(context.Context) (int64, bool, error) { return id, c.onScreen, c.err }
+			if _, err := e.svc.Keep(context.Background(), id); err != nil {
+				t.Fatal(err)
+			}
+			cache := filepath.Join(e.root, "cache", "fetched")
+			if _, err := os.Stat(filepath.Join(cache, "images", "w", "1.jpg")); err != nil {
+				t.Errorf("the file on screen is gone: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(cache, "thumbs", "w", "1.jpg")); !os.IsNotExist(err) {
+				t.Errorf("thumbnail left: %v", err)
+			}
+		})
 	}
 }

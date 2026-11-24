@@ -52,9 +52,14 @@ stored file; **the SHA-256 stays that of the downloaded original**, so
 exact duplicates with the library are still recognized.
 
 `downloads.Manager.EnqueueFetched(img, {SavedSearchID, Fit})` stores into
-the fetched root with `origin = fetched`. A manual download of an image that
-was fetched returns `ErrInFetched`; the UI says to open it in Library →
-Fetched and keep it.
+the fetched root with `origin = fetched`.
+
+A manual download of a fetched image (the same source, or the same file)
+downloads the original into the library and moves the entry there with
+`library.Store.ReplaceFetched`: the ID stays, so history, hiding and
+rotation follow it. The fetched files are removed only afterwards; if the
+download fails, the image stays fetched. (Until
+0.8.1 the download was refused and pointed to Keep.)
 
 ### Keep
 
@@ -65,6 +70,10 @@ fetched files. If the update fails, the copies are removed and the image
 stays fetched. Copying instead of renaming works when cache and data are on
 different file systems. The kept image is the screen-sized copy; the
 original remains on its source page.
+
+Keep and a manual download leave the file of the wallpaper on screen in the
+cache (`fetched.Service.Discard`): the desktop reads it by path, and showed
+its plain background once it was gone. Nothing removes that file later.
 
 ### Limit
 

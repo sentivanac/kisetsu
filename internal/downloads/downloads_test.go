@@ -549,10 +549,6 @@ func TestFetchedDownloadIsStoredSmallerInTheCache(t *testing.T) {
 		t.Errorf("temporary files left: %v", left)
 	}
 
-	// Downloading it by hand points to Keep instead.
-	if _, err := e.mgr.Enqueue(ctx, img); !errors.Is(err, ErrInFetched) {
-		t.Errorf("manual download of a fetched image: %v", err)
-	}
 	// Fetching it again is a plain "already there".
 	if _, err := e.mgr.EnqueueFetched(ctx, img, FetchOptions{SavedSearchID: 1}); !errors.Is(err, library.ErrAlreadyInLibrary) {
 		t.Errorf("fetching it twice: %v", err)
@@ -618,5 +614,104 @@ func TestCopyNewNeverReplaces(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(dst); string(data) != "image" {
 		t.Errorf("existing file replaced: %q", data)
+	}
+}
+
+// fetchedThen fetches an image automatically, then downloads img by hand.
+func fetchedThen(t *testing.T, e *env, img images.Image) (fetched library.Entry, p Progress) {
+	t.Helper()
+	ctx := context.Background()
+	insertSavedSearch(t, e)
+	f := e.mgr.FetchNow(ctx, e.image("auto", "/a.jpg"), FetchOptions{SavedSearchID: 1, Fit: imaging.Size{Width: 320, Height: 180}})
+	fetched, err := e.store.Get(ctx, f.EntryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.mgr.Enqueue(ctx, img); err != nil {
+		t.Fatalf("manual download of a fetched image: %v", err)
+	}
+	return fetched, e.rec.wait(t)
+}
+
+func TestDownloadReplacesTheFetchedCopy(t *testing.T) {
+	original, changed := picture(t, 0, 90), picture(t, 5, 90)
+	for name, c := range map[string]struct {
+		id, path string
+		want     []byte
+	}{
+		"same image":                 {"auto", "/a.jpg", original},
+		"file changed at the source": {"auto", "/b.jpg", changed},
+		"same file, other source ID": {"other", "/a.jpg", original},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t, serve(map[string][]byte{"/a.jpg": original, "/b.jpg": changed}))
+			var replaced []library.Entry
+			e.mgr.cfg.Replaced = func(_ context.Context, old library.Entry) { replaced = append(replaced, old) }
+			old, p := fetchedThen(t, e, e.image(c.id, c.path))
+			if p.State != Done || p.EntryID != old.ID || len(p.SimilarIDs) != 0 {
+				t.Fatalf("progress = %+v, want entry %d, not similar to itself", p, old.ID)
+			}
+			got, _ := e.store.Get(context.Background(), old.ID)
+			if got.Origin != library.FromUser || got.SavedSearchID != 0 || got.Image.Width != 640 {
+				t.Errorf("entry = %+v, want the original in the library", got)
+			}
+			if got.Image.ProviderID != "auto" {
+				t.Errorf("source changed to %q", got.Image.ProviderID)
+			}
+			data, err := os.ReadFile(filepath.Join(e.root, got.FilePath))
+			if err != nil || !bytes.Equal(data, c.want) {
+				t.Errorf("stored file is not the original: %v", err)
+			}
+			if sum := sha256.Sum256(c.want); got.SHA256 != hex.EncodeToString(sum[:]) {
+				t.Error("SHA-256 is not that of the stored file")
+			}
+			if len(replaced) != 1 || replaced[0].FilePath != old.FilePath {
+				t.Errorf("replaced = %+v", replaced)
+			}
+		})
+	}
+}
+
+func TestFailedDownloadKeepsTheFetchedCopy(t *testing.T) {
+	e := newEnv(t, serve(map[string][]byte{"/a.jpg": picture(t, 0, 90)}))
+	e.mgr.cfg.Replaced = func(context.Context, library.Entry) { t.Error("replaced after a failure") }
+	old, p := fetchedThen(t, e, e.image("auto", "/gone.jpg"))
+	if p.State != Failed {
+		t.Fatalf("progress = %+v", p)
+	}
+	if got, _ := e.store.Get(context.Background(), old.ID); got.Origin != library.Fetched || got.FilePath != old.FilePath {
+		t.Errorf("entry changed: %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(e.root, "cache", old.FilePath)); err != nil {
+		t.Errorf("fetched file: %v", err)
+	}
+}
+
+// A fetched image removed while its original downloads is added anew.
+func TestDownloadAddsWhenTheFetchedEntryIsGone(t *testing.T) {
+	data := picture(t, 0, 90)
+	e := newEnv(t, func(w http.ResponseWriter, r *http.Request) { w.Write(data) })
+	insertSavedSearch(t, e)
+	ctx := context.Background()
+	f := e.mgr.FetchNow(ctx, e.image("auto", "/a.jpg"), FetchOptions{SavedSearchID: 1, Fit: imaging.Size{Width: 320, Height: 180}})
+	old, _ := e.store.Get(ctx, f.EntryID)
+	if err := e.store.Delete(ctx, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	res, err := imaging.Process(bytes.NewReader(data), imaging.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp, err := writeTemp(e.root, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := e.mgr.store(ctx, e.image("auto", "/a.jpg"),
+		stored{path: tmp, size: int64(len(data)), width: 640, height: 400, mime: "image/jpeg"}, res, e.root, nil, &old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.store.Get(ctx, id); err != nil || got.Origin != library.FromUser {
+		t.Errorf("entry = %+v, %v", got, err)
 	}
 }

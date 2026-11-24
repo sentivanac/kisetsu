@@ -30,6 +30,9 @@ type Service struct {
 	Files    Files
 	Log      *slog.Logger
 	MaxBytes int64 // 0 means MaxBytes
+	// OnScreen returns the image Kisetsu set as the wallpaper last, and
+	// false when there is none.
+	OnScreen func(ctx context.Context) (int64, bool, error)
 }
 
 func (s *Service) limit() int64 {
@@ -41,7 +44,7 @@ func (s *Service) limit() int64 {
 
 // Keep moves a fetched image into the user's library. The files are
 // copied first, then the database points at the copies, and only then are
-// the fetched files removed; if the database update fails, the copies are
+// the fetched files removed (see Discard); if the database update fails, the copies are
 // removed and the image stays fetched.
 func (s *Service) Keep(ctx context.Context, id int64) (library.Entry, error) {
 	e, err := s.Library.Get(ctx, id)
@@ -66,13 +69,29 @@ func (s *Service) Keep(ctx context.Context, id int64) (library.Entry, error) {
 		s.Files.Remove(thumb)
 		return library.Entry{}, err
 	}
-	for _, old := range []string{e.FilePath, e.ThumbnailPath} {
-		if err := s.Files.Remove(old); err != nil {
-			s.Log.Warn("fetched file not removed after keeping", "entry", id, "path", old, "err", err)
-		}
-	}
+	s.Discard(ctx, e)
 	s.Log.Info("fetched image kept", "entry", id)
 	return s.Library.Get(ctx, id)
+}
+
+// Discard removes the fetched files of old, an entry that now has files in
+// the library. The wallpaper on screen keeps its fetched file, because the
+// desktop reads it by path and shows a plain background without it.
+// Problems are only logged.
+func (s *Service) Discard(ctx context.Context, old library.Entry) {
+	current, set, err := s.OnScreen(ctx)
+	if err != nil {
+		s.Log.Warn("cannot tell which wallpaper is on screen; fetched file kept", "entry", old.ID, "err", err)
+	}
+	paths := []string{old.ThumbnailPath}
+	if err == nil && !(set && current == old.ID) {
+		paths = append(paths, old.FilePath)
+	}
+	for _, p := range paths {
+		if err := s.Files.Remove(p); err != nil {
+			s.Log.Warn("fetched file not removed", "entry", old.ID, "path", p, "err", err)
+		}
+	}
 }
 
 // Prune removes the oldest fetched images until they fit in the limit.
