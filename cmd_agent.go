@@ -106,6 +106,18 @@ func runAgent(args []string) int {
 	defer cancel()
 	defer watchSession(ctx, cancel, c.log)()
 
+	checker := c.updateChecker(client)
+	checked := make(chan struct{})
+	go func() {
+		defer close(checked)
+		checker.Run(ctx, agentUpdateDelay, nil)
+	}()
+	// Before the database is closed.
+	defer func() {
+		cancel()
+		<-checked
+	}()
+
 	if !prefs.ShowInTray {
 		a.Run(ctx)
 		c.log.Info("agent stopped")
@@ -168,6 +180,10 @@ func runAgent(args []string) int {
 			labelMu.Lock()
 			fetchingLabel = f
 			labelMu.Unlock()
+		},
+		update: func(ctx context.Context) (string, error) {
+			st, err := checker.State(ctx)
+			return st.Available, err
 		},
 		open:  func() error { return openWindow() },
 		about: func() error { return openWindow(aboutArg) },

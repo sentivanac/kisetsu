@@ -106,6 +106,10 @@ export function GetThirdPartyLicenses() {
   return window['go']['main']['App']['GetThirdPartyLicenses']();
 }
 
+export function GetUpdateState() {
+  return window['go']['main']['App']['GetUpdateState']();
+}
+
 export function HideCurrentWallpaper() {
   return window['go']['main']['App']['HideCurrentWallpaper']();
 }
@@ -228,6 +232,10 @@ export function SetShowInTray(arg1) {
 
 export function SetTagHidden(arg1, arg2) {
   return window['go']['main']['App']['SetTagHidden'](arg1, arg2);
+}
+
+export function SetUpdateCheck(arg1) {
+  return window['go']['main']['App']['SetUpdateCheck'](arg1);
 }
 
 export function SetWallpaper(arg1) {

@@ -28,6 +28,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
+	"github.com/sentivanac/kisetsu/internal/updates"
 )
 
 // stubProvider returns a fixed page or error. Its ID defaults to "stub".
@@ -130,7 +131,11 @@ func newTestApp(t *testing.T, stubs ...*stubProvider) *App {
 		SavedSearches: searches.NewStore(db),
 		Fetched:       &fetched.Service{Library: lib, Files: files, Log: log, OnScreen: onScreen(rotation.NewHistory(db))},
 		Executable:    "/opt/kisetsu/kisetsu",
-		RotationLock:  filepath.Join(filepath.Dir(path), "rotate.lock"),
+		Updates: &updates.Checker{ // never GitHub
+			Client: http.DefaultClient, URL: "http://127.0.0.1:0", Version: "dev",
+			ReleaseURL: appinfo.ProjectURL, Settings: settings.NewStore(db), Log: log,
+		},
+		RotationLock: filepath.Join(filepath.Dir(path), "rotate.lock"),
 	})
 	return app
 }

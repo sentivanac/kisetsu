@@ -59,8 +59,10 @@ type trayActions struct {
 	showFetching func(f func(waiting bool))
 	rotating     func(ctx context.Context) (bool, error)
 	setRotating  func(ctx context.Context, on bool) error
-	open         func() error
-	about        func() error
+	// update returns the newer version that is available, or "".
+	update func(ctx context.Context) (string, error)
+	open   func() error
+	about  func() error
 }
 
 // runTray shows the icon and its menu until ctx ends or the user chooses
@@ -94,11 +96,23 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 		rotate := systray.AddMenuItemCheckbox("Change automatically", "Turn automatic rotation on or off", false)
 		systray.AddSeparator()
 		open := systray.AddMenuItem("Open Kisetsu", "Open the Kisetsu window")
+		update := systray.AddMenuItem("New version", "Open About Kisetsu, which links to the new version")
+		update.Hide()
 		about := systray.AddMenuItem("About Kisetsu", "Version, author and licenses")
 		systray.AddSeparator()
 		quitItem := systray.AddMenuItem("Quit", "Close Kisetsu and stop changing the wallpaper until you open it or log in again")
 
+		shownUpdate := ""
 		sync := func() {
+			if v, err := act.update(ctx); err == nil && v != shownUpdate {
+				shownUpdate = v
+				if v == "" {
+					update.Hide()
+				} else {
+					update.SetTitle("Version " + v + " is available…")
+					update.Show()
+				}
+			}
 			on, err := act.rotating(ctx)
 			if err != nil {
 				return
@@ -158,6 +172,10 @@ func runTray(ctx context.Context, log *slog.Logger, iconDir string, act trayActi
 				case <-open.ClickedCh:
 					if err := act.open(); err != nil {
 						log.Warn("window not opened from the tray", "err", err)
+					}
+				case <-update.ClickedCh:
+					if err := act.about(); err != nil {
+						log.Warn("About not opened from the tray", "err", err)
 					}
 				case <-about.ClickedCh:
 					if err := act.about(); err != nil {

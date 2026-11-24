@@ -59,6 +59,8 @@ export function GetStatus():Promise<main.Status>;
 
 export function GetThirdPartyLicenses():Promise<string>;
 
+export function GetUpdateState():Promise<main.UpdateState>;
+
 export function HideCurrentWallpaper():Promise<main.RotationState>;
 
 export function HideImage(arg1:number):Promise<void>;
@@ -120,6 +122,8 @@ export function SearchSources(arg1:Array<search.SourcePage>,arg2:providers.Query
 export function SetShowInTray(arg1:boolean):Promise<main.RotationState>;
 
 export function SetTagHidden(arg1:string,arg2:boolean):Promise<Array<string>>;
+
+export function SetUpdateCheck(arg1:boolean):Promise<main.UpdateState>;
 
 export function SetWallpaper(arg1:number):Promise<main.WallpaperResult>;
 

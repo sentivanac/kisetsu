@@ -140,6 +140,7 @@ func run(showAbout, closing bool) error {
 		RotationLock:  c.rotationLockPath(),
 		ShowAbout:     showAbout,
 		Closing:       closing,
+		Updates:       c.updateChecker(client),
 		OwnDirs:       c.ownDirs(),
 	})
 

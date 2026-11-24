@@ -191,6 +191,10 @@ Kisetsu has no account, no telemetry and no server of its own.
 - Thumbnails, previews and downloads are loaded from those sources'
   servers (for Openverse, from the museum or photo directory that holds
   the image).
+- Once a day, Kisetsu asks GitHub whether a newer version exists. GitHub
+  sees your IP address and the version of Kisetsu, nothing else. Nothing is
+  downloaded or installed. Turn it off in About Kisetsu ("Check for new
+  versions").
 - Everything else stays on your computer: library, collections, saved
   searches, settings and logs. Search text is not stored unless you save
   the search (or turn on debug logging, which writes it to the log).

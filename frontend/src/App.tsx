@@ -1,9 +1,10 @@
 import {KeyboardEvent, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import './App.css';
 import {GetStatus, ListProviders, SaveDisplaySize, TakeAboutRequest} from '../wailsjs/go/main/App';
-import {EventsOn, ScreenGetAll} from '../wailsjs/runtime/runtime';
+import {BrowserOpenURL, EventsOn, ScreenGetAll} from '../wailsjs/runtime/runtime';
 import {keyScrollTarget} from './lib/scroll';
 import {largestScreen, WailsScreen} from './lib/screen';
+import {useUpdate} from './lib/useUpdate';
 import {main, search} from '../wailsjs/go/models';
 import {BackendError, describeError, toBackendError} from './lib/backend';
 import {SearchPanel} from './components/SearchPanel';
@@ -25,6 +26,7 @@ function App() {
     const [tab, setTab] = useState<Tab>('search');
     const [sources, setSources] = useState<search.ProviderInfo[]>([]);
     const [showAbout, setShowAbout] = useState(false);
+    const update = useUpdate();
 
     useEffect(() => {
         GetStatus()
@@ -148,6 +150,16 @@ function App() {
                         onClick={() => setShowAbout(true)}
                     >
                         {status.app.name} {status.app.version}
+                    </button>
+                )}
+                {update?.available && (
+                    <button
+                        type="button"
+                        className="footer-about footer-update"
+                        title="Opens the release page in your browser"
+                        onClick={() => BrowserOpenURL(update.url)}
+                    >
+                        Version {update.available} is available
                     </button>
                 )}
             </footer>

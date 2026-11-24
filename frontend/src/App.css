@@ -110,6 +110,9 @@
 }
 
 .app-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.5rem;
     padding: 0.4rem 1.5rem;
     border-top: 1px solid var(--border);
     font-size: 0.8rem;
@@ -128,6 +131,17 @@
 .footer-about:hover {
     color: var(--text);
     text-decoration: underline;
+}
+
+.footer-update {
+    margin-left: auto;
+    color: var(--accent);
+}
+
+.about-update label {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
 }
 
 /* About */

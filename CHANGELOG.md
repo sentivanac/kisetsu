@@ -19,6 +19,11 @@ follow [Semantic Versioning](https://semver.org/).
 - An image from a saved search that you download or add to favorites
   stays in that search's rotation. Before, it left it.
 
+### New versions
+- Kisetsu asks GitHub once a day whether a newer version exists, and tells in
+  the status line, the tray menu and About Kisetsu. Nothing is downloaded or
+  installed. Turn it off in About Kisetsu.
+
 ### Window
 - The tabs and the status line stay visible while the page scrolls, and each
   tab keeps its place.

@@ -112,6 +112,7 @@ internal/          business logic, independent of the UI
   search/          runs searches against registered providers
   searches/        saved searches
   settings/        user preferences stored in the database
+  updates/         looks for a newer release on GitHub
   wallpaper/       sets the wallpaper (Variety, MATE, GNOME, Cinnamon, KDE, Xfce)
 app_search.go      multi-source search, cancellation, error messages
 app_settings.go    settings methods exposed to the frontend
@@ -120,6 +121,7 @@ app_library.go     library listing, statistics and deletion
 app_collections.go collections
 app_wallpaper.go   set a library image as the desktop wallpaper
 app_rotation.go    rotation settings, background agent, tray setting, "Next wallpaper"
+app_updates.go     newer version, and turning the check off
 tray.go            the tray icon and its menu (shown by the agent)
 app_saved_searches.go  saved searches
 app_fetched.go     fetched images, Keep, screen size

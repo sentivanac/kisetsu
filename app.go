@@ -25,6 +25,7 @@ import (
 	"github.com/sentivanac/kisetsu/internal/search"
 	"github.com/sentivanac/kisetsu/internal/searches"
 	"github.com/sentivanac/kisetsu/internal/settings"
+	"github.com/sentivanac/kisetsu/internal/updates"
 )
 
 // App is the bridge between the frontend and the Go backend.
@@ -86,6 +87,8 @@ type App struct {
 
 	// closing: the window is about to close for the tray's Quit.
 	closing atomic.Bool
+
+	updates *updates.Checker
 }
 
 // Deps are the dependencies of App, created in main.go.
@@ -112,6 +115,7 @@ type Deps struct {
 	ShowAbout bool
 	// Closing: this process only closes the open window.
 	Closing bool
+	Updates *updates.Checker
 	// OwnDirs are Kisetsu's own directories (data, cache, configuration,
 	// state), refused as local folders.
 	OwnDirs []string
@@ -146,6 +150,7 @@ func NewApp(d Deps) *App {
 	}
 	a.aboutRequested.Store(d.ShowAbout)
 	a.closing.Store(d.Closing)
+	a.updates = d.Updates
 	a.favs = favorites{settings: d.Settings, library: d.Library, fetched: d.Fetched}
 	return a
 }
@@ -156,6 +161,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.emit = func(name string, data any) { runtime.EventsEmit(ctx, name, data) }
 	a.retireTimer()
+	go a.watchUpdates(ctx)
 	go func() {
 		a.ensureAgent()
 		time.Sleep(agentRecheck)

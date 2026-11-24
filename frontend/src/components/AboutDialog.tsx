@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
-import {GetAbout, GetThirdPartyLicenses} from '../../wailsjs/go/main/App';
+import {GetAbout, GetThirdPartyLicenses, SetUpdateCheck} from '../../wailsjs/go/main/App';
 import {BrowserOpenURL} from '../../wailsjs/runtime/runtime';
 import {main} from '../../wailsjs/go/models';
+import {useUpdate} from '../lib/useUpdate';
 import icon from '../assets/icon.png';
 
 interface Props {
@@ -16,6 +17,14 @@ export function AboutDialog({onClose}: Props) {
     // The third-party licenses, read when asked for: about 160 KB.
     const [licenses, setLicenses] = useState<string | null>(null);
     const [licensesError, setLicensesError] = useState(false);
+    const update = useUpdate();
+    const [updateError, setUpdateError] = useState(false);
+
+    // The result arrives through useUpdate.
+    function setUpdateCheck(on: boolean) {
+        setUpdateError(false);
+        SetUpdateCheck(on).catch(() => setUpdateError(true));
+    }
 
     function showLicenses() {
         setLicensesError(false);
@@ -61,6 +70,25 @@ export function AboutDialog({onClose}: Props) {
                                     {link(about.projectUrl, 'Website')} · {link(about.issuesUrl, 'Report a problem')}
                                 </p>
                             </>
+                        )}
+                        {update && (
+                            <div className="about-update">
+                                {update.available && (
+                                    <p>{link(update.url, `Version ${update.available} is available`)}</p>
+                                )}
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        checked={update.enabled}
+                                        onChange={(e) => setUpdateCheck(e.target.checked)}
+                                    />
+                                    Check for new versions
+                                </label>
+                                <p className="muted small">
+                                    Asks GitHub once a day. Nothing is downloaded or installed.
+                                </p>
+                                {updateError && <p className="error small">The setting could not be saved.</p>}
+                            </div>
                         )}
                     </section>
 
