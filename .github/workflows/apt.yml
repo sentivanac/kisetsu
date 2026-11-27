@@ -1,0 +1,74 @@
+# When a release is published, puts its .deb into the APT repository on
+# GitHub Pages, https://sentivanac.github.io/kisetsu/apt (ADR 0057).
+# Run it by hand (Actions → APT repository → Run workflow) to rebuild the
+# repository from the latest release.
+name: APT repository
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer one waits instead of being dropped.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apt-utils
+
+      # Only the latest release is in the repository: apt installs the
+      # newest version anyway. A pre-release is never "latest".
+      - name: Download the latest release's package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern '*.deb' --dir "$RUNNER_TEMP/deb"
+          ls -l "$RUNNER_TEMP/deb"
+
+      - name: Import the signing key
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          if [ -z "$APT_SIGNING_KEY" ]; then
+            echo "::error::the secret APT_SIGNING_KEY is not set (docs/releasing.md)"
+            exit 1
+          fi
+          printf '%s\n' "$APT_SIGNING_KEY" | gpg --batch --import
+
+      - name: Build the repository
+        env:
+          APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        run: |
+          scripts/apt-repo.sh "$RUNNER_TEMP/site/apt" packaging/apt/kisetsu.asc "$RUNNER_TEMP"/deb/*.deb
+          cp packaging/apt/index.html "$RUNNER_TEMP/site/index.html"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write # publish to GitHub Pages
+      id-token: write # prove to Pages that this workflow deploys
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

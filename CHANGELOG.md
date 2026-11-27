@@ -4,6 +4,13 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Install
+- **APT repository**: added once, it brings new versions of Kisetsu with
+  the system's updates (see the README). The `.deb` from the release page
+  works as before.
+
 ## [0.9.0] - 2026-11-24
 
 ### Library
@@ -35,6 +42,8 @@ follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Keeping the current wallpaper or adding it to favorites removed the file
   the desktop was showing, so the desktop could show a plain background.
+
+Tested on Linux and in a Windows 10 virtual machine.
 
 ## [0.8.1] - 2026-11-23
 

@@ -42,18 +42,53 @@ and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
 ## Install
 
-Both files are on the
-[latest release](https://github.com/sentivanac/kisetsu/releases/latest).
-
 ### Linux
 
 Packaged for **Ubuntu 22.04 or newer, Linux Mint 21 or newer and Debian
-12 or newer** (64-bit). Download `kisetsu_0.9.0_amd64.deb` and install it
-with (an older version is replaced):
+12 or newer** (64-bit).
+
+**From Kisetsu's APT repository** (recommended): new versions then come
+with the system's updates (Update Manager, Software Updater or
+`sudo apt upgrade`). Add the repository once:
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+wget -qO- https://sentivanac.github.io/kisetsu/apt/kisetsu.asc | sudo tee /etc/apt/keyrings/kisetsu.asc > /dev/null
+sudo tee /etc/apt/sources.list.d/kisetsu.sources > /dev/null <<'EOF'
+Types: deb
+URIs: https://sentivanac.github.io/kisetsu/apt
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/kisetsu.asc
+EOF
+```
+
+The first line makes the folder for the repository's key, the second
+downloads the key, and the third tells `apt` where the repository is and
+that its packages must be signed by that key. Then install:
+
+```sh
+sudo apt update
+sudo apt install kisetsu
+```
+
+A version installed from a downloaded `.deb` is updated from the
+repository as well. The key's fingerprint is
+`64C43449B7C881E9676B90B072319DB97AB404FB`; `gpg --show-keys /etc/apt/keyrings/kisetsu.asc`
+shows it.
+
+**From a downloaded file:** download `kisetsu_0.9.0_amd64.deb` from the
+[latest release](https://github.com/sentivanac/kisetsu/releases/latest)
+and install it with (an older version is replaced):
 
 ```sh
 sudo apt install ./kisetsu_0.9.0_amd64.deb
 ```
+
+Install it this way rather than by double-clicking the file. A version
+installed like this is not updated by itself; Kisetsu tells you when a new
+one is out.
 
 `apt` also installs what Kisetsu needs (GTK 3 and WebKitGTK 4.1). If it
 says a package cannot be installed, its package lists are out of date
@@ -64,7 +99,9 @@ again. Then start **Kisetsu** from the applications menu, or run
 ### Windows
 
 For **Windows 10 and 11** (64-bit). Download
-`kisetsu-0.9.0-windows-amd64-setup.exe` and run it. It installs for your
+`kisetsu-0.9.0-windows-amd64-setup.exe` from the
+[latest release](https://github.com/sentivanac/kisetsu/releases/latest)
+and run it. It installs for your
 user only, without administrator rights, and replaces an older version.
 
 The installer is not signed yet, so Windows may warn before starting it
@@ -195,6 +232,9 @@ Kisetsu has no account, no telemetry and no server of its own.
   sees your IP address and the version of Kisetsu, nothing else. Nothing is
   downloaded or installed. Turn it off in About Kisetsu ("Check for new
   versions").
+- If you added the APT repository, `apt` fetches its package list from
+  GitHub Pages whenever the system looks for updates, as it does for
+  every other repository.
 - Everything else stays on your computer: library, collections, saved
   searches, settings and logs. Search text is not stored unless you save
   the search (or turn on debug logging, which writes it to the log).
@@ -235,6 +275,13 @@ remove it as well.
 
    ```sh
    rm -r ~/.local/share/kisetsu ~/.cache/kisetsu ~/.local/state/kisetsu ~/.config/kisetsu
+   ```
+
+4. If you added Kisetsu's APT repository, remove it too:
+
+   ```sh
+   sudo rm /etc/apt/sources.list.d/kisetsu.sources /etc/apt/keyrings/kisetsu.asc
+   sudo apt update
    ```
 
 If you removed the program while rotation was on, its login entry stays

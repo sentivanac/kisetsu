@@ -115,8 +115,73 @@ git push origin main v0.1.0
    is always at
    <https://github.com/sentivanac/kisetsu/releases/latest>.
 
+5. Under **Actions**, **APT repository** starts by itself and puts the
+   published `.deb` into the APT repository
+   ([ADR 0057](adr/0057-apt-repository.md)). When it is green, a system
+   with the repository sees the new version after `sudo apt update`:
+
+   ```sh
+   apt policy kisetsu
+   ```
+
+   If it failed, fix the cause and run it again (**Run workflow**); it
+   always takes the latest published release.
+
 A published tag is never moved or reused. A mistake found later is
 fixed in a new version (0.1.1).
+
+## The APT repository (set up once)
+
+The repository is signed with a key used only for it. Make it on your own
+computer, not in a virtual machine you may throw away:
+
+1. Create the key (Ed25519, signing only, no expiry date). Choose a
+   passphrase when asked:
+
+   ```sh
+   gpg --quick-generate-key "Kisetsu APT repository" ed25519 sign never
+   gpg --list-keys "Kisetsu APT repository"
+   ```
+
+   The long hexadecimal line is the key's fingerprint, written FPR below.
+
+2. The public key goes into the repository, so the workflow signs only
+   with this key, and users can compare the fingerprint in the README:
+
+   ```sh
+   gpg --armor --export FPR > packaging/apt/kisetsu.asc
+   ```
+
+3. Under **Settings → Secrets and variables → Actions → New repository
+   secret**, add `APT_SIGNING_KEY` with the output of
+
+   ```sh
+   gpg --armor --export-secret-keys FPR
+   ```
+
+   (everything from `-----BEGIN` to `-----END … BLOCK-----`), and
+   `APT_SIGNING_PASSPHRASE` with the passphrase.
+
+4. Keep a backup of the key and of its revocation certificate
+   (`~/.gnupg/openpgp-revocs.d/FPR.rev`) off this computer, for example on
+   a USB stick:
+
+   ```sh
+   gpg --armor --export-secret-keys FPR > kisetsu-apt-secret.asc
+   cp ~/.gnupg/openpgp-revocs.d/FPR.rev .
+   ```
+
+   Without the key, a new one is needed, and every user must add it by
+   hand.
+
+5. Under **Settings → Pages → Build and deployment**, set **Source** to
+   **GitHub Actions**.
+
+6. Run **Actions → APT repository → Run workflow** once, so the latest
+   release is in the repository.
+
+If the key ever leaks, publish its revocation, make a new key, and tell
+users how to replace it.
 
 ## 6. After the release
 
