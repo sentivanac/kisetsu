@@ -4,7 +4,7 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [0.10.0] - Unreleased
+## [0.10.0] - 2026-11-27
 
 ### On the wallpaper
 - **Style**, in the Wallpaper tab under Effects (off by default): the

@@ -12,7 +12,7 @@ sets or rotates your desktop wallpaper. It is free and open source (MIT).
 <sub>Photographs from Wikimedia Commons by their authors, under CC BY-SA
 and CC0 licenses — see [the credits](docs/screenshot-credits.md).</sub>
 
-> **Status:** version 0.9.0, for Linux and Windows.
+> **Status:** version 0.10.0, for Linux and Windows.
 
 ## Features
 
@@ -79,12 +79,12 @@ available in your system's updates. The key's fingerprint is
 `64C43449B7C881E9676B90B072319DB97AB404FB`; `gpg --show-keys /etc/apt/keyrings/kisetsu.asc`
 shows it.
 
-**From a downloaded file:** download `kisetsu_0.9.0_amd64.deb` from the
+**From a downloaded file:** download `kisetsu_0.10.0_amd64.deb` from the
 [latest release](https://github.com/sentivanac/kisetsu/releases/latest)
 and install it with (an older version is replaced):
 
 ```sh
-sudo apt install ./kisetsu_0.9.0_amd64.deb
+sudo apt install ./kisetsu_0.10.0_amd64.deb
 ```
 
 Install it this way rather than by double-clicking the file. A version
@@ -100,7 +100,7 @@ again. Then start **Kisetsu** from the applications menu, or run
 ### Windows
 
 For **Windows 10 and 11** (64-bit). Download
-`kisetsu-0.9.0-windows-amd64-setup.exe` from the
+`kisetsu-0.10.0-windows-amd64-setup.exe` from the
 [latest release](https://github.com/sentivanac/kisetsu/releases/latest)
 and run it. It installs for your
 user only, without administrator rights, and replaces an older version.
