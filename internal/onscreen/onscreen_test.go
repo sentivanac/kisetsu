@@ -262,6 +262,9 @@ func TestSettings(t *testing.T) {
 		func(s *Settings) { s.Blur = "" },
 		func(s *Settings) { s.Tone = "purple" },
 		func(s *Settings) { s.TextFileSize = "tiny" },
+		func(s *Settings) { s.Style = "watercolor" },
+		func(s *Settings) { s.StyleSize = "" },
+		func(s *Settings) { s.StyleMix = 60 },
 	} {
 		s := DefaultSettings
 		bad(&s)
@@ -450,6 +453,50 @@ func TestSettingsFromBeforeTheEffects(t *testing.T) {
 	got, err := LoadSettings(ctx, e.store)
 	if err != nil || got.Darken != LevelOff || got.Blur != LevelOff || got.Tone != ToneOriginal || got.Vignette || !got.Credit {
 		t.Errorf("loaded %+v, %v", got, err)
+	}
+}
+
+func TestSettingsFromBeforeTheStyles(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	// As saved by 0.9.0: effects, no style.
+	if err := e.store.Save(ctx, settingsKey, map[string]any{
+		"credit": false, "creditCorner": "bottom-left", "clockCorner": "bottom-right",
+		"clockDate": true, "clockSize": "medium", "textFileCorner": "top-right", "textFileSize": "medium",
+		"darken": "light", "blur": "off", "tone": "sepia", "vignette": true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadSettings(ctx, e.store)
+	if err != nil || got.Style != StyleNone || got.StyleSize != Medium || got.StyleMix != 100 ||
+		got.Darken != LevelLight || got.Tone != ToneSepia {
+		t.Errorf("loaded %+v, %v", got, err)
+	}
+	if got.effects().Style != overlay.NoStyle {
+		t.Error("old settings got a style")
+	}
+}
+
+func TestStyleSettings(t *testing.T) {
+	s := DefaultSettings
+	s.Style, s.StyleSize, s.StyleMix = StyleMosaic, Large, 75
+	e := s.effects()
+	if e.Style != overlay.Mosaic || e.StyleSize != 0.044 || e.Keep != 0.25 {
+		t.Errorf("effects %+v", e)
+	}
+	if !s.Any() {
+		t.Error("a style alone draws nothing")
+	}
+	// Every style has every size.
+	for style := range styles {
+		if style == StyleNone {
+			continue
+		}
+		for size := range lineShares {
+			if styleShares[style][size] <= 0 {
+				t.Errorf("%s has no %s size", style, size)
+			}
+		}
 	}
 }
 

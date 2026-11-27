@@ -26,3 +26,9 @@ installer has no updater, so users learned of a release only by looking.
 
 An APT repository would update Linux installations through the system. Such
 an installation should not be told by Kisetsu as well.
+
+Done in 0.10.0 (ADR 0057), slightly differently: when Kisetsu's repository
+is among the system's package sources, the notice stays, but says the
+version is "available in your system's updates", and About Kisetsu names
+where to install it. A user who postpones system updates still learns of
+the release, and is not sent to download a `.deb`.

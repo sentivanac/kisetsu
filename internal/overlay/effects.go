@@ -22,6 +22,12 @@ const (
 // Effects change the whole image before text is drawn on it (ADR 0050).
 // The zero value changes nothing.
 type Effects struct {
+	// Style redraws the picture first (ADR 0058); StyleSize is its brush,
+	// tile, letter or line size as a share of the screen height, and Keep
+	// the share of the original picture that shows through it (0 is none).
+	Style     Style
+	StyleSize float64
+	Keep      float64
 	// Blur radius as a share of the screen height; 0 is none.
 	Blur float64
 	Tone Tone
@@ -33,12 +39,14 @@ type Effects struct {
 
 // None reports whether e changes nothing.
 func (e Effects) None() bool {
-	return e.Blur <= 0 && e.Tone == Original && e.Darken <= 0 && e.Vignette <= 0
+	return e.Style == NoStyle && e.Blur <= 0 && e.Tone == Original && e.Darken <= 0 && e.Vignette <= 0
 }
 
-// Apply changes img in place, in a fixed order: blur, tone, darken,
-// vignette.
+// Apply changes img in place, in a fixed order: style, blur, tone,
+// darken, vignette. The style comes first, so black and white or sepia
+// colour a style too, and darkening keeps text legible on it.
 func (e Effects) Apply(img *image.RGBA) {
+	applyStyle(img, e.Style, e.StyleSize, e.Keep)
 	if e.Blur > 0 {
 		blur(img, max(1, int(math.Round(float64(img.Rect.Dy())*e.Blur))))
 	}

@@ -76,6 +76,12 @@ export function AboutDialog({onClose}: Props) {
                                 {update.available && (
                                     <p>{link(update.url, `Version ${update.available} is available`)}</p>
                                 )}
+                                {update.available && update.viaSystem && (
+                                    <p className="muted small">
+                                        It comes with your system's updates: Update Manager, Software Updater or{' '}
+                                        <code>sudo apt upgrade</code>.
+                                    </p>
+                                )}
                                 <label>
                                     <input
                                         type="checkbox"

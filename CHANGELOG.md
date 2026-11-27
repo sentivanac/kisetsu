@@ -4,12 +4,23 @@ All notable changes to Kisetsu are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.10.0] - Unreleased
+
+### On the wallpaper
+- **Style**, in the Wallpaper tab under Effects (off by default): the
+  picture redrawn as an oil painting, a mosaic, neon edges, a pencil
+  drawing, ASCII characters or a relief (emboss). Each has three sizes
+  (brush, tiles, letters, lines or depth) and a strength of 100, 75 or
+  50 %, which lets the original show through. Colors, darken and the
+  other effects apply on top: ASCII in black and white, or an oil
+  painting in sepia.
 
 ### Install
 - **APT repository**: added once, it brings new versions of Kisetsu with
   the system's updates (see the README). The `.deb` from the release page
   works as before.
+- With the repository added, the notice of a new version says it is
+  available in your system's updates, instead of pointing to a download.
 
 ## [0.9.0] - 2026-11-24
 

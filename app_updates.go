@@ -27,6 +27,10 @@ type UpdateState struct {
 	Available string `json:"available"`
 	URL       string `json:"url"`       // its page
 	CheckedAt string `json:"checkedAt"` // RFC 3339; "" = never
+	// ViaSystem means Kisetsu's APT repository is among the system's
+	// package sources: new versions come with the system's updates
+	// (ADR 0057).
+	ViaSystem bool `json:"viaSystem"`
 }
 
 // updateChecker builds the checker shared by the window and the agent.
@@ -45,7 +49,7 @@ func (a *App) GetUpdateState() (state UpdateState, err error) {
 	if err != nil {
 		return UpdateState{}, apperr.New(apperr.Unavailable, "The update setting could not be loaded.", err)
 	}
-	state = UpdateState{Enabled: st.Enabled, Available: st.Available}
+	state = UpdateState{Enabled: st.Enabled, Available: st.Available, ViaSystem: updates.FromAPT(updates.AptDir)}
 	if st.Available != "" {
 		state.URL = a.updates.PageURL(st.Available)
 	}

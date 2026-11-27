@@ -77,6 +77,45 @@ const (
 
 var tones = map[Tone]overlay.Tone{ToneOriginal: overlay.Original, ToneGray: overlay.Gray, ToneSepia: overlay.Sepia}
 
+// Style is how the picture is redrawn (ADR 0058).
+type Style string
+
+const (
+	StyleNone   Style = "none"
+	StyleOil    Style = "oil"
+	StyleMosaic Style = "mosaic"
+	StyleNeon   Style = "neon"
+	StylePencil Style = "pencil"
+	StyleASCII  Style = "ascii"
+	StyleEmboss Style = "emboss"
+)
+
+var styles = map[Style]overlay.Style{
+	StyleNone: overlay.NoStyle, StyleOil: overlay.Oil, StyleMosaic: overlay.Mosaic,
+	StyleNeon: overlay.Neon, StylePencil: overlay.Pencil, StyleASCII: overlay.ASCII,
+	StyleEmboss: overlay.Emboss,
+}
+
+// lineShares are the sizes of lines and relief: 1, 2 or 4 px on a 1080 px
+// screen.
+var lineShares = map[Size]float64{Small: 0.001, Medium: 0.002, Large: 0.004}
+
+// styleShares give each style's sizes as shares of the screen height, for
+// a 1080 px screen: brush radius 4, 7 or 11 px; tiles of 12, 24 or 48 px;
+// letters of 10, 16 or 24 px.
+var styleShares = map[Style]map[Size]float64{
+	StyleOil:    {Small: 0.0037, Medium: 0.0065, Large: 0.010},
+	StyleMosaic: {Small: 0.011, Medium: 0.022, Large: 0.044},
+	StyleASCII:  {Small: 0.0093, Medium: 0.015, Large: 0.022},
+	StyleNeon:   lineShares,
+	StylePencil: lineShares,
+	StyleEmboss: lineShares,
+}
+
+// styleMixes are the shares of the style shown over the original, in
+// percent.
+var styleMixes = map[int]bool{100: true, 75: true, 50: true}
+
 // vignetteStrength is how much the corners are darkened.
 const vignetteStrength = 0.5
 
@@ -107,6 +146,12 @@ type Settings struct {
 	Blur     Level `json:"blur"`
 	Tone     Tone  `json:"tone"`
 	Vignette bool  `json:"vignette"`
+
+	// Style redraws the picture before the effects (ADR 0058), at
+	// StyleSize, StyleMix percent over the original.
+	Style     Style `json:"style"`
+	StyleSize Size  `json:"styleSize"`
+	StyleMix  int   `json:"styleMix"`
 }
 
 // DefaultSettings are used until the user changes them. Settings saved
@@ -121,6 +166,9 @@ var DefaultSettings = Settings{
 	Darken:         LevelOff,
 	Blur:           LevelOff,
 	Tone:           ToneOriginal,
+	Style:          StyleNone,
+	StyleSize:      Medium,
+	StyleMix:       100,
 }
 
 // Any reports whether anything is drawn: text or an effect.
@@ -139,6 +187,11 @@ func (s Settings) effects() overlay.Effects {
 	e := overlay.Effects{Darken: darkenShares[s.Darken], Blur: blurShares[s.Blur], Tone: tones[s.Tone]}
 	if s.Vignette {
 		e.Vignette = vignetteStrength
+	}
+	if s.Style != StyleNone {
+		e.Style = styles[s.Style]
+		e.StyleSize = styleShares[s.Style][s.StyleSize]
+		e.Keep = float64(100-s.StyleMix) / 100
 	}
 	return e
 }
@@ -172,6 +225,15 @@ func (s Settings) Validate() error {
 	}
 	if _, ok := tones[s.Tone]; !ok {
 		errs = append(errs, fmt.Errorf("unknown tone %q", s.Tone))
+	}
+	if _, ok := styles[s.Style]; !ok {
+		errs = append(errs, fmt.Errorf("unknown style %q", s.Style))
+	}
+	if _, ok := lineShares[s.StyleSize]; !ok {
+		errs = append(errs, fmt.Errorf("unknown style size %q", s.StyleSize))
+	}
+	if !styleMixes[s.StyleMix] {
+		errs = append(errs, fmt.Errorf("unknown style mix %d", s.StyleMix))
 	}
 	return errors.Join(errs...)
 }

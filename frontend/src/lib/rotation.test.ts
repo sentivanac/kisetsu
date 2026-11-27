@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {clockSizes, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey} from './rotation';
+import {clockSizes, corners, intervalLabel, parseSourceKey, relativeTime, sourceKey, styleSize, styles} from './rotation';
 
 describe('intervalLabel', () => {
     it('names the offered intervals', () => {
@@ -59,5 +59,20 @@ describe('corners', () => {
 describe('clockSizes', () => {
     it('offers the sizes the backend accepts', () => {
         expect(clockSizes.map((c) => c.value)).toEqual(['small', 'medium', 'large']);
+    });
+});
+
+describe('styleSize', () => {
+    it('names the size after what it changes', () => {
+        expect(styleSize('oil').label).toBe('Brush');
+        expect(styleSize('ascii').label).toBe('Letters');
+        expect(styleSize('neon').label).toBe('Lines');
+        expect(styleSize('emboss').options.map((o) => o.label)).toEqual(['Shallow', 'Medium', 'Deep']);
+    });
+
+    it('offers the same three sizes for every style', () => {
+        for (const s of styles.filter((s) => s.value !== 'none')) {
+            expect(styleSize(s.value).options.map((o) => o.value)).toEqual(['small', 'medium', 'large']);
+        }
     });
 });

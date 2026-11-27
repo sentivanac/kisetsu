@@ -74,7 +74,8 @@ sudo apt install kisetsu
 ```
 
 A version installed from a downloaded `.deb` is updated from the
-repository as well. The key's fingerprint is
+repository as well. When a new version is out, Kisetsu then says it is
+available in your system's updates. The key's fingerprint is
 `64C43449B7C881E9676B90B072319DB97AB404FB`; `gpg --show-keys /etc/apt/keyrings/kisetsu.asc`
 shows it.
 
@@ -167,7 +168,10 @@ default.
 
 **On the wallpaper** (Wallpaper tab, all off by default): the image's
 author, license and source, a clock with the date if you like, and the
-text of a file you choose, each in a corner of your choice; and effects that make text and desktop
+text of a file you choose, each in a corner of your choice; a **style**
+that redraws the picture as an oil painting, a mosaic, neon edges, a
+pencil drawing, ASCII characters or a relief (emboss), in three sizes and
+at full or partial strength; and effects that make text and desktop
 icons easier to read on bright images: darken, blur, black and white or
 sepia, darker edges. Kisetsu draws them on a copy of the image cut to your
 screen size; the image in the library is not changed. Good to know:

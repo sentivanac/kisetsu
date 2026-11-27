@@ -95,6 +95,9 @@ type WallpaperText struct {
 	Blur           string `json:"blur"`
 	Tone           string `json:"tone"`
 	Vignette       bool   `json:"vignette"`
+	Style          string `json:"style"`
+	StyleSize      string `json:"styleSize"`
+	StyleMix       int    `json:"styleMix"`
 }
 
 func wallpaperText(s onscreen.Settings) WallpaperText {
@@ -105,6 +108,7 @@ func wallpaperText(s onscreen.Settings) WallpaperText {
 		TextFile: s.TextFile, TextFilePath: s.TextFilePath, TextFileCorner: string(s.TextFileCorner),
 		TextFileSize: string(s.TextFileSize),
 		Darken:       string(s.Darken), Blur: string(s.Blur), Tone: string(s.Tone), Vignette: s.Vignette,
+		Style: string(s.Style), StyleSize: string(s.StyleSize), StyleMix: s.StyleMix,
 	}
 }
 
@@ -122,6 +126,7 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 		TextFile: t.TextFile, TextFilePath: t.TextFilePath, TextFileCorner: overlay.Corner(t.TextFileCorner),
 		TextFileSize: onscreen.Size(t.TextFileSize),
 		Darken:       onscreen.Level(t.Darken), Blur: onscreen.Level(t.Blur), Tone: onscreen.Tone(t.Tone), Vignette: t.Vignette,
+		Style: onscreen.Style(t.Style), StyleSize: onscreen.Size(t.StyleSize), StyleMix: t.StyleMix,
 	}
 	if err := cfg.Validate(); err != nil {
 		return RotationState{}, apperr.New(apperr.InvalidInput, "These settings are not valid.", err)
@@ -149,7 +154,8 @@ func (a *App) SaveWallpaperText(t WallpaperText) (state RotationState, err error
 		"clock", cfg.Clock, "clock_corner", cfg.ClockCorner, "clock_12h", cfg.Clock12h,
 		"clock_date", cfg.ClockDate, "clock_size", cfg.ClockSize,
 		"text_file", cfg.TextFile, "text_file_corner", cfg.TextFileCorner, "text_file_size", cfg.TextFileSize,
-		"darken", cfg.Darken, "blur", cfg.Blur, "tone", cfg.Tone, "vignette", cfg.Vignette)
+		"darken", cfg.Darken, "blur", cfg.Blur, "tone", cfg.Tone, "vignette", cfg.Vignette,
+		"style", cfg.Style, "style_size", cfg.StyleSize, "style_mix", cfg.StyleMix)
 	if cfg != old && (cfg.Any() || old.Any()) {
 		a.showCurrentAgain()
 	}

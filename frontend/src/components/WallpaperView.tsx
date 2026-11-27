@@ -30,6 +30,9 @@ import {
     parseSourceKey,
     relativeTime,
     sourceKey,
+    styleMixes,
+    styleSize,
+    styles,
     tones,
 } from '../lib/rotation';
 
@@ -484,6 +487,48 @@ export function WallpaperView({active}: Props) {
                 <h3 className="wallpaper-text-heading">Effects</h3>
                 <div className="clock-options">
                     <label>
+                        Style
+                        <select value={state.text.style} onChange={(e) => saveText({style: e.target.value})}>
+                            {styles.map((s) => (
+                                <option key={s.value} value={s.value}>
+                                    {s.label}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {state.text.style !== 'none' && (
+                        <>
+                            <label>
+                                {styleSize(state.text.style).label}
+                                <select
+                                    value={state.text.styleSize}
+                                    onChange={(e) => saveText({styleSize: e.target.value})}
+                                >
+                                    {styleSize(state.text.style).options.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label>
+                                Strength
+                                <select
+                                    value={state.text.styleMix}
+                                    onChange={(e) => saveText({styleMix: Number(e.target.value)})}
+                                >
+                                    {styleMixes.map((m) => (
+                                        <option key={m.value} value={m.value}>
+                                            {m.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </>
+                    )}
+                </div>
+                <div className="clock-options">
+                    <label>
                         Darken
                         <select value={state.text.darken} onChange={(e) => saveText({darken: e.target.value})}>
                             {effectLevels.map((l) => (
@@ -523,7 +568,8 @@ export function WallpaperView({active}: Props) {
                     <span>Darker edges (vignette)</span>
                 </label>
                 <p className="muted small">
-                    Effects make text and desktop icons easier to read on bright or busy images.
+                    A style redraws the picture; with Colors it can also be black and white or sepia. The other
+                    effects make text and desktop icons easier to read on bright or busy images.
                 </p>
 
                 <p className="muted small">

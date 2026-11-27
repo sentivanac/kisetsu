@@ -437,6 +437,9 @@ export namespace main {
 	    blur: string;
 	    tone: string;
 	    vignette: boolean;
+	    style: string;
+	    styleSize: string;
+	    styleMix: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new WallpaperText(source);
@@ -459,6 +462,9 @@ export namespace main {
 	        this.blur = source["blur"];
 	        this.tone = source["tone"];
 	        this.vignette = source["vignette"];
+	        this.style = source["style"];
+	        this.styleSize = source["styleSize"];
+	        this.styleMix = source["styleMix"];
 	    }
 	}
 	export class RotationState {
@@ -657,6 +663,7 @@ export namespace main {
 	    available: string;
 	    url: string;
 	    checkedAt: string;
+	    viaSystem: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateState(source);
@@ -668,6 +675,7 @@ export namespace main {
 	        this.available = source["available"];
 	        this.url = source["url"];
 	        this.checkedAt = source["checkedAt"];
+	        this.viaSystem = source["viaSystem"];
 	    }
 	}
 	export class WallpaperResult {

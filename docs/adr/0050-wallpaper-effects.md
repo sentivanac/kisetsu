@@ -52,6 +52,9 @@ On an Intel i7-10510U (4 cores, 8 threads), for a 4K image:
 
 A 1920×1080 screen has a quarter of the pixels.
 
+Styles (ADR 0058) are applied before all of these, so they are coloured,
+darkened and blurred like the picture.
+
 ## Verification
 
 Unit tests for each effect (a plain image stays plain under blur, a hard

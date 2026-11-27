@@ -159,7 +159,7 @@ function App() {
                         title="Opens the release page in your browser"
                         onClick={() => BrowserOpenURL(update.url)}
                     >
-                        Version {update.available} is available
+                        Version {update.available} is available{update.viaSystem && " in your system's updates"}
                     </button>
                 )}
             </footer>

@@ -48,8 +48,12 @@ only).
   and replaced at once.
 - Windows is not affected.
 - Kisetsu still tells about new versions in an installation from the
-  repository, though the update arrives through the system anyway
-  (left for later; see ADR 0056).
+  repository, but says they come with the system's updates. It knows by
+  looking for the repository's address in `/etc/apt/sources.list` and
+  `/etc/apt/sources.list.d/` (both formats; entries commented out or
+  `Enabled: no` do not count), each time the window asks. The notice can
+  come before `apt` has seen the version: the system looks for updates on
+  its own schedule, usually once a day.
 
 ## Alternatives considered
 

@@ -105,3 +105,43 @@ export const tones: {value: string; label: string}[] = [
     {value: 'black-and-white', label: 'Black and white'},
     {value: 'sepia', label: 'Sepia'},
 ];
+
+// Styles of the wallpaper (ADR 0058), in the order offered.
+export const styles: {value: string; label: string}[] = [
+    {value: 'none', label: 'None'},
+    {value: 'oil', label: 'Oil painting'},
+    {value: 'mosaic', label: 'Mosaic'},
+    {value: 'neon', label: 'Neon edges'},
+    {value: 'pencil', label: 'Pencil'},
+    {value: 'ascii', label: 'ASCII'},
+    {value: 'emboss', label: 'Emboss'},
+];
+
+// styleSize names a style's size setting after what it changes, with its
+// three values.
+export function styleSize(style: string): {label: string; options: {value: string; label: string}[]} {
+    const sizes = (small: string, medium: string, large: string) => [
+        {value: 'small', label: small},
+        {value: 'medium', label: medium},
+        {value: 'large', label: large},
+    ];
+    switch (style) {
+        case 'oil':
+            return {label: 'Brush', options: sizes('Small', 'Medium', 'Large')};
+        case 'mosaic':
+            return {label: 'Tiles', options: sizes('Small', 'Medium', 'Large')};
+        case 'ascii':
+            return {label: 'Letters', options: sizes('Small', 'Medium', 'Large')};
+        case 'emboss':
+            return {label: 'Depth', options: sizes('Shallow', 'Medium', 'Deep')};
+        default:
+            return {label: 'Lines', options: sizes('Thin', 'Medium', 'Thick')};
+    }
+}
+
+// How much of a style is shown over the original picture.
+export const styleMixes: {value: number; label: string}[] = [
+    {value: 100, label: '100 %'},
+    {value: 75, label: '75 %'},
+    {value: 50, label: '50 %'},
+];
